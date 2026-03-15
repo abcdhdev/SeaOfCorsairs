@@ -51,6 +51,12 @@ public static class SpawnPointResolver
                 continue;
             }
 
+            if (string.Equals(candidate.name, "PlayerSpawnPoint", StringComparison.OrdinalIgnoreCase))
+            {
+                spawnCandidates.Add(candidate);
+                continue;
+            }
+
             if (!string.Equals(candidate.name, "SpawnPoint", StringComparison.OrdinalIgnoreCase))
             {
                 continue;

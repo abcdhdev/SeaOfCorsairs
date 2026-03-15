@@ -487,15 +487,15 @@
     position: absolute;
     top: 16px;
     left: 16px;
-    width: 560px;
-    max-width: 95%;
-    min-height: 126px;
+    width: 430px;
+    max-width: 90%;
+    min-height: 92px;
     flex-direction: row;
     align-items: center;
-    padding-top: 14px;
-    padding-right: 16px;
-    padding-bottom: 14px;
-    padding-left: 16px;
+    padding-top: 10px;
+    padding-right: 12px;
+    padding-bottom: 10px;
+    padding-left: 12px;
     background-color: var(--hud-panel-bg);
     border-top-left-radius: 14px;
     border-top-right-radius: 14px;
@@ -512,9 +512,9 @@
 }
 
 .npc-portrait {
-    width: 98px;
-    height: 98px;
-    margin-right: 14px;
+    width: 72px;
+    height: 72px;
+    margin-right: 10px;
     border-top-left-radius: 3px;
     border-top-right-radius: 3px;
     border-bottom-left-radius: 3px;
@@ -538,9 +538,9 @@
 }
 
 .npc-name-label {
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     color: rgba(214, 205, 186, 0.92);
-    font-size: 42px;
+    font-size: 28px;
     -unity-font-style: normal;
     -unity-text-align: middle-left;
     white-space: nowrap;
@@ -549,7 +549,7 @@
 .npc-health-label {
     color: rgba(255, 212, 147, 0.98);
     -unity-font-style: bold;
-    font-size: 40px;
+    font-size: 26px;
     -unity-text-align: middle-center;
     position: absolute;
     top: 0;
@@ -560,7 +560,7 @@
 
 .npc-health-bar-bg {
     position: relative;
-    height: 40px;
+    height: 30px;
     border-top-left-radius: 7px;
     border-top-right-radius: 7px;
     border-bottom-left-radius: 7px;

@@ -52,6 +52,8 @@ public class IsometricCameraController : MonoBehaviour
 
     private void Awake()
     {
+        target = ResolveValidTarget(target);
+
         // Subscribe to player spawn in Awake - static events survive instance creation
         Player.LocalPlayerSpawned += OnLocalPlayerSpawned;
         ResolveMovementBounds();
@@ -66,6 +68,10 @@ public class IsometricCameraController : MonoBehaviour
         {
             target = Player.LocalPlayer.transform;
         }
+        else if (!IsSceneTransformUsable(target))
+        {
+            target = null;
+        }
     }
 
     private void OnDestroy()
@@ -75,7 +81,7 @@ public class IsometricCameraController : MonoBehaviour
 
     private void OnLocalPlayerSpawned(Transform player)
     {
-        target = player;
+        target = ResolveValidTarget(player);
         Debug.Log($"IsometricCameraController: Local player set to {player.name}");
         CenterOnTarget();
     }
@@ -96,10 +102,7 @@ public class IsometricCameraController : MonoBehaviour
     public void CenterOnTarget()
     {
         // Lazy-fetch target if not set
-        if (target == null && Player.LocalPlayer != null)
-        {
-            target = Player.LocalPlayer.transform;
-        }
+        target = ResolveValidTarget(target);
         
         if (target == null)
         {
@@ -547,5 +550,34 @@ public class IsometricCameraController : MonoBehaviour
     {
         if (moveAction != null && moveAction.action != null)
             moveAction.action.Disable();
+    }
+
+    private Transform ResolveValidTarget(Transform preferredTarget)
+    {
+        if (IsSceneTransformUsable(preferredTarget))
+        {
+            return preferredTarget;
+        }
+
+        if (Player.LocalPlayer != null && IsSceneTransformUsable(Player.LocalPlayer.transform))
+        {
+            return Player.LocalPlayer.transform;
+        }
+
+        if (PlayerManager.Instance != null &&
+            PlayerManager.Instance.LocalPlayer != null &&
+            IsSceneTransformUsable(PlayerManager.Instance.LocalPlayer.transform))
+        {
+            return PlayerManager.Instance.LocalPlayer.transform;
+        }
+
+        return null;
+    }
+
+    private static bool IsSceneTransformUsable(Transform candidate)
+    {
+        return candidate != null &&
+               candidate.gameObject.scene.IsValid() &&
+               candidate.gameObject.scene.isLoaded;
     }
 }

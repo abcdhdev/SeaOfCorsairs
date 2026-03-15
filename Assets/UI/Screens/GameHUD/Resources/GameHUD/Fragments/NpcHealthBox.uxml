@@ -1,11 +1,12 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <ui:VisualElement name="NpcHealthBox" class="npc-health-box" style="right: 16px; left: auto; top: 160px;">
-        <ui:VisualElement name="NpcPortrait" class="npc-portrait" />
+    <Style src="project://database/Assets/UI/Core/GameUI.uss?fileID=7433441132597879392&amp;guid=a6f6d39c325d3f44495b73776a1f9b3d&amp;type=3#GameUI"/>
+    <ui:VisualElement name="NpcHealthBox" class="npc-health-box" style="right: 16px; left: auto; top: 330px;">
+        <ui:VisualElement name="NpcPortrait" class="npc-portrait"/>
         <ui:VisualElement name="NpcHealthContent" class="npc-health-content">
-            <ui:Label text="Antique Sailor" name="NpcNameLabel" class="npc-name-label" />
+            <ui:Label text="Antique Sailor" name="NpcNameLabel" class="npc-name-label"/>
             <ui:VisualElement name="NpcHealthBarBackground" class="npc-health-bar-bg">
-                <ui:VisualElement name="NpcHealthBarFill" class="npc-health-bar-fill" />
-                <ui:Label text="3310 / 3310" name="NpcHealthLabel" class="npc-health-label" />
+                <ui:VisualElement name="NpcHealthBarFill" class="npc-health-bar-fill"/>
+                <ui:Label text="3310 / 3310" name="NpcHealthLabel" class="npc-health-label"/>
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

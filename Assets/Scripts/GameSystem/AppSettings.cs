@@ -11,6 +11,8 @@ namespace GameSystem
 {
     public class AppSettings : MonoBehaviour
     {
+        private const string AppSettingsResourcePath = "AppSettings";
+
         private enum MusicContext
         {
             Unknown,
@@ -86,9 +88,28 @@ namespace GameSystem
         private static void RuntimeInitializeOnLoad()
         {
             var found = FindObjectsByType<AppSettings>(FindObjectsSortMode.None);
-            if (found.Length == 0) return;
-            Debug.Assert(found.Length == 1); // Should be one and only one.
-            Instance = found[0];
+            if (found.Length > 1)
+            {
+                Debug.LogWarning($"Found {found.Length} AppSettings instances. Using the first one.");
+            }
+
+            if (found.Length == 0)
+            {
+                AppSettings prefab = Resources.Load<AppSettings>(AppSettingsResourcePath);
+                if (prefab == null)
+                {
+                    Debug.LogError($"Missing Resources/{AppSettingsResourcePath} prefab. Audio and global app settings will not initialize.");
+                    return;
+                }
+
+                Instance = Instantiate(prefab);
+            }
+            else
+            {
+                Instance = found[0];
+            }
+
+            DontDestroyOnLoad(Instance.gameObject);
             MainCamera = Camera.main;
             SceneManager.sceneLoaded -= LevelWasLoaded;
             SceneManager.sceneLoaded += LevelWasLoaded;
@@ -96,6 +117,17 @@ namespace GameSystem
 
         private void Awake()
         {
+            if (Instance != null && Instance != this)
+            {
+                Debug.LogWarning("Duplicate AppSettings detected. Destroying the extra instance.");
+                Destroy(gameObject);
+                return;
+            }
+
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            MainCamera = Camera.main;
+
             if(Debug.isDebugBuild)
                 Debug.Log("AppManager initializing");
             Initialize();
@@ -105,8 +137,16 @@ namespace GameSystem
         
         private void Initialize()
         {
-            ConsoleCanvas = Instantiate(consoleCanvas);
-            DontDestroyOnLoad(ConsoleCanvas);
+            if (consoleCanvas != null)
+            {
+                ConsoleCanvas = Instantiate(consoleCanvas);
+                DontDestroyOnLoad(ConsoleCanvas);
+            }
+            else
+            {
+                ConsoleCanvas = null;
+            }
+
             InitializeMusic();
 #if UNITY_EDITOR
             urpVersion = Utility.GetURPPackageVersion();

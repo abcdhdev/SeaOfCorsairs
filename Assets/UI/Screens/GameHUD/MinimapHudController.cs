@@ -287,8 +287,7 @@ public sealed class MinimapHudController : MonoBehaviour
         Texture2D texture = mapTextureOverride;
 
 #if UNITY_EDITOR
-        // In edit mode, auto-load the generated minimap texture if no explicit override is set.
-        if (texture == null && !Application.isPlaying)
+        if (texture == null)
         {
             texture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(MinimapTextureOutputPath);
         }
@@ -903,27 +902,32 @@ public sealed class MinimapHudController : MonoBehaviour
 
     private void TryResolveLocalPlayer()
     {
-        if (localPlayerOverride != null)
+        if (IsSceneTransformUsable(localPlayerOverride))
         {
             localPlayer = localPlayerOverride;
             return;
         }
 
-        if (Player.LocalPlayer != null)
+        if (Player.LocalPlayer != null && IsSceneTransformUsable(Player.LocalPlayer.transform))
         {
             localPlayer = Player.LocalPlayer.transform;
             return;
         }
 
-        if (PlayerManager.Instance != null && PlayerManager.Instance.LocalPlayer != null)
+        if (PlayerManager.Instance != null &&
+            PlayerManager.Instance.LocalPlayer != null &&
+            IsSceneTransformUsable(PlayerManager.Instance.LocalPlayer.transform))
         {
             localPlayer = PlayerManager.Instance.LocalPlayer.transform;
+            return;
         }
+
+        localPlayer = null;
     }
 
     private void OnLocalPlayerSpawned(Transform playerTransform)
     {
-        localPlayer = playerTransform;
+        localPlayer = IsSceneTransformUsable(playerTransform) ? playerTransform : null;
     }
 
     private void OnTrackedPlayersChanged(Player _)
@@ -949,5 +953,12 @@ public sealed class MinimapHudController : MonoBehaviour
         }
 
         return null;
+    }
+
+    private static bool IsSceneTransformUsable(Transform candidate)
+    {
+        return candidate != null &&
+               candidate.gameObject.scene.IsValid() &&
+               candidate.gameObject.scene.isLoaded;
     }
 }

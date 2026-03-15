@@ -198,7 +198,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPC
   ShowTopMostFoldoutHeaderGroup: 1
-  gameplayConfig: {fileID: 11400000, guid: 4ed8ab02848f47e89ce0f0f229f298ee, type: 2}
+  gameplayConfig: {fileID: 11400000, guid: df88219251ec2234fba9296c62a1cff8, type: 2}
   npcDefinition: {fileID: 0}
   visualRoot: {fileID: 0}
   m_maxHealth: 100

@@ -1143,6 +1143,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 58793061}
+  - component: {fileID: 58793062}
   m_Layer: 0
   m_Name: PlayerSpawnPoint
   m_TagString: Untagged
@@ -1165,6 +1166,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &58793062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 58793060}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f03409030b850c4ba9d2b34c23ad9ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerSpawnPoint
 --- !u!1 &74340486
 GameObject:
   m_ObjectHideFlags: 0
@@ -4374,18 +4387,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::IsometricCameraController
   moveSpeed: 50
   moveAction: {fileID: -5141310872873447589, guid: 5dcae9ad3c3e15445a0f39ce92e4101e, type: 3}
-  followOffset: {x: -74.05, y: 220, z: 0}
+  followOffset: {x: 0, y: 220, z: -80}
   zoomCamera: {fileID: 0}
   minFieldOfView: 10
   maxFieldOfView: 25
   limitMovementToPlayableArea: 1
   autoResolveBoundsFromNavMeshSurface: 1
-  navMeshSurfaceObjectName: NavMesh
+  navMeshSurfaceObjectName: NavMesh Surface
   fallbackBoundsMin: {x: -256, y: -256}
   fallbackBoundsMax: {x: 256, y: 256}
   boundsInset: 0
   boundsProjectionHeight: 0
-  target: {fileID: 9078207673336052837, guid: c3bcebadc88fa53429240c436e49514d, type: 3}
+  target: {fileID: 0}
 --- !u!114 &330585550
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9234,13 +9247,17 @@ PrefabInstance:
       propertyPath: m_Name
       value: NPCSpawner
       objectReference: {fileID: 0}
+    - target: {fileID: 7819326940623988965, guid: 3537402cb555e244a91165074dca20d4, type: 3}
+      propertyPath: defaultCorpseLifetimeSeconds
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8339096636901001305, guid: 3537402cb555e244a91165074dca20d4, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8339096636901001305, guid: 3537402cb555e244a91165074dca20d4, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 8339096636901001305, guid: 3537402cb555e244a91165074dca20d4, type: 3}
       propertyPath: m_LocalPosition.z
@@ -9274,8 +9291,7 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 7819326940623988965, guid: 3537402cb555e244a91165074dca20d4, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 8339096636901001305, guid: 3537402cb555e244a91165074dca20d4, type: 3}
@@ -9293,10 +9309,7 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8339096636901001305, guid: 3537402cb555e244a91165074dca20d4, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1649013084}
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 3593258676665491872, guid: 3537402cb555e244a91165074dca20d4, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 791407364}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3537402cb555e244a91165074dca20d4, type: 3}
 --- !u!1 &643954058
 GameObject:
@@ -9553,7 +9566,7 @@ MeshRenderer:
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
-  m_RendererPriority: 0
+  m_RendererPriority: -100
   m_Materials:
   - {fileID: 2100000, guid: 003f45c94730b9f498051fd22ebb0c87, type: 2}
   m_StaticBatchInfo:
@@ -9576,7 +9589,7 @@ MeshRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: -100
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &672268380
@@ -12215,6 +12228,118 @@ MonoBehaviour:
     m_selectedWorldBiomeMaskGUID: 
     m_growAndShrinkValue: 0
     m_globalSpawnerMaskStackRT: {fileID: 0}
+--- !u!1 &728217866
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 728217867}
+  - component: {fileID: 728217870}
+  - component: {fileID: 728217869}
+  - component: {fileID: 728217868}
+  m_Layer: 0
+  m_Name: Sphere
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &728217867
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 728217866}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.22, y: 0.22, z: 0.22}
+  m_ConstrainProportionsScale: 1
+  m_Children: []
+  m_Father: {fileID: 934942338}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!135 &728217868
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 728217866}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 0.5
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &728217869
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 728217866}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &728217870
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 728217866}
+  m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &742149822
 GameObject:
   m_ObjectHideFlags: 0
@@ -12305,46 +12430,11 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 742149822}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!1 &791407360 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 3593258676665491872, guid: 3537402cb555e244a91165074dca20d4, type: 3}
-  m_PrefabInstance: {fileID: 588181097}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &791407363 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8339096636901001305, guid: 3537402cb555e244a91165074dca20d4, type: 3}
   m_PrefabInstance: {fileID: 588181097}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &791407364
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 791407360}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: de19d669056e46440b9858a03db3d071, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NPCSpawner
-  ShowTopMostFoldoutHeaderGroup: 1
-  npcNetworkPrefab: {fileID: 0}
-  npcDefinitions: []
-  spawnCount: 3
-  spawnRadius: 50
-  navMeshSampleDistance: 3
-  spawnCenter: {fileID: 0}
-  preferAuthoredSpawnPoints: 1
-  includeChildSpawnPoints: 1
-  authoredSpawnPoints: []
-  additionalWaterlineOffset: 0.1
-  defaultRespawnDelaySeconds: 20
-  defaultCorpseLifetimeSeconds: 2
-  respawnJitterSeconds: 2
-  respawnRetryIntervalSeconds: 2
-  respawnBlockedDistance: 50
-  respawnPositionJitterRadius: 12
-  respawnClearanceRadius: 10
 --- !u!1 &805243924
 GameObject:
   m_ObjectHideFlags: 0
@@ -13267,30 +13357,6 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
---- !u!114 &869367164
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cba17d399ab86974c8ef9551f6e8f8d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: GaiaCore::Gaia.NoiseSettings
-  transformSettings:
-    translation: {x: 500, y: 200, z: 350}
-    scale: {x: 7.8125, y: 1, z: 7.8125}
-    rotation: {x: 0, y: 0, z: 0}
-    flipScaleX: 0
-    flipScaleY: 0
-    flipScaleZ: 0
-  domainSettings:
-    noiseTypeName: Perlin
-    fractalTypeName: Fbm
-    noiseTypeParams: 
-    fractalTypeParams: '{"warpOffsets":{"x":0.0,"y":0.0,"z":0.0,"w":0.0},"octavesMinMax":{"x":0.0,"y":16.0},"amplitudeMinMax":{"x":0.0,"y":1.0},"frequencyMinMax":{"x":0.0,"y":2.0},"lacunarityMinMax":{"x":0.0,"y":4.0},"persistenceMinMax":{"x":0.0,"y":1.0},"warpIterationsMinMax":{"x":0.0,"y":8.0},"warpStrengthMinMax":{"x":-2.0,"y":2.0},"octaves":8.0,"amplitude":0.20000000298023225,"frequency":1.0,"persistence":0.5,"lacunarity":1.5,"warpIterations":0.0,"warpStrength":1.0,"warpEnabled":false,"warpExpanded":true}'
 --- !u!1 &922907510
 GameObject:
   m_ObjectHideFlags: 0
@@ -13412,8 +13478,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 934942338}
+  - component: {fileID: 934942339}
   m_Layer: 0
-  m_Name: SpawnPoint
+  m_Name: NpcSpawnPoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -13428,12 +13495,35 @@ Transform:
   m_GameObject: {fileID: 934942337}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -170.4, y: 10, z: -126.1}
+  m_LocalPosition: {x: -170.0476, y: 0, z: -126.181}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 728217867}
   m_Father: {fileID: 791407363}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &934942339
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 934942337}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54dfcdabff9a18c4ebdfcb20731255b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcSpawnPoint
+  stableId: 4e3d54d877924545bd093ba7976c1961
+  definitionOverride: {fileID: 0}
+  overrideRespawnDelay: 0
+  respawnDelaySeconds: 20
+  overrideCorpseLifetime: 0
+  corpseLifetimeSeconds: 2
+  overrideRespawnBlockedDistance: 0
+  respawnBlockedDistance: 50
+  overrideRespawnJitterRadius: 0
+  respawnJitterRadius: 12
 --- !u!1 &948858205
 GameObject:
   m_ObjectHideFlags: 0
@@ -23054,8 +23144,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1172643643}
+  - component: {fileID: 1172643644}
   m_Layer: 0
-  m_Name: SpawnPoint (3)
+  m_Name: NpcSpawnPoint (3)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -23070,12 +23161,34 @@ Transform:
   m_GameObject: {fileID: 1172643642}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -236, y: 10, z: 24}
+  m_LocalPosition: {x: -236, y: 0, z: 24}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 791407363}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1172643644
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1172643642}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54dfcdabff9a18c4ebdfcb20731255b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcSpawnPoint
+  stableId: 0c8f7939680f4d6cbb1e32c076d461ee
+  definitionOverride: {fileID: 0}
+  overrideRespawnDelay: 0
+  respawnDelaySeconds: 20
+  overrideCorpseLifetime: 0
+  corpseLifetimeSeconds: 2
+  overrideRespawnBlockedDistance: 0
+  respawnBlockedDistance: 50
+  overrideRespawnJitterRadius: 0
+  respawnJitterRadius: 12
 --- !u!21 &1213807211
 Material:
   serializedVersion: 8
@@ -30192,10 +30305,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MinimapHudController
   uiDocument: {fileID: 190737550}
-  localPlayerOverride: {fileID: 9078207673336052837, guid: c3bcebadc88fa53429240c436e49514d, type: 3}
-  mapTextureOverride: {fileID: 0}
+  localPlayerOverride: {fileID: 0}
+  mapTextureOverride: {fileID: 2800000, guid: e278f2bcf44c96943ade993b9c46d15f, type: 3}
   autoComputeWorldBoundsFromNavMeshSurface: 1
-  navMeshSurfaceObjectName: NavMesh
+  navMeshSurfaceObjectName: NavMesh Surface
   autoComputeWorldBoundsFromWaypoints: 1
   forceSquareWorldBounds: 1
   mapWorldMin: {x: -256, y: -256}
@@ -30275,17 +30388,14 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 586646433671173979, guid: 9a0445a0d467a48419bbccc9592853b6, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1323744200}
-    - targetCorrespondingSourceObject: {fileID: 586646433671173979, guid: 9a0445a0d467a48419bbccc9592853b6, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1323744201}
+      addedObject: {fileID: 1323744203}
   m_SourcePrefab: {fileID: 100100000, guid: 9a0445a0d467a48419bbccc9592853b6, type: 3}
 --- !u!1 &1323744199 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 586646433671173979, guid: 9a0445a0d467a48419bbccc9592853b6, type: 3}
   m_PrefabInstance: {fileID: 1323744198}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1323744200
+--- !u!114 &1323744203
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -30294,114 +30404,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1323744199}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Script: {fileID: 11500000, guid: dfd77499d7dcac9498e7356f05c26fe7, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 897078288
-  InScenePlacedSourceGlobalObjectIdHash: 0
-  DeferredDespawnTick: 0
-  Ownership: 1
-  AlwaysReplicateAsRoot: 0
-  SynchronizeTransform: 1
-  ActiveSceneSynchronization: 0
-  SceneMigrationSynchronization: 0
-  SpawnWithObservers: 1
-  DontDestroyWithOwner: 0
-  AutoObjectParentSync: 1
-  SyncOwnerTransformWhenParented: 1
-  AllowOwnerToParent: 0
---- !u!114 &1323744201
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1323744199}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: effa7097bc8f5424a8602078a04a1e72, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Player
-  ShowTopMostFoldoutHeaderGroup: 1
-  gameplayConfig: {fileID: 11400000, guid: 9ad4b72fe39e47040ac1a64ea710f1c9, type: 2}
-  m_maxHealth: 100
-  respawnDelaySeconds: 5
-  PlayerName:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
-    m_InternalValue:
-      utf8LengthInBytes: 6
-      bytes:
-        offset0000:
-          byte0000: 80
-          byte0001: 108
-          byte0002: 97
-          byte0003: 121
-          byte0004: 101
-          byte0005: 114
-          byte0006: 0
-          byte0007: 0
-          byte0008: 0
-          byte0009: 0
-          byte0010: 0
-          byte0011: 0
-          byte0012: 0
-          byte0013: 0
-          byte0014: 0
-          byte0015: 0
-        offset0016:
-          byte0000: 0
-          byte0001: 0
-          byte0002: 0
-          byte0003: 0
-          byte0004: 0
-          byte0005: 0
-          byte0006: 0
-          byte0007: 0
-          byte0008: 0
-          byte0009: 0
-          byte0010: 0
-          byte0011: 0
-          byte0012: 0
-          byte0013: 0
-          byte0014: 0
-          byte0015: 0
-        offset0032:
-          byte0000: 0
-          byte0001: 0
-          byte0002: 0
-          byte0003: 0
-          byte0004: 0
-          byte0005: 0
-          byte0006: 0
-          byte0007: 0
-          byte0008: 0
-          byte0009: 0
-          byte0010: 0
-          byte0011: 0
-          byte0012: 0
-          byte0013: 0
-          byte0014: 0
-          byte0015: 0
-        byte0048: 0
-        byte0049: 0
-        byte0050: 0
-        byte0051: 0
-        byte0052: 0
-        byte0053: 0
-        byte0054: 0
-        byte0055: 0
-        byte0056: 0
-        byte0057: 0
-        byte0058: 0
-        byte0059: 0
-        byte0060: 0
-        byte0061: 0
-  repairRate: 2
-  repairAmount: 5
-  boardingDistance: 25
-  boardingTargetHealthFraction: 0.5
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerManager
 --- !u!1 &1329670611
 GameObject:
   m_ObjectHideFlags: 0
@@ -31581,8 +31586,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1410851640}
+  - component: {fileID: 1410851641}
   m_Layer: 0
-  m_Name: SpawnPoint (2)
+  m_Name: NpcSpawnPoint (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -31597,12 +31603,34 @@ Transform:
   m_GameObject: {fileID: 1410851639}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 142, y: 10, z: -72}
+  m_LocalPosition: {x: 142, y: 0, z: -72}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 791407363}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1410851641
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1410851639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54dfcdabff9a18c4ebdfcb20731255b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcSpawnPoint
+  stableId: 2b990ab2ad4d4dbab2391178870dda2a
+  definitionOverride: {fileID: 0}
+  overrideRespawnDelay: 0
+  respawnDelaySeconds: 20
+  overrideCorpseLifetime: 0
+  corpseLifetimeSeconds: 2
+  overrideRespawnBlockedDistance: 0
+  respawnBlockedDistance: 50
+  overrideRespawnJitterRadius: 0
+  respawnJitterRadius: 12
 --- !u!114 &1416159074
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -32044,7 +32072,7 @@ MonoBehaviour:
       m_warpIterations: 0
       m_warpStrength: 1
       m_warpOffset: {x: 0, y: 0, z: 0, w: 0}
-    m_noiseSettings: {fileID: 869367164}
+    m_noiseSettings: {fileID: 1578811033}
     m_noiseToolSettings:
       worldHeightRemap: {x: 0, y: 0}
       coordSpace: 0
@@ -32353,8 +32381,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1461772105}
+  - component: {fileID: 1461772106}
   m_Layer: 0
-  m_Name: SpawnPoint (1)
+  m_Name: NpcSpawnPoint (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -32369,12 +32398,34 @@ Transform:
   m_GameObject: {fileID: 1461772104}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -25, y: 10, z: -232}
+  m_LocalPosition: {x: -25, y: 0, z: -232}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 791407363}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1461772106
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1461772104}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54dfcdabff9a18c4ebdfcb20731255b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcSpawnPoint
+  stableId: a4a8c5108c064238ad5873a1b0954fb2
+  definitionOverride: {fileID: 0}
+  overrideRespawnDelay: 0
+  respawnDelaySeconds: 20
+  overrideCorpseLifetime: 0
+  corpseLifetimeSeconds: 2
+  overrideRespawnBlockedDistance: 0
+  respawnBlockedDistance: 50
+  overrideRespawnJitterRadius: 0
+  respawnJitterRadius: 12
 --- !u!114 &1463876084
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -40338,6 +40389,30 @@ MonoBehaviour:
     m_selectedWorldBiomeMaskGUID: 
     m_growAndShrinkValue: 0
     m_globalSpawnerMaskStackRT: {fileID: 0}
+--- !u!114 &1578811033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cba17d399ab86974c8ef9551f6e8f8d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: GaiaCore::Gaia.NoiseSettings
+  transformSettings:
+    translation: {x: 500, y: 200, z: 350}
+    scale: {x: 7.8125, y: 1, z: 7.8125}
+    rotation: {x: 0, y: 0, z: 0}
+    flipScaleX: 0
+    flipScaleY: 0
+    flipScaleZ: 0
+  domainSettings:
+    noiseTypeName: Perlin
+    fractalTypeName: Fbm
+    noiseTypeParams: 
+    fractalTypeParams: '{"warpOffsets":{"x":0.0,"y":0.0,"z":0.0,"w":0.0},"octavesMinMax":{"x":0.0,"y":16.0},"amplitudeMinMax":{"x":0.0,"y":1.0},"frequencyMinMax":{"x":0.0,"y":2.0},"lacunarityMinMax":{"x":0.0,"y":4.0},"persistenceMinMax":{"x":0.0,"y":1.0},"warpIterationsMinMax":{"x":0.0,"y":8.0},"warpStrengthMinMax":{"x":-2.0,"y":2.0},"octaves":8.0,"amplitude":0.20000000298023225,"frequency":1.0,"persistence":0.5,"lacunarity":1.5,"warpIterations":0.0,"warpStrength":1.0,"warpEnabled":false,"warpExpanded":true}'
 --- !u!84 &1626341253
 RenderTexture:
   m_ObjectHideFlags: 0
@@ -40856,8 +40931,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1649013084}
+  - component: {fileID: 1649013085}
   m_Layer: 0
-  m_Name: SpawnPoint (4)
+  m_Name: NpcSpawnPoint (4)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -40872,12 +40948,34 @@ Transform:
   m_GameObject: {fileID: 1649013083}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 130, y: 10, z: 117}
+  m_LocalPosition: {x: 130, y: 0, z: 117}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 791407363}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1649013085
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1649013083}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54dfcdabff9a18c4ebdfcb20731255b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcSpawnPoint
+  stableId: e9d82a47927147cface2d8cee94e7eeb
+  definitionOverride: {fileID: 0}
+  overrideRespawnDelay: 0
+  respawnDelaySeconds: 20
+  overrideCorpseLifetime: 0
+  corpseLifetimeSeconds: 2
+  overrideRespawnBlockedDistance: 0
+  respawnBlockedDistance: 50
+  overrideRespawnJitterRadius: 0
+  respawnJitterRadius: 12
 --- !u!114 &1665477056
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -56517,6 +56615,7 @@ GameObject:
   - component: {fileID: 1926630212}
   - component: {fileID: 1926630211}
   - component: {fileID: 1926630213}
+  - component: {fileID: 1926630214}
   m_Layer: 0
   m_Name: NavMesh Surface
   m_TagString: Untagged
@@ -56539,7 +56638,7 @@ MonoBehaviour:
   m_SerializedVersion: 0
   m_AgentTypeID: 0
   m_CollectObjects: 1
-  m_Size: {x: 512, y: 0.5, z: 512}
+  m_Size: {x: 512, y: 0, z: 512}
   m_Center: {x: 0, y: 0, z: 0}
   m_LayerMask:
     serializedVersion: 2
@@ -56554,7 +56653,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.41666666
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: 891b4ef6ff2b5cb4f9b5d03a32f100a7, type: 2}
+  m_NavMeshData: {fileID: 23800000, guid: 650b5d7e5eee01e4cab3950d5fb7d6ff, type: 2}
   m_BuildHeightMesh: 0
 --- !u!4 &1926630212
 Transform:
@@ -56592,6 +56691,21 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 512, y: 10, z: 512}
   m_Center: {x: 0, y: -5, z: 0}
+--- !u!114 &1926630214
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1926630210}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 909a4e2500f5f2a4fbf6bf86e9865839, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RuntimeNavMeshSurfaceBootstrap
+  navMeshSurface: {fileID: 0}
+  rebuildWhenTriangulationIsEmpty: 1
+  logWhenBuilt: 1
 --- !u!114 &1937445664
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -57443,7 +57557,7 @@ MeshRenderer:
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
-  m_RendererPriority: 0
+  m_RendererPriority: -100
   m_Materials:
   - {fileID: 2100000, guid: 003f45c94730b9f498051fd22ebb0c87, type: 2}
   m_StaticBatchInfo:
@@ -57466,7 +57580,7 @@ MeshRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: -100
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &1959645323

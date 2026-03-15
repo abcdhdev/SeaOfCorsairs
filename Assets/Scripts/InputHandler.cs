@@ -223,7 +223,15 @@ public class InputHandler : MonoBehaviour
 
     private bool TryHandleClickRay(Ray ray)
     {
-        EvaluateClickRay(ray, out bool selfHit, out bool hasWaterHit, out Vector3 waterHitPoint, out float maxTargetDistance, out bool blockedByGeometry);
+        EvaluateClickRay(
+            ray,
+            out bool selfHit,
+            out bool hasMoveHit,
+            out Vector3 moveHitPoint,
+            out bool hasWaterHit,
+            out Vector3 waterHitPoint,
+            out float maxTargetDistance,
+            out bool blockedByGeometry);
         if (selfHit)
         {
             // Clicking on yourself should not issue a move command through your own hull.
@@ -240,7 +248,7 @@ public class InputHandler : MonoBehaviour
             return true;
         }
 
-        if (hasWaterHit && TryGetNavMeshPoint(waterHitPoint, out Vector3 navMeshPoint))
+        if (TryResolveMovementDestination(hasMoveHit, moveHitPoint, hasWaterHit, waterHitPoint, out Vector3 navMeshPoint))
         {
             Debug.Log($"Moving player to: {navMeshPoint}");
             _clickToMove.OnClick(navMeshPoint);
@@ -279,19 +287,23 @@ public class InputHandler : MonoBehaviour
 
     private bool TryGetMaxCombatTargetDistance(Ray ray, out float maxTargetDistance)
     {
-        EvaluateClickRay(ray, out bool selfHit, out _, out _, out maxTargetDistance, out _);
+        EvaluateClickRay(ray, out bool selfHit, out _, out _, out _, out _, out maxTargetDistance, out _);
         return !selfHit;
     }
 
     private void EvaluateClickRay(
         Ray ray,
         out bool selfHit,
+        out bool hasMoveHit,
+        out Vector3 moveHitPoint,
         out bool hasWaterHit,
         out Vector3 waterHitPoint,
         out float maxTargetDistance,
         out bool blockedByGeometry)
     {
         selfHit = false;
+        hasMoveHit = false;
+        moveHitPoint = default;
         hasWaterHit = false;
         waterHitPoint = default;
         maxTargetDistance = maxClickRayDistance;
@@ -320,6 +332,12 @@ public class InputHandler : MonoBehaviour
 
             if (IsWaterLayerHit(hit.collider))
             {
+                if (!hasMoveHit)
+                {
+                    hasMoveHit = true;
+                    moveHitPoint = hit.point;
+                }
+
                 if (!hasWaterHit)
                 {
                     hasWaterHit = true;
@@ -329,10 +347,34 @@ public class InputHandler : MonoBehaviour
                 continue;
             }
 
+            hasMoveHit = true;
+            moveHitPoint = hit.point;
             maxTargetDistance = hit.distance;
             blockedByGeometry = true;
             return;
         }
+    }
+
+    private bool TryResolveMovementDestination(
+        bool hasMoveHit,
+        Vector3 moveHitPoint,
+        bool hasWaterHit,
+        Vector3 waterHitPoint,
+        out Vector3 navMeshPoint)
+    {
+        navMeshPoint = default;
+
+        if (hasMoveHit && TryGetNavMeshPoint(moveHitPoint, out navMeshPoint))
+        {
+            return true;
+        }
+
+        if (!hasWaterHit || !TryGetNavMeshPoint(waterHitPoint, out navMeshPoint))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private bool IsLocalPlayerHit(Collider hitCollider)

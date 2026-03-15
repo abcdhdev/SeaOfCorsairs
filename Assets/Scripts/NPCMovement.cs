@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.AI;
@@ -11,6 +12,7 @@ public class NPCMovement : NetworkBehaviour
     private const string WaterLayerName = "Water";
     private const float WaterSurfaceProbeHeight = 100f;
     private const float WaterSurfaceProbeDistance = 300f;
+    private const float WaterSurfaceYTolerance = 1.5f;
     private const int MaxRoamSampleAttempts = 10;
 
     [SerializeField] private float roamRadius = 10f;
@@ -25,9 +27,12 @@ public class NPCMovement : NetworkBehaviour
     private int walkableAreaMask;
     private int waterLayer = -1;
     private readonly RaycastHit[] waterProbeHits = new RaycastHit[8];
+    private readonly List<Renderer> waterSurfaceRenderers = new();
     private Vector3 homePosition;
     private Quaternion homeRotation = Quaternion.identity;
     private bool hasHomeAnchor;
+    private bool waterSurfaceDataCached;
+    private float cachedWaterSurfaceY = float.NaN;
 
     public event Action LeashExceeded = delegate { };
 
@@ -57,6 +62,8 @@ public class NPCMovement : NetworkBehaviour
         {
             Debug.LogWarning($"NPCMovement: Layer '{WaterLayerName}' was not found. Water surface validation will be skipped.");
         }
+
+        CacheWaterSurfaceData();
         
         // Only the server controls NPC movement
         if (IsServer)
@@ -69,6 +76,7 @@ public class NPCMovement : NetworkBehaviour
             }
 
             StartCoroutine(RoamRoutine());
+            MoveToRandomPoint();
         }
         else
         {
@@ -134,7 +142,14 @@ public class NPCMovement : NetworkBehaviour
         {
             Vector2 planarOffset = UnityEngine.Random.insideUnitCircle * roamRadius;
             Vector3 randomDirection = center + new Vector3(planarOffset.x, 0f, planarOffset.y);
-            randomDirection.y = center.y;
+            if (TryGetWaterSurfaceY(randomDirection, out float waterSurfaceY))
+            {
+                randomDirection.y = waterSurfaceY;
+            }
+            else
+            {
+                randomDirection.y = center.y;
+            }
 
             NavMeshHit hit;
             // Only sample from walkable areas (water), not the island
@@ -146,6 +161,109 @@ public class NPCMovement : NetworkBehaviour
         }
         
         return center;
+    }
+
+    private void CacheWaterSurfaceData()
+    {
+        waterSurfaceDataCached = true;
+        waterSurfaceRenderers.Clear();
+        cachedWaterSurfaceY = float.NaN;
+
+        if (waterLayer < 0)
+        {
+            return;
+        }
+
+        Renderer[] sceneRenderers = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+        float largestSurfaceArea = -1f;
+
+        for (int i = 0; i < sceneRenderers.Length; i++)
+        {
+            Renderer renderer = sceneRenderers[i];
+            if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (renderer.gameObject.layer != waterLayer)
+            {
+                continue;
+            }
+
+            waterSurfaceRenderers.Add(renderer);
+
+            Bounds bounds = renderer.bounds;
+            float surfaceArea = bounds.size.x * bounds.size.z;
+            if (surfaceArea > largestSurfaceArea)
+            {
+                largestSurfaceArea = surfaceArea;
+                cachedWaterSurfaceY = bounds.center.y;
+            }
+        }
+    }
+
+    private bool TryGetWaterSurfaceY(Vector3 point, out float waterSurfaceY)
+    {
+        waterSurfaceY = default;
+
+        if (waterLayer < 0)
+        {
+            return false;
+        }
+
+        if (!waterSurfaceDataCached)
+        {
+            CacheWaterSurfaceData();
+        }
+
+        float closestVerticalDelta = float.MaxValue;
+        bool found = false;
+
+        for (int i = 0; i < waterSurfaceRenderers.Count; i++)
+        {
+            Renderer renderer = waterSurfaceRenderers[i];
+            if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            Bounds bounds = renderer.bounds;
+            if (!IsPointWithinWaterBounds(point, bounds))
+            {
+                continue;
+            }
+
+            float candidateY = bounds.center.y;
+            float verticalDelta = Mathf.Abs(point.y - candidateY);
+            if (!found || verticalDelta < closestVerticalDelta)
+            {
+                found = true;
+                closestVerticalDelta = verticalDelta;
+                waterSurfaceY = candidateY;
+            }
+        }
+
+        if (found)
+        {
+            return true;
+        }
+
+        if (!float.IsNaN(cachedWaterSurfaceY))
+        {
+            waterSurfaceY = cachedWaterSurfaceY;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsPointWithinWaterBounds(Vector3 point, Bounds bounds)
+    {
+        const float BoundsPadding = 0.5f;
+        return point.x >= bounds.min.x - BoundsPadding &&
+               point.x <= bounds.max.x + BoundsPadding &&
+               point.z >= bounds.min.z - BoundsPadding &&
+               point.z <= bounds.max.z + BoundsPadding;
     }
 
     private bool IsPointOnWaterSurface(Vector3 point)
@@ -186,12 +304,19 @@ public class NPCMovement : NetworkBehaviour
             }
         }
 
-        if (nearestHitIndex < 0)
+        if (nearestHitIndex >= 0 &&
+            waterProbeHits[nearestHitIndex].collider != null &&
+            waterProbeHits[nearestHitIndex].collider.gameObject.layer == waterLayer)
         {
-            return false;
+            return true;
         }
 
-        return waterProbeHits[nearestHitIndex].collider.gameObject.layer == waterLayer;
+        if (TryGetWaterSurfaceY(point, out float waterSurfaceY))
+        {
+            return Mathf.Abs(point.y - waterSurfaceY) <= WaterSurfaceYTolerance;
+        }
+
+        return false;
     }
 
     public void StopRoaming()

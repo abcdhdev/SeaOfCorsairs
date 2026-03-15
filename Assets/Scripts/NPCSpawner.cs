@@ -39,6 +39,7 @@ public class NPCSpawner : NetworkBehaviour
     private const int MaxSpawnSampleAttempts = 24;
     private const float WaterSurfaceProbeHeight = 100f;
     private const float WaterSurfaceProbeDistance = 300f;
+    private const float WaterSurfaceYTolerance = 1.5f;
 
     public static NPCSpawner Instance { get; private set; }
 
@@ -67,8 +68,11 @@ public class NPCSpawner : NetworkBehaviour
     private int walkableAreaMask;
     private int waterLayer = -1;
     private readonly RaycastHit[] waterProbeHits = new RaycastHit[8];
+    private readonly List<Renderer> waterSurfaceRenderers = new();
     private readonly Dictionary<int, SpawnSlotRuntime> spawnSlots = new();
     private GameObject resolvedNpcNetworkPrefab;
+    private bool waterSurfaceDataCached;
+    private float cachedWaterSurfaceY = float.NaN;
 
     private void Awake()
     {
@@ -113,6 +117,8 @@ public class NPCSpawner : NetworkBehaviour
         {
             Debug.LogWarning($"NPCSpawner: Layer '{WaterLayerName}' was not found. Water surface validation will be skipped.");
         }
+
+        CacheWaterSurfaceData();
 
         if (!TryResolveNpcNetworkPrefab(out resolvedNpcNetworkPrefab))
         {
@@ -644,7 +650,14 @@ public class NPCSpawner : NetworkBehaviour
         {
             Vector2 planarOffset = Random.insideUnitCircle * Mathf.Max(0f, radius);
             Vector3 randomDirection = center + new Vector3(planarOffset.x, 0f, planarOffset.y);
-            randomDirection.y = center.y;
+            if (TryGetWaterSurfaceY(randomDirection, out float waterSurfaceY))
+            {
+                randomDirection.y = waterSurfaceY;
+            }
+            else
+            {
+                randomDirection.y = center.y;
+            }
 
             NavMeshHit hit;
             if (NavMesh.SamplePosition(randomDirection, out hit, sampleDistance, walkableAreaMask) &&
@@ -663,7 +676,14 @@ public class NPCSpawner : NetworkBehaviour
     {
         NavMeshHit hit;
         float sampleDistance = Mathf.Max(0.1f, navMeshSampleDistance);
-        if (NavMesh.SamplePosition(desiredPosition, out hit, sampleDistance, walkableAreaMask) &&
+        Vector3 sampleOrigin = desiredPosition;
+        if (TryGetWaterSurfaceY(desiredPosition, out float waterSurfaceY))
+        {
+            sampleOrigin.y = waterSurfaceY;
+            sampleDistance = Mathf.Max(sampleDistance, Mathf.Abs(desiredPosition.y - waterSurfaceY) + 0.5f);
+        }
+
+        if (NavMesh.SamplePosition(sampleOrigin, out hit, sampleDistance, walkableAreaMask) &&
             IsPointOnWaterSurface(hit.position))
         {
             sampledPosition = hit.position;
@@ -672,6 +692,109 @@ public class NPCSpawner : NetworkBehaviour
 
         sampledPosition = default;
         return false;
+    }
+
+    private void CacheWaterSurfaceData()
+    {
+        waterSurfaceDataCached = true;
+        waterSurfaceRenderers.Clear();
+        cachedWaterSurfaceY = float.NaN;
+
+        if (waterLayer < 0)
+        {
+            return;
+        }
+
+        Renderer[] sceneRenderers = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+        float largestSurfaceArea = -1f;
+
+        for (int i = 0; i < sceneRenderers.Length; i++)
+        {
+            Renderer renderer = sceneRenderers[i];
+            if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (renderer.gameObject.layer != waterLayer)
+            {
+                continue;
+            }
+
+            waterSurfaceRenderers.Add(renderer);
+
+            Bounds bounds = renderer.bounds;
+            float surfaceArea = bounds.size.x * bounds.size.z;
+            if (surfaceArea > largestSurfaceArea)
+            {
+                largestSurfaceArea = surfaceArea;
+                cachedWaterSurfaceY = bounds.center.y;
+            }
+        }
+    }
+
+    private bool TryGetWaterSurfaceY(Vector3 point, out float waterSurfaceY)
+    {
+        waterSurfaceY = default;
+
+        if (waterLayer < 0)
+        {
+            return false;
+        }
+
+        if (!waterSurfaceDataCached)
+        {
+            CacheWaterSurfaceData();
+        }
+
+        float closestVerticalDelta = float.MaxValue;
+        bool found = false;
+
+        for (int i = 0; i < waterSurfaceRenderers.Count; i++)
+        {
+            Renderer renderer = waterSurfaceRenderers[i];
+            if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            Bounds bounds = renderer.bounds;
+            if (!IsPointWithinWaterBounds(point, bounds))
+            {
+                continue;
+            }
+
+            float candidateY = bounds.center.y;
+            float verticalDelta = Mathf.Abs(point.y - candidateY);
+            if (!found || verticalDelta < closestVerticalDelta)
+            {
+                found = true;
+                closestVerticalDelta = verticalDelta;
+                waterSurfaceY = candidateY;
+            }
+        }
+
+        if (found)
+        {
+            return true;
+        }
+
+        if (!float.IsNaN(cachedWaterSurfaceY))
+        {
+            waterSurfaceY = cachedWaterSurfaceY;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsPointWithinWaterBounds(Vector3 point, Bounds bounds)
+    {
+        const float BoundsPadding = 0.5f;
+        return point.x >= bounds.min.x - BoundsPadding &&
+               point.x <= bounds.max.x + BoundsPadding &&
+               point.z >= bounds.min.z - BoundsPadding &&
+               point.z <= bounds.max.z + BoundsPadding;
     }
 
     private bool IsPointOnWaterSurface(Vector3 point)
@@ -712,12 +835,19 @@ public class NPCSpawner : NetworkBehaviour
             }
         }
 
-        if (nearestHitIndex < 0)
+        if (nearestHitIndex >= 0 &&
+            waterProbeHits[nearestHitIndex].collider != null &&
+            waterProbeHits[nearestHitIndex].collider.gameObject.layer == waterLayer)
         {
-            return false;
+            return true;
         }
 
-        return waterProbeHits[nearestHitIndex].collider.gameObject.layer == waterLayer;
+        if (TryGetWaterSurfaceY(point, out float waterSurfaceY))
+        {
+            return Mathf.Abs(point.y - waterSurfaceY) <= WaterSurfaceYTolerance;
+        }
+
+        return false;
     }
 
     private bool IsRespawnLocationClear(Vector3 spawnPosition, bool ignorePlayers = false)
@@ -797,6 +927,11 @@ public class NPCSpawner : NetworkBehaviour
         }
 
         float waterSurfaceY = navMeshSpawnPosition.y;
+        if (TryGetWaterSurfaceY(navMeshSpawnPosition, out float resolvedWaterSurfaceY))
+        {
+            waterSurfaceY = resolvedWaterSurfaceY;
+        }
+
         float navMeshToWaterDelta = waterSurfaceY - navMeshSpawnPosition.y;
         float desiredBaseOffset = navMeshAgent.baseOffset + navMeshToWaterDelta + additionalWaterlineOffset;
         navMeshAgent.baseOffset = Mathf.Max(navMeshAgent.baseOffset, desiredBaseOffset);
