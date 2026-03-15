@@ -754,6 +754,14 @@ public sealed class MinimapHudController : MonoBehaviour
             return;
         }
 
+        // Prefer the bootstrap's original world extents so the minimap matches the
+        // authored texture instead of the padded/rotated A* scan volume.
+        if (RuntimeAstarGridBootstrap.TryGetSourceWorldBounds(out Bounds sourceBounds))
+        {
+            ApplyResolvedWorldBounds(sourceBounds.min.x, sourceBounds.min.z, sourceBounds.max.x, sourceBounds.max.z);
+            return;
+        }
+
         if (AstarNavigationUtility.TryGetGridGraphBounds(out Bounds gridBounds))
         {
             ApplyResolvedWorldBounds(gridBounds.min.x, gridBounds.min.z, gridBounds.max.x, gridBounds.max.z);

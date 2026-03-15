@@ -1,52 +1,108 @@
 using System.Collections;
-using System.Collections.Generic;
 using Pathfinding;
-using Unity.AI.Navigation;
+using Pathfinding.Graphs.Grid;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+[DefaultExecutionOrder(-10010)]
+[DisallowMultipleComponent]
+[RequireComponent(typeof(AstarPath))]
 public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
 {
-    private const string RuntimeObjectName = "[AstarGridNavigation]";
-    private const string PreferredNavMeshSurfaceName = "NavMesh Surface";
     private const string WaterLayerName = "Water";
+    private const string PreferredWaterSurfaceName = "Water Surface";
     private const float DefaultWorldSpan = 512f;
-    private const float DefaultNodeSize = 4f;
-    private const float WaterProbeHeight = 100f;
-    private const float WaterProbeDistance = 300f;
-    private const float WaterSurfaceTolerance = 1.5f;
-    private const float ScanPadding = 8f;
+    private const float DefaultWorldHeight = 64f;
+    private const float MinimumNodeSize = 0.25f;
 
     private static RuntimeAstarGridBootstrap instance;
 
-    private readonly RaycastHit[] waterProbeHits = new RaycastHit[8];
-    private readonly List<Renderer> waterSurfaceRenderers = new();
+    [Header("Grid")]
+    [SerializeField] private float nodeSize = 1f;
+    [SerializeField] private float scanPadding = 8f;
+    [SerializeField] private Vector3 graphRotation = new(0f, 45f, 0f);
+
+    [Header("Bake")]
+    [SerializeField] private LayerMask waterHeightMask;
+    [SerializeField] private LayerMask obstacleMask;
+    [SerializeField] private float heightRayLength = 100f;
+    [SerializeField] private bool useThickRaycast = true;
+    [SerializeField] private float thickRaycastDiameter = 1f;
+    [SerializeField] private ColliderType collisionShape = ColliderType.Sphere;
+    [SerializeField] private float collisionDiameter = 0.85f;
+    [SerializeField] private float collisionHeight = 2f;
+    [SerializeField] private float collisionOffset = 0.25f;
+
     private Coroutine rebuildCoroutine;
     private AstarPath astarPath;
     private int waterLayer = -1;
-    private float cachedWaterSurfaceY = float.NaN;
+    private readonly System.Collections.Generic.List<Renderer> waterSurfaceRenderers = new();
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void Bootstrap()
+    public static bool TryGetSourceWorldBounds(out Bounds bounds)
     {
-        if (instance != null)
+        RuntimeAstarGridBootstrap bootstrap = instance != null
+            ? instance
+            : FindFirstObjectByType<RuntimeAstarGridBootstrap>();
+
+        if (bootstrap == null)
         {
-            return;
+            bounds = default;
+            return false;
         }
 
-        var runtimeObject = new GameObject(RuntimeObjectName);
-        DontDestroyOnLoad(runtimeObject);
-        instance = runtimeObject.AddComponent<RuntimeAstarGridBootstrap>();
+        bootstrap.waterLayer = LayerMask.NameToLayer(WaterLayerName);
+        return TryResolveBoundsFromTerrain(out bounds) || bootstrap.TryResolveBoundsFromRenderers(out bounds);
+    }
+
+    private void Reset()
+    {
+        ApplyDefaultLayerMasks();
+        EnsureAstarPathReference();
+    }
+
+    private void Awake()
+    {
+        EnsureAstarPathReference();
+        ApplyDefaultLayerMasksIfNeeded();
+    }
+
+    private void OnValidate()
+    {
+        nodeSize = Mathf.Max(MinimumNodeSize, nodeSize);
+        scanPadding = Mathf.Max(0f, scanPadding);
+        heightRayLength = Mathf.Max(0f, heightRayLength);
+        thickRaycastDiameter = Mathf.Max(0f, thickRaycastDiameter);
+        collisionDiameter = Mathf.Max(0f, collisionDiameter);
+        collisionHeight = Mathf.Max(0f, collisionHeight);
+        collisionOffset = Mathf.Max(0f, collisionOffset);
+
+        EnsureAstarPathReference();
+        ApplyDefaultLayerMasksIfNeeded();
     }
 
     private void OnEnable()
     {
+        if (instance != null && instance != this)
+        {
+            Debug.LogWarning(
+                "RuntimeAstarGridBootstrap: Multiple scene bootstrap instances found. Disabling the duplicate.",
+                this);
+            enabled = false;
+            return;
+        }
+
+        instance = this;
         SceneManager.sceneLoaded += OnSceneLoaded;
         QueueRebuild();
     }
 
     private void OnDisable()
     {
+        if (instance == this)
+        {
+            instance = null;
+        }
+
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
@@ -78,20 +134,44 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
         EnsureAstarPath();
         ConfigureGridGraph(worldBounds, graphHeight);
         astarPath.Scan();
-        RestrictGridGraphToWater();
+        RestrictGridGraphToWaterSurface();
         rebuildCoroutine = null;
     }
 
-    private void EnsureAstarPath()
+    private void EnsureAstarPathReference()
     {
         if (astarPath == null)
         {
             astarPath = GetComponent<AstarPath>();
         }
 
+        if (astarPath != null)
+        {
+            astarPath.scanOnStartup = false;
+        }
+    }
+
+    private void ApplyDefaultLayerMasksIfNeeded()
+    {
+        if (waterHeightMask.value == 0 || obstacleMask.value == 0)
+        {
+            ApplyDefaultLayerMasks();
+        }
+    }
+
+    private void ApplyDefaultLayerMasks()
+    {
+        waterHeightMask = LayerMask.GetMask(WaterLayerName);
+        obstacleMask = ~LayerMask.GetMask(WaterLayerName, "boat", "NPC", "UI", "Ignore Raycast");
+    }
+
+    private void EnsureAstarPath()
+    {
+        EnsureAstarPathReference();
         if (astarPath == null)
         {
             astarPath = gameObject.AddComponent<AstarPath>();
+            astarPath.scanOnStartup = false;
         }
 
         if (astarPath.data == null)
@@ -110,21 +190,35 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
     private void ConfigureGridGraph(Bounds worldBounds, float graphHeight)
     {
         GridGraph gridGraph = astarPath.data.gridGraph;
-        float nodeSize = DefaultNodeSize;
-        float width = Mathf.Max(nodeSize, worldBounds.size.x + ScanPadding * 2f);
-        float depth = Mathf.Max(nodeSize, worldBounds.size.z + ScanPadding * 2f);
-        int gridWidth = Mathf.Max(1, Mathf.CeilToInt(width / nodeSize));
-        int gridDepth = Mathf.Max(1, Mathf.CeilToInt(depth / nodeSize));
+        float clampedNodeSize = Mathf.Max(MinimumNodeSize, nodeSize);
+        Quaternion rotation = Quaternion.Euler(graphRotation);
+        Vector2 graphSize = CalculateGraphSize(worldBounds, rotation, scanPadding);
+        int gridWidth = Mathf.Max(1, Mathf.CeilToInt(graphSize.x / clampedNodeSize));
+        int gridDepth = Mathf.Max(1, Mathf.CeilToInt(graphSize.y / clampedNodeSize));
 
-        gridGraph.rotation = Vector3.zero;
+        gridGraph.rotation = graphRotation;
         gridGraph.center = new Vector3(worldBounds.center.x, graphHeight, worldBounds.center.z);
+        gridGraph.neighbours = NumNeighbours.Four;
+        gridGraph.cutCorners = false;
+        gridGraph.uniformEdgeCosts = true;
+        gridGraph.SetDimensions(gridWidth, gridDepth, clampedNodeSize);
+
         gridGraph.collision.use2D = false;
-        gridGraph.collision.collisionCheck = false;
         gridGraph.collision.heightCheck = false;
-        gridGraph.SetDimensions(gridWidth, gridDepth, nodeSize);
+        gridGraph.collision.collisionCheck = true;
+        gridGraph.collision.unwalkableWhenNoGround = true;
+        gridGraph.collision.type = collisionShape;
+        gridGraph.collision.fromHeight = heightRayLength;
+        gridGraph.collision.thickRaycast = useThickRaycast;
+        gridGraph.collision.thickRaycastDiameter = Mathf.Max(0f, thickRaycastDiameter);
+        gridGraph.collision.heightMask = waterHeightMask.value != 0 ? waterHeightMask : Physics.DefaultRaycastLayers;
+        gridGraph.collision.mask = obstacleMask;
+        gridGraph.collision.diameter = Mathf.Max(0f, collisionDiameter);
+        gridGraph.collision.height = Mathf.Max(0f, collisionHeight);
+        gridGraph.collision.collisionOffset = Mathf.Max(0f, collisionOffset);
     }
 
-    private void RestrictGridGraphToWater()
+    private void RestrictGridGraphToWaterSurface()
     {
         GridGraph gridGraph = astarPath.data.gridGraph;
         if (gridGraph == null)
@@ -142,7 +236,7 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
                 }
 
                 Vector3 worldPoint = (Vector3)node.position;
-                node.Walkable = IsPointOnWaterSurface(worldPoint);
+                node.Walkable = node.Walkable && IsPointWithinWaterSurface(worldPoint);
             });
 
             gridGraph.RecalculateAllConnections();
@@ -151,53 +245,47 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
         astarPath.FlushWorkItems();
     }
 
+    private static Vector2 CalculateGraphSize(Bounds worldBounds, Quaternion rotation, float padding)
+    {
+        Quaternion inverseRotation = Quaternion.Inverse(rotation);
+        Vector3 center = worldBounds.center;
+
+        Vector3[] corners =
+        {
+            new(worldBounds.min.x, center.y, worldBounds.min.z),
+            new(worldBounds.min.x, center.y, worldBounds.max.z),
+            new(worldBounds.max.x, center.y, worldBounds.min.z),
+            new(worldBounds.max.x, center.y, worldBounds.max.z)
+        };
+
+        float minX = float.PositiveInfinity;
+        float maxX = float.NegativeInfinity;
+        float minZ = float.PositiveInfinity;
+        float maxZ = float.NegativeInfinity;
+
+        for (int i = 0; i < corners.Length; i++)
+        {
+            Vector3 localCorner = inverseRotation * (corners[i] - center);
+            minX = Mathf.Min(minX, localCorner.x);
+            maxX = Mathf.Max(maxX, localCorner.x);
+            minZ = Mathf.Min(minZ, localCorner.z);
+            maxZ = Mathf.Max(maxZ, localCorner.z);
+        }
+
+        float width = Mathf.Max(MinimumNodeSize, (maxX - minX) + padding * 2f);
+        float depth = Mathf.Max(MinimumNodeSize, (maxZ - minZ) + padding * 2f);
+        return new Vector2(width, depth);
+    }
+
     private Bounds ResolveWorldBounds()
     {
-        if (TryResolveBoundsFromNavMeshSurface(out Bounds bounds) ||
-            TryResolveBoundsFromTerrain(out bounds) ||
+        if (TryResolveBoundsFromTerrain(out Bounds bounds) ||
             TryResolveBoundsFromRenderers(out bounds))
         {
             return bounds;
         }
 
-        return new Bounds(Vector3.zero, new Vector3(DefaultWorldSpan, 64f, DefaultWorldSpan));
-    }
-
-    private bool TryResolveBoundsFromNavMeshSurface(out Bounds bounds)
-    {
-        bounds = default;
-        NavMeshSurface[] surfaces = FindObjectsByType<NavMeshSurface>(FindObjectsSortMode.None);
-        if (surfaces == null || surfaces.Length == 0)
-        {
-            return false;
-        }
-
-        NavMeshSurface fallback = null;
-        for (int i = 0; i < surfaces.Length; i++)
-        {
-            NavMeshSurface surface = surfaces[i];
-            if (surface == null || !surface.isActiveAndEnabled || surface.collectObjects != CollectObjects.Volume)
-            {
-                continue;
-            }
-
-            fallback ??= surface;
-            if (string.Equals(surface.gameObject.name, PreferredNavMeshSurfaceName, System.StringComparison.OrdinalIgnoreCase))
-            {
-                fallback = surface;
-                break;
-            }
-        }
-
-        if (fallback == null)
-        {
-            return false;
-        }
-
-        Bounds localBounds = new Bounds(fallback.center, fallback.size);
-        Matrix4x4 localToWorld = Matrix4x4.TRS(fallback.transform.position, fallback.transform.rotation, Vector3.one);
-        bounds = GetWorldBounds(localToWorld, localBounds);
-        return bounds.size.x > 0.01f && bounds.size.z > 0.01f;
+        return new Bounds(Vector3.zero, new Vector3(DefaultWorldSpan, DefaultWorldHeight, DefaultWorldSpan));
     }
 
     private static bool TryResolveBoundsFromTerrain(out Bounds bounds)
@@ -235,7 +323,7 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
         return found;
     }
 
-    private static bool TryResolveBoundsFromRenderers(out Bounds bounds)
+    private bool TryResolveBoundsFromRenderers(out Bounds bounds)
     {
         bounds = default;
         Renderer[] renderers = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
@@ -253,6 +341,11 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
                 continue;
             }
 
+            if (waterLayer >= 0 && renderer.gameObject.layer == waterLayer)
+            {
+                continue;
+            }
+
             if (!found)
             {
                 bounds = renderer.bounds;
@@ -266,18 +359,59 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
         return found;
     }
 
+    private float ResolveGraphHeight(Bounds worldBounds)
+    {
+        if (TryResolveWaterSurfaceHeight(out float waterSurfaceHeight))
+        {
+            return waterSurfaceHeight;
+        }
+
+        return worldBounds.center.y;
+    }
+
     private void CacheWaterSurfaceData()
     {
         waterSurfaceRenderers.Clear();
-        cachedWaterSurfaceY = float.NaN;
-
         if (waterLayer < 0)
         {
             return;
         }
 
         Renderer[] renderers = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
-        float largestSurfaceArea = -1f;
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (renderer.gameObject.layer == waterLayer)
+            {
+                waterSurfaceRenderers.Add(renderer);
+            }
+        }
+    }
+
+    private bool TryResolveWaterSurfaceHeight(out float waterSurfaceHeight)
+    {
+        waterSurfaceHeight = default;
+        if (waterLayer < 0)
+        {
+            return false;
+        }
+
+        Renderer[] renderers = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+        if (renderers == null || renderers.Length == 0)
+        {
+            return false;
+        }
+
+        Renderer preferredRenderer = null;
+        Renderer fallbackRenderer = null;
+        float preferredArea = -1f;
+        float fallbackArea = -1f;
+
         for (int i = 0; i < renderers.Length; i++)
         {
             Renderer renderer = renderers[i];
@@ -291,90 +425,43 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
                 continue;
             }
 
-            waterSurfaceRenderers.Add(renderer);
-
-            Bounds bounds = renderer.bounds;
-            float surfaceArea = bounds.size.x * bounds.size.z;
-            if (surfaceArea > largestSurfaceArea)
+            float area = renderer.bounds.size.x * renderer.bounds.size.z;
+            if (area <= 0f)
             {
-                largestSurfaceArea = surfaceArea;
-                cachedWaterSurfaceY = bounds.center.y;
-            }
-        }
-    }
-
-    private float ResolveGraphHeight(Bounds worldBounds)
-    {
-        if (!float.IsNaN(cachedWaterSurfaceY))
-        {
-            return cachedWaterSurfaceY;
-        }
-
-        return worldBounds.center.y;
-    }
-
-    private bool IsPointOnWaterSurface(Vector3 point)
-    {
-        if (waterLayer < 0)
-        {
-            return true;
-        }
-
-        Vector3 origin = point + Vector3.up * WaterProbeHeight;
-        int hitCount = Physics.RaycastNonAlloc(
-            origin,
-            Vector3.down,
-            waterProbeHits,
-            WaterProbeDistance,
-            Physics.DefaultRaycastLayers,
-            QueryTriggerInteraction.Ignore);
-
-        if (hitCount > 0)
-        {
-            int nearestHitIndex = -1;
-            float nearestDistance = float.MaxValue;
-            for (int i = 0; i < hitCount; i++)
-            {
-                Collider collider = waterProbeHits[i].collider;
-                if (collider == null)
-                {
-                    continue;
-                }
-
-                if (waterProbeHits[i].distance < nearestDistance)
-                {
-                    nearestDistance = waterProbeHits[i].distance;
-                    nearestHitIndex = i;
-                }
+                continue;
             }
 
-            if (nearestHitIndex >= 0 &&
-                waterProbeHits[nearestHitIndex].collider != null &&
-                waterProbeHits[nearestHitIndex].collider.gameObject.layer == waterLayer)
+            if (area > fallbackArea)
             {
-                return true;
+                fallbackArea = area;
+                fallbackRenderer = renderer;
+            }
+
+            if (string.Equals(renderer.gameObject.name, PreferredWaterSurfaceName, System.StringComparison.OrdinalIgnoreCase) &&
+                area > preferredArea)
+            {
+                preferredArea = area;
+                preferredRenderer = renderer;
             }
         }
 
-        if (TryGetWaterSurfaceY(point, out float waterSurfaceY))
-        {
-            return Mathf.Abs(point.y - waterSurfaceY) <= WaterSurfaceTolerance;
-        }
-
-        return false;
-    }
-
-    private bool TryGetWaterSurfaceY(Vector3 point, out float waterSurfaceY)
-    {
-        waterSurfaceY = default;
-
-        if (waterLayer < 0)
+        Renderer selectedRenderer = preferredRenderer != null ? preferredRenderer : fallbackRenderer;
+        if (selectedRenderer == null)
         {
             return false;
         }
 
-        float closestVerticalDelta = float.MaxValue;
-        bool found = false;
+        waterSurfaceHeight = selectedRenderer.bounds.center.y;
+        return true;
+    }
+
+    private bool IsPointWithinWaterSurface(Vector3 point)
+    {
+        if (waterSurfaceRenderers.Count == 0)
+        {
+            return true;
+        }
+
         for (int i = 0; i < waterSurfaceRenderers.Count; i++)
         {
             Renderer renderer = waterSurfaceRenderers[i];
@@ -384,56 +471,15 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
             }
 
             Bounds bounds = renderer.bounds;
-            if (!IsPointWithinBounds(point, bounds))
+            if (point.x >= bounds.min.x &&
+                point.x <= bounds.max.x &&
+                point.z >= bounds.min.z &&
+                point.z <= bounds.max.z)
             {
-                continue;
+                return true;
             }
-
-            float candidateY = bounds.center.y;
-            float verticalDelta = Mathf.Abs(point.y - candidateY);
-            if (!found || verticalDelta < closestVerticalDelta)
-            {
-                closestVerticalDelta = verticalDelta;
-                waterSurfaceY = candidateY;
-                found = true;
-            }
-        }
-
-        if (found)
-        {
-            return true;
-        }
-
-        if (!float.IsNaN(cachedWaterSurfaceY))
-        {
-            waterSurfaceY = cachedWaterSurfaceY;
-            return true;
         }
 
         return false;
-    }
-
-    private static bool IsPointWithinBounds(Vector3 point, Bounds bounds)
-    {
-        const float Padding = 0.5f;
-        return point.x >= bounds.min.x - Padding &&
-               point.x <= bounds.max.x + Padding &&
-               point.z >= bounds.min.z - Padding &&
-               point.z <= bounds.max.z + Padding;
-    }
-
-    private static Bounds GetWorldBounds(Matrix4x4 localToWorld, Bounds bounds)
-    {
-        Vector3 axisX = Abs(localToWorld.MultiplyVector(Vector3.right));
-        Vector3 axisY = Abs(localToWorld.MultiplyVector(Vector3.up));
-        Vector3 axisZ = Abs(localToWorld.MultiplyVector(Vector3.forward));
-        Vector3 worldCenter = localToWorld.MultiplyPoint(bounds.center);
-        Vector3 worldSize = axisX * bounds.size.x + axisY * bounds.size.y + axisZ * bounds.size.z;
-        return new Bounds(worldCenter, worldSize);
-    }
-
-    private static Vector3 Abs(Vector3 value)
-    {
-        return new Vector3(Mathf.Abs(value.x), Mathf.Abs(value.y), Mathf.Abs(value.z));
     }
 }

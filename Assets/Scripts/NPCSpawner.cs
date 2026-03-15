@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Pathfinding;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -691,6 +692,12 @@ public class NPCSpawner : NetworkBehaviour
     private bool TrySnapToWalkablePosition(Vector3 desiredPosition, out Vector3 sampledPosition)
     {
         float sampleDistance = Mathf.Max(0.1f, graphSampleDistance);
+        GridGraph gridGraph = AstarNavigationUtility.GetGridGraph();
+        if (gridGraph != null)
+        {
+            sampleDistance = Mathf.Max(sampleDistance, gridGraph.nodeSize * 2.5f);
+        }
+
         Vector3 sampleOrigin = desiredPosition;
         if (TryGetWaterSurfaceY(desiredPosition, out float waterSurfaceY))
         {
@@ -698,10 +705,20 @@ public class NPCSpawner : NetworkBehaviour
             sampleDistance = Mathf.Max(sampleDistance, Mathf.Abs(desiredPosition.y - waterSurfaceY) + 0.5f);
         }
 
-        if (AstarNavigationUtility.TryGetNearestWalkablePoint(sampleOrigin, sampleDistance, out sampledPosition) &&
-            IsPointOnWaterSurface(sampledPosition))
+        float[] sampleAttempts =
         {
-            return true;
+            sampleDistance,
+            sampleDistance * 1.5f,
+            sampleDistance * 2f
+        };
+
+        for (int i = 0; i < sampleAttempts.Length; i++)
+        {
+            if (AstarNavigationUtility.TryGetNearestWalkablePoint(sampleOrigin, sampleAttempts[i], out sampledPosition) &&
+                IsPointOnWaterSurface(sampledPosition))
+            {
+                return true;
+            }
         }
 
         sampledPosition = default;

@@ -239,7 +239,7 @@ public class InputHandler : MonoBehaviour
             return true;
         }
 
-        if (TryResolveMovementDestination(hasMoveHit, moveHitPoint, hasWaterHit, waterHitPoint, out Vector3 targetPoint))
+        if (TryResolveMovementDestination(ray, hasMoveHit, moveHitPoint, hasWaterHit, waterHitPoint, out Vector3 targetPoint))
         {
             Debug.Log($"Moving player to: {targetPoint}");
             _clickToMove.OnClick(targetPoint);
@@ -347,6 +347,7 @@ public class InputHandler : MonoBehaviour
     }
 
     private bool TryResolveMovementDestination(
+        Ray ray,
         bool hasMoveHit,
         Vector3 moveHitPoint,
         bool hasWaterHit,
@@ -355,17 +356,17 @@ public class InputHandler : MonoBehaviour
     {
         targetPoint = default;
 
-        if (hasMoveHit && TryGetNearestWalkablePoint(moveHitPoint, out targetPoint))
+        if (hasWaterHit && TryProjectToNavigationPlane(waterHitPoint, out targetPoint))
         {
             return true;
         }
 
-        if (!hasWaterHit || !TryGetNearestWalkablePoint(waterHitPoint, out targetPoint))
+        if (hasMoveHit && TryProjectToNavigationPlane(moveHitPoint, out targetPoint))
         {
-            return false;
+            return true;
         }
 
-        return true;
+        return TryProjectRayToNavigationPlane(ray, out targetPoint);
     }
 
     private bool IsLocalPlayerHit(Collider hitCollider)
@@ -450,9 +451,47 @@ public class InputHandler : MonoBehaviour
                camera.cameraType == CameraType.Game;
     }
 
-    private bool TryGetNearestWalkablePoint(Vector3 worldPoint, out Vector3 targetPoint)
+    private bool TryProjectToNavigationPlane(Vector3 worldPoint, out Vector3 targetPoint)
     {
-        return AstarNavigationUtility.TryGetNearestWalkablePoint(worldPoint, navMeshClickSampleDistance, out targetPoint);
+        targetPoint = worldPoint;
+
+        if (AstarNavigationUtility.TryGetGridGraphBounds(out Bounds graphBounds))
+        {
+            targetPoint.y = graphBounds.center.y;
+            return true;
+        }
+
+        if (_player != null)
+        {
+            targetPoint.y = _player.transform.position.y;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryProjectRayToNavigationPlane(Ray ray, out Vector3 targetPoint)
+    {
+        targetPoint = default;
+        if (!AstarNavigationUtility.TryGetGridGraphBounds(out Bounds graphBounds))
+        {
+            return false;
+        }
+
+        Plane navigationPlane = new Plane(Vector3.up, new Vector3(0f, graphBounds.center.y, 0f));
+        if (!navigationPlane.Raycast(ray, out float enter))
+        {
+            return false;
+        }
+
+        if (enter < 0f || enter > maxClickRayDistance)
+        {
+            return false;
+        }
+
+        targetPoint = ray.GetPoint(enter);
+        targetPoint.y = graphBounds.center.y;
+        return true;
     }
 
     private bool IsWaterLayerHit(Collider hitCollider)

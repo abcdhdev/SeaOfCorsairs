@@ -11,6 +11,7 @@ public static class AstarNavigationMigrationEditor
     private const string NpcPrefabPath = "Assets/Prefabs/NPC.prefab";
     private const string SpriteVisualName = "SpriteVisual";
     private const float SpriteHeightOffset = 0.15f;
+    private static readonly Vector3 SpriteVisualScale = new Vector3(4f, 4f, 4f);
 
     private readonly struct DirectionalSpriteSet
     {
@@ -218,9 +219,9 @@ public static class AstarNavigationMigrationEditor
             changed = true;
         }
 
-        if (spriteVisualTransform.localScale != Vector3.one)
+        if (spriteVisualTransform.localScale != SpriteVisualScale)
         {
-            spriteVisualTransform.localScale = Vector3.one;
+            spriteVisualTransform.localScale = SpriteVisualScale;
             changed = true;
         }
 
