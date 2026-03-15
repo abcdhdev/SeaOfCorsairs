@@ -1,0 +1,40 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Core/Resources/Shared/OverlayPanel.uss?fileID=7433441132597879392&amp;guid=6b64251aafd24422b01cd1f0e6ef26f5&amp;type=3#OverlayPanel"/>
+    <Style src="project://database/Assets/UI/Screens/Market/Resources/Market/Market.uss?fileID=7433441132597879392&amp;guid=ad17fc8077b04f1faa3da2699a77b7da&amp;type=3#Market"/>
+    <ui:VisualElement name="MarketOverlay" class="window-overlay-root market-overlay-root">
+        <ui:VisualElement name="MarketPanel" class="window-panel market-panel">
+            <ui:VisualElement name="MarketHeader" class="window-header market-header">
+                <ui:VisualElement class="window-title-block">
+                    <ui:Label name="MarketTitleLabel" text="Market" class="window-title market-title"/>
+                    <ui:Label name="MarketSubtitleLabel" text="Dockside armory stock" class="window-subtitle market-subtitle"/>
+                </ui:VisualElement>
+                <ui:Button name="MarketCloseButton" text="X" class="window-close-button market-close-button"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="window-body market-body">
+                <ui:ScrollView name="MarketCategoryScrollView" mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" class="window-category-scroll market-category-scroll">
+                    <ui:VisualElement class="market-category-scroll-content">
+                        <ui:Label text="Categories" class="market-section-title"/>
+                        <ui:VisualElement name="MarketCategoryList" class="window-category-list market-category-list"/>
+                    </ui:VisualElement>
+                </ui:ScrollView>
+                <ui:VisualElement class="market-main-column">
+                    <ui:VisualElement class="market-content-header">
+                        <ui:Label name="MarketCategoryTitleLabel" text="Cannons" class="market-content-title"/>
+                        <ui:VisualElement class="market-wallet-list">
+                            <ui:VisualElement class="market-wallet-row">
+                                <ui:VisualElement class="market-wallet-icon market-wallet-icon-gold"/>
+                                <ui:Label name="MarketGoldValueLabel" text="0" class="market-wallet-value"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement class="market-wallet-row">
+                                <ui:VisualElement class="market-wallet-icon market-wallet-icon-diamond"/>
+                                <ui:Label name="MarketDiamondValueLabel" text="0" class="market-wallet-value"/>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:ListView name="MarketItemsListView" show-border="false" selection-type="None" class="window-items-list market-items-list"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Label name="MarketStatusLabel" text="Select a cannon to buy it from the armory." class="market-status-label"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

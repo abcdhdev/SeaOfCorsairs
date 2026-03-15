@@ -1,0 +1,23 @@
+using System.Text.Json;
+
+namespace SeaWars.PlayerDataService.Contracts;
+
+public sealed record ErrorResponse(string Code, string Message);
+
+public sealed record PlayerStateResponse(int Version, JsonElement State, DateTimeOffset UpdatedAt);
+
+public sealed record UpdatePlayerStateRequest(JsonElement State, int? ExpectedVersion);
+
+public sealed record PlayerWalletResponse(int Gold, int Diamond, int Version, DateTimeOffset UpdatedAt);
+
+public sealed record UpdatePlayerWalletRequest(int Gold, int Diamond, int? ExpectedVersion);
+
+public sealed record PurchaseCannonRequest(string CannonId, int Gold, int Diamond, int? ExpectedVersion);
+
+public sealed record CannonPurchaseResponse(string CannonId, string[] OwnedCannonIds, int Gold, int Diamond, int Version, DateTimeOffset UpdatedAt);
+
+public sealed record ConflictResponse(int CurrentVersion, DateTimeOffset UpdatedAt);
+
+public sealed record PresignLogUploadRequest(string FileName, string? ContentType);
+
+public sealed record PresignResponse(string Url, string Method, string? ContentType, string ObjectKey, DateTimeOffset ExpiresAt);

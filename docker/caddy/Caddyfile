@@ -1,0 +1,9 @@
+auth.57-129-71-60.sslip.io {
+    encode zstd gzip
+    reverse_proxy auth-service:8080
+}
+
+data.57-129-71-60.sslip.io {
+    encode zstd gzip
+    reverse_proxy player-data-service:8080
+}

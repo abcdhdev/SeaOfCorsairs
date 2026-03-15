@@ -1,0 +1,41 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="LoginOverlayRoot" class="login-overlay-root">
+        <ui:VisualElement name="LoginBackdrop" class="login-backdrop" />
+
+        <ui:VisualElement name="LoginPanel" class="login-panel">
+            <ui:Label name="TitleLabel" text="Sea Wars" class="login-title" />
+            <ui:Label name="SubtitleLabel" text="Sign in to sail." class="login-subtitle" />
+
+            <ui:VisualElement name="LoginForm" class="login-form">
+                <ui:Foldout name="AdvancedFoldout" text="Advanced" value="false" class="login-advanced">
+                    <ui:TextField name="AuthBaseUrlField" label="Auth URL" class="login-field" />
+                    <ui:TextField name="PlayerDataBaseUrlField" label="Player Data URL" class="login-field" />
+                </ui:Foldout>
+
+                <ui:DropdownField name="SavedAccountsDropdown" label="Saved Accounts" class="login-field" />
+
+                <ui:TextField name="EmailField" label="Email" class="login-field" />
+                <ui:TextField name="PasswordField" label="Password" class="login-field" />
+                <ui:Toggle name="RememberMeToggle" label="Remember Me" class="login-field" value="true" />
+                <ui:TextField name="DisplayNameField" label="Display Name" class="login-field" />
+
+                <ui:VisualElement name="ButtonsRow" class="login-buttons">
+                    <ui:Button name="SubmitButton" text="Login" class="login-primary" />
+                    <ui:Button name="ModeToggleButton" text="Create Account" class="login-secondary" />
+                </ui:VisualElement>
+
+                <ui:Label name="StatusLabel" text="" class="login-status" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Separate view/state: shown after login while we establish the Netcode connection + await local player spawn. -->
+        <ui:VisualElement name="ConnectingPanel" class="login-panel connecting-panel">
+            <ui:Label name="ConnectingTitleLabel" text="Connecting" class="connecting-title" />
+            <ui:Label name="ConnectingStatusLabel" text="Connecting to the server..." class="connecting-status" />
+
+            <ui:VisualElement name="ConnectingButtonsRow" class="login-buttons connecting-buttons">
+                <ui:Button name="CancelConnectButton" text="Cancel" class="login-secondary connecting-cancel" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

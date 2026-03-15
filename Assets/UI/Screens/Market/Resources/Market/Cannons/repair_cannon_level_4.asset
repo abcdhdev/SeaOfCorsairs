@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83b03f724d89f224ea19ff12a5d1d069, type: 3}
+  m_Name: repair_cannon_level_4
+  m_EditorClassIdentifier: Assembly-CSharp::MarketCannonData
+  id: repair_cannon_level_4
+  displayName: Repair Cannon Level 4
+  description: This repair cannon reloads more quickly, hits targets more precisely
+    and fires further than ever expected.
+  icon: {fileID: 2800000, guid: 4ae247f6f2b8e9c47b364626a21f312a, type: 3}
+  hitProbability: 79
+  cannonRange: 29
+  reloadTimeSeconds: 6
+  cost:
+    entries:
+    - currencyType: 1
+      amount: 18000
+  sortOrder: 23

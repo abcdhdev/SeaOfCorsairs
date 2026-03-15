@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83b03f724d89f224ea19ff12a5d1d069, type: 3}
+  m_Name: gold_repair_cannon_level_1
+  m_EditorClassIdentifier: Assembly-CSharp::MarketCannonData
+  id: gold_repair_cannon_level_1
+  displayName: Repair Cannon Level 1
+  description: This repair cannon fires valuable repair ammunition with great precision.
+  icon: {fileID: 2800000, guid: 1bae882a9ab68de4782eb9d75e9917b7, type: 3}
+  hitProbability: 45
+  cannonRange: 18
+  reloadTimeSeconds: 10
+  cost:
+    entries:
+    - currencyType: 0
+      amount: 10000
+  sortOrder: 7

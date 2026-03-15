@@ -1,0 +1,59 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="TopMenuBar" class="top-menu-bar" style="-unity-text-align: upper-left;">
+        <ui:VisualElement class="top-menu-fps-container">
+            <ui:Label text="FPS: 144&#10;Ping: 47ms | 48ms" name="TopMenuFpsPingLabel" class="top-menu-fps-ping"/>
+        </ui:VisualElement>
+        <ui:VisualElement class="top-menu-center-wrap">
+            <ui:VisualElement class="top-menu-icon-cluster">
+                <ui:Button text="" name="TopMenuChatButton" tooltip="Chat" class="top-menu-slot-button top-menu-slot-button-active">
+                    <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-chat"/>
+                </ui:Button>
+                <ui:Button text="" name="TopMenuShieldButton" tooltip="Shield" class="top-menu-slot-button">
+                    <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-shield"/>
+                </ui:Button>
+                <ui:Button text="" name="TopMenuCompassButton" tooltip="Map" class="top-menu-slot-button">
+                    <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-compass"/>
+                </ui:Button>
+                <ui:Button text="" name="TopMenuClipboardButton" tooltip="Quests" class="top-menu-slot-button">
+                    <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-clipboard"/>
+                </ui:Button>
+                <ui:Button text="" name="TopMenuStarButton" tooltip="Favorites" class="top-menu-slot-button">
+                    <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-star"/>
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="top-menu-resource-card">
+                <ui:VisualElement class="resource-inline">
+                    <ui:VisualElement class="resource-inline-icon resource-icon-gold"/>
+                    <ui:Label text="0" name="ResourceGoldLabel" class="resource-inline-value resource-inline-value-gold"/>
+                </ui:VisualElement>
+                <ui:VisualElement class="resource-inline resource-inline-center">
+                    <ui:VisualElement class="resource-inline-icon resource-inline-icon-center resource-icon-center"/>
+                </ui:VisualElement>
+                <ui:VisualElement class="resource-inline">
+                    <ui:VisualElement class="resource-inline-icon resource-icon-diamond"/>
+                    <ui:Label text="0" name="ResourceDiamondLabel" class="resource-inline-value resource-inline-value-blue"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="top-menu-icon-cluster">
+                <ui:Button text="" name="TopMenuBagButton" tooltip="Inventory" class="top-menu-slot-button">
+                    <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-bag"/>
+                </ui:Button>
+                <ui:Button text="" name="TopMenuShipButton" tooltip="Ships" class="top-menu-slot-button">
+                    <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-ship"/>
+                </ui:Button>
+                <ui:Button text="" name="TopMenuTrophyButton" tooltip="Achievements" class="top-menu-slot-button">
+                    <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-trophy"/>
+                </ui:Button>
+                <ui:Button text="" name="TopMenuNewsButton" tooltip="News" class="top-menu-slot-button">
+                    <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-news"/>
+                </ui:Button>
+                <ui:Button text="" name="TopMenuSettingsButton" tooltip="Settings" class="top-menu-slot-button">
+                    <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-settings"/>
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Button text="" name="TopMenuLogoutButton" tooltip="Logout" class="top-menu-logout-button">
+            <ui:VisualElement picking-mode="Ignore" class="top-menu-logout-icon top-menu-icon-logout"/>
+        </ui:Button>
+    </ui:VisualElement>
+</ui:UXML>

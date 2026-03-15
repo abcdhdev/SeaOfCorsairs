@@ -1,0 +1,15 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="MinimapRoot" class="minimap-root">
+        <ui:VisualElement name="MinimapFrame" class="minimap-frame">
+            <ui:VisualElement name="MinimapMask" class="minimap-mask">
+                <ui:VisualElement name="MinimapRender" class="minimap-render"/>
+                <ui:VisualElement name="MinimapMarkerLayer" class="minimap-marker-layer"/>
+                <ui:VisualElement name="MinimapCenterReticle" class="minimap-center-reticle"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="MinimapInfoRow" class="minimap-info-row">
+            <ui:Label name="MinimapModeLabel" text="Texture Map" class="minimap-mode-label"/>
+            <ui:Label name="MinimapZoomLabel" text="Map" class="minimap-zoom-label"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

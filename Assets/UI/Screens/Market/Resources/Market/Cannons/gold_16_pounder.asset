@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83b03f724d89f224ea19ff12a5d1d069, type: 3}
+  m_Name: gold_16_pounder
+  m_EditorClassIdentifier: Assembly-CSharp::MarketCannonData
+  id: gold_16_pounder
+  displayName: 16-Pounder
+  description: For minor wars.
+  icon: {fileID: 2800000, guid: 07bdf7c2764963848b337187f58d19d5, type: 3}
+  hitProbability: 35
+  cannonRange: 10
+  reloadTimeSeconds: 35
+  cost:
+    entries:
+    - currencyType: 0
+      amount: 3500
+  sortOrder: 2

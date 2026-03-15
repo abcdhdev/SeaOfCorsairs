@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="DeadOverlayRoot" picking-mode="Position" class="dead-overlay-root">
+        <ui:VisualElement class="dead-overlay-panel">
+            <ui:Label text="You Were Sunk" name="DeadOverlayTitleLabel" class="dead-overlay-title"/>
+            <ui:Label text="Respawning..." name="DeadOverlayTimerLabel" class="dead-overlay-timer"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,17 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="ShipSectionItemRow" class="window-item-row">
+        <ui:VisualElement name="ShipSectionItemThumb" class="window-item-thumb">
+            <ui:Label name="ShipSectionItemThumbLabel" text="SS" class="window-item-thumb-label"/>
+        </ui:VisualElement>
+        <ui:VisualElement class="window-item-meta">
+            <ui:Label name="ShipSectionItemNameLabel" text="Swiftwake Sloop" class="window-item-name"/>
+            <ui:Label name="ShipSectionItemDescriptionLabel" text="Placeholder item description" class="window-item-description"/>
+        </ui:VisualElement>
+        <ui:Label name="ShipSectionItemPriceLabel" text="320" class="window-item-price"/>
+        <ui:VisualElement class="window-item-actions">
+            <ui:Button name="ShipSectionItemMinusButton" text="-" class="window-stepper-button"/>
+            <ui:Label name="ShipSectionItemQuantityLabel" text="1" class="window-item-quantity"/>
+            <ui:Button name="ShipSectionItemPlusButton" text="+" class="window-stepper-button"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

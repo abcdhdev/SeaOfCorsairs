@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83b03f724d89f224ea19ff12a5d1d069, type: 3}
+  m_Name: rift_cannon
+  m_EditorClassIdentifier: Assembly-CSharp::MarketCannonData
+  id: rift_cannon
+  displayName: Rift Cannon
+  description: Unleash the power of the Greater Rift and make enemies tremble.
+  icon: {fileID: 2800000, guid: 73d72eb0e21927641b644bd63f35fbad, type: 3}
+  hitProbability: 20
+  cannonRange: 30
+  reloadTimeSeconds: 6.5
+  cost:
+    entries:
+    - currencyType: 0
+      amount: 120000
+    - currencyType: 1
+      amount: 3200
+  sortOrder: 17

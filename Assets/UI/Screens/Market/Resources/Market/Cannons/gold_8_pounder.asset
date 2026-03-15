@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83b03f724d89f224ea19ff12a5d1d069, type: 3}
+  m_Name: gold_8_pounder
+  m_EditorClassIdentifier: Assembly-CSharp::MarketCannonData
+  id: gold_8_pounder
+  displayName: 8-Pounder
+  description: A standard class cannon.
+  icon: {fileID: 2800000, guid: f2a612de5a906ed439d9ac79a964cf28, type: 3}
+  hitProbability: 25
+  cannonRange: 5
+  reloadTimeSeconds: 50
+  cost:
+    entries:
+    - currencyType: 0
+      amount: 750
+  sortOrder: 0

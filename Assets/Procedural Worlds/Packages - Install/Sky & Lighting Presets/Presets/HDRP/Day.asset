@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f41dd2aec57f59b4fab4836a17950648, type: 3}
+  m_Name: Day
+  m_EditorClassIdentifier: 
+  m_displayName: Day
+  m_directionalLightPrefab: {fileID: 3144822045005965064, guid: 3b351eb1e9286b54ca41f5c129f26c46, type: 3}
+  m_environmentPrefab: {fileID: 465599997883648137, guid: 0a37dbab71878a748b3d6eb8e58f90f4, type: 3}
+  m_globalPostProcessingPrefab: {fileID: 4169328260469655728, guid: 4699aca157d37ac44a88ea4a2888a7f2, type: 3}
+  m_worldDensityPrefab: {fileID: 0}
+  m_envVolumeProfile: {fileID: 11400000, guid: af84b7e3ed8f584449ea3e97133b1622, type: 2}
+  m_gppVolumeProfile: {fileID: 11400000, guid: e8831a668daaf274a987bce75b983649, type: 2}
+  m_currentOverwritePermission: 0
+  m_enableDynamicDepthOfField: 0
+  m_autoAdjustFogHeight: 1
+  m_originTerrainMinHeight: 0
+  m_originTerrainMaxHeight: 65
+  m_targetTerrainMinHeight: 0
+  m_targetTerrainMaxHeight: 300
+  m_mainCamera: {fileID: 0}

@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f41dd2aec57f59b4fab4836a17950648, type: 3}
+  m_Name: Nordic Cool
+  m_EditorClassIdentifier: 
+  m_displayName: Nordic Cool
+  m_directionalLightPrefab: {fileID: 8632221718243113381, guid: 0091ce404ae1f544c92bbff253dade09, type: 3}
+  m_environmentPrefab: {fileID: 2709495816049227372, guid: e0edab660763cb1449c85ff554e8d3c9, type: 3}
+  m_globalPostProcessingPrefab: {fileID: 402885539280974100, guid: 6bee9143a5726cb4aab2ba1c2e48faf8, type: 3}
+  m_worldDensityPrefab: {fileID: 0}
+  m_envVolumeProfile: {fileID: 11400000, guid: ab32ad7dae214c04190a431df27c468e, type: 2}
+  m_gppVolumeProfile: {fileID: 11400000, guid: 65f4bde6d1a272740b1bcc036f57cd06, type: 2}
+  m_currentOverwritePermission: 0
+  m_enableDynamicDepthOfField: 1
+  m_autoAdjustFogHeight: 1
+  m_originTerrainMinHeight: 0
+  m_originTerrainMaxHeight: 65
+  m_targetTerrainMinHeight: 0
+  m_targetTerrainMaxHeight: 300
+  m_mainCamera: {fileID: 0}

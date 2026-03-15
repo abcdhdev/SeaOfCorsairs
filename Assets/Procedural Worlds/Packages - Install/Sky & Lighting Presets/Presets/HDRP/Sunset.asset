@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f41dd2aec57f59b4fab4836a17950648, type: 3}
+  m_Name: Sunset
+  m_EditorClassIdentifier: 
+  m_displayName: Sunset
+  m_directionalLightPrefab: {fileID: 2562563242059865461, guid: 91437a76620c3be429cf98e230f28e6e, type: 3}
+  m_environmentPrefab: {fileID: 1092644304772855874, guid: ab03c2e018491eb46ab704c9d302d118, type: 3}
+  m_globalPostProcessingPrefab: {fileID: 8460991557463411218, guid: 7747d48493f35204aa06e5b526841e87, type: 3}
+  m_worldDensityPrefab: {fileID: 0}
+  m_envVolumeProfile: {fileID: 11400000, guid: ad1792ad965cf69409788dedddde5998, type: 2}
+  m_gppVolumeProfile: {fileID: 11400000, guid: 279d1f38424291d45b6d9632094694bd, type: 2}
+  m_currentOverwritePermission: 0
+  m_enableDynamicDepthOfField: 1
+  m_autoAdjustFogHeight: 1
+  m_originTerrainMinHeight: 0
+  m_originTerrainMaxHeight: 65
+  m_targetTerrainMinHeight: 0
+  m_targetTerrainMaxHeight: 300
+  m_mainCamera: {fileID: 0}

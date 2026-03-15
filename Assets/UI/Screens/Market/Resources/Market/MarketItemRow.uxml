@@ -1,0 +1,17 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="MarketItemRow" class="window-item-row market-item-row">
+        <ui:VisualElement name="MarketItemThumb" class="window-item-thumb market-item-thumb"/>
+        <ui:VisualElement class="window-item-meta market-item-meta">
+            <ui:Label name="MarketItemNameLabel" text="Deckbreaker I" class="window-item-name market-item-name"/>
+            <ui:Label name="MarketItemDescriptionLabel" text="Placeholder description" class="window-item-description market-item-description"/>
+            <ui:VisualElement class="market-item-stats-row">
+                <ui:Label name="MarketItemHitProbabilityLabel" text="Hit 75%" class="market-item-stat"/>
+                <ui:Label name="MarketItemRangeLabel" text="Range 30" class="market-item-stat"/>
+                <ui:Label name="MarketItemReloadLabel" text="Reload 7s" class="market-item-stat"/>
+            </ui:VisualElement>
+            <ui:Label name="MarketItemOwnedLabel" text="Requires gold" class="market-owned-state"/>
+        </ui:VisualElement>
+        <ui:VisualElement name="MarketItemCostList" class="market-cost-list"/>
+        <ui:Button name="MarketItemBuyButton" text="Buy" class="window-stepper-button market-buy-button"/>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,2 @@
+/* ShipSection-specific overrides belong here.
+   Shared overlay panel chrome now lives in Assets/UI/Core/Resources/Shared/OverlayPanel.uss. */

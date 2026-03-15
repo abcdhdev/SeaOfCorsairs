@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2dccf793948d38740a1bc84e7a7e86e5, type: 3}
+  m_Name: Night Preset URP Environment
+  m_EditorClassIdentifier: 
+  m_skyBoxMaterial: {fileID: 2100000, guid: 0e1e66697339ddc4997b9d67e802f2cc, type: 2}
+  m_realtimeShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
+  m_ambientMode: 1
+  m_ambientIntensity: 1
+  m_skyColor: {r: 0.07941177, g: 0.08676471, b: 0.09166667, a: 0}
+  m_equatorColor: {r: 0.01495098, g: 0.016022088, b: 0.01642157, a: 0}
+  m_groundColor: {r: 0.018438425, g: 0.020696804, b: 0.023406861, a: 0}
+  m_fogEnabled: 1
+  m_fogColor: {r: 0.2030527, g: 0.21166341, b: 0.254717, a: 1}
+  m_fogMode: 2
+  m_fogDensity: 0.005
+  m_haloTexture: {fileID: 0}
+  m_haloStrength: 0.5
+  m_flareFadeSpeed: 3
+  m_flareStrength: 1
+  m_spotCookie: {fileID: 0}

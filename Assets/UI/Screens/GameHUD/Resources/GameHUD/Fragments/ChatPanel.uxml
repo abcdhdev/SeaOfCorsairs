@@ -1,0 +1,24 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="MmoChatRoot" class="mmo-chat-root">
+        <ui:VisualElement name="ChatHeader" class="mmo-chat-header">
+            <ui:Label name="ChatHeaderTitle" text="Chat [GLOBAL]" class="mmo-chat-title"/>
+            <ui:Label name="ChatUnreadBadge" text="0" class="mmo-chat-unread"/>
+            <ui:Button name="ChatToggleButton" text="_" class="mmo-chat-toggle"/>
+        </ui:VisualElement>
+        <ui:VisualElement name="ChatBody" class="mmo-chat-body">
+            <ui:VisualElement name="ChatChannelsRow" class="mmo-chat-channels-row">
+                <ui:Button name="ChatChannelGlobal" text="GLOBAL" class="mmo-chat-channel-button"/>
+                <ui:Button name="ChatChannelLocal" text="LOCAL" class="mmo-chat-channel-button"/>
+                <ui:Button name="ChatChannelParty" text="PARTY" class="mmo-chat-channel-button"/>
+                <ui:Button name="ChatChannelGuild" text="GUILD" class="mmo-chat-channel-button"/>
+            </ui:VisualElement>
+            <ui:ScrollView name="ChatMessagesScroll" class="mmo-chat-messages-scroll">
+                <ui:VisualElement name="ChatMessagesContent" class="mmo-chat-messages-content"/>
+            </ui:ScrollView>
+            <ui:VisualElement name="ChatInputRow" class="mmo-chat-input-row">
+                <ui:TextField name="ChatInputField" class="mmo-chat-input-field"/>
+                <ui:Button name="ChatSendButton" text="SEND" class="mmo-chat-send-button"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

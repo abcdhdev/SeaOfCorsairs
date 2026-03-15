@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83b03f724d89f224ea19ff12a5d1d069, type: 3}
+  m_Name: gold_50_pounder
+  m_EditorClassIdentifier: Assembly-CSharp::MarketCannonData
+  id: gold_50_pounder
+  displayName: 50-Pounder
+  description: The perfect annihilation. These cannons increase critical hit chance
+    and critical damage.
+  icon: {fileID: 2800000, guid: 3aa0a85eec3393047ab90b5f249dfb37, type: 3}
+  hitProbability: 75
+  cannonRange: 25
+  reloadTimeSeconds: 7
+  cost:
+    entries:
+    - currencyType: 0
+      amount: 100000
+  sortOrder: 6

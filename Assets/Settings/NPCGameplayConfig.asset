@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 328f2554ba955d44280d19698accd4e1, type: 3}
+  m_Name: NPCGameplayConfig
+  m_EditorClassIdentifier: 
+  maxHealth: 100
+  repairRate: 2
+  repairAmount: 5
+  navMeshSpeed: 5
+  navMeshAcceleration: 8
+  navMeshAngularSpeed: 120
+  navMeshStoppingDistance: 0
+  npcRoamRadius: 200
+  npcRoamWaitTime: 1
+  cannonballPrefab: {fileID: 7358711587312340462, guid: 4acc5313fe557b242ae29285b1a85bbd,
+    type: 3}
+  cannonFireSpeed: 20
+  cannonArcHeightFactor: 0.2
+  cannonDamage: 2
+  cannonMaxHitDistance: 150
+  cannonShootingInterval: 2
+  cannonAmmoTypes:
+  - id: standard
+    displayName: Standard
+    damage: 2
+    projectileMaterial: {fileID: 2100000, guid: 6253fdeb3d376dc46b5a24d7bc5dd875,
+      type: 2}
+  - id: heavy
+    displayName: Heavy
+    damage: 4
+    projectileMaterial: {fileID: 2100000, guid: 4449d3a8c3f247998c7cbf2d555b1d84,
+      type: 2}
+  - id: chain
+    displayName: Chain
+    damage: 1
+    projectileMaterial: {fileID: 2100000, guid: a87d330d8ffe410c83b2bff4b69a2f00,
+      type: 2}
+  healthBarPlaceUnderTarget: 0
+  healthBarWorldOffset: {x: 0, y: 0, z: -5.9}
+  hideHealthBarWhenEmpty: 1
+  showWorldNameplate: 1
+  worldNameplateMaxRenderDistance: 300

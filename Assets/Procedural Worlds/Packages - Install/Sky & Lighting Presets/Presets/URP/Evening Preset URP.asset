@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 051f5d3ab27227e41966d39eedb6f66a, type: 3}
+  m_Name: Evening Preset URP
+  m_EditorClassIdentifier: 
+  m_displayName: Evening
+  m_directionalLightPrefab: {fileID: 2690713033372775044, guid: fbd6ad170f8be3f4abad38a7c58c7627, type: 3}
+  m_globalPostProcessingPrefab: {fileID: 1560166875120789849, guid: 3c7e78ef39404f440bf484c4f096997a, type: 3}
+  m_gppVolumeProfile: {fileID: 0}
+  m_environment: {fileID: 11400000, guid: e14e7084cfa07444abca4a1b6c3075f1, type: 2}
+  m_enableDynamicDepthOfField: 1
+  m_mainCamera: {fileID: 0}

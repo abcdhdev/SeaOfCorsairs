@@ -1,0 +1,20 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="BottomHudContainer" class="bottom-hud-container">
+        <ui:Button text="&lt;" name="ActionBarToggleButton" enabled="true" class="action-bar-toggle-button"/>
+        <ui:VisualElement name="ActionBarBody" class="action-bar-body">
+            <ui:VisualElement name="StatusRow" class="status-row">
+                <ui:VisualElement name="PlayerHpBarBackground" class="status-bar hp-bar">
+                    <ui:VisualElement name="PlayerHpBarFill" class="status-bar-fill hp-fill"/>
+                    <ui:Label text="HP: 0/0" name="PlayerHpLabel" class="status-bar-label"/>
+                </ui:VisualElement>
+                <ui:Button text="C" name="CenterCameraButton" class="center-camera-button"/>
+                <ui:VisualElement name="PlayerExpBarBackground" class="status-bar exp-bar">
+                    <ui:VisualElement name="PlayerExpBarFill" class="status-bar-fill exp-fill"/>
+                    <ui:Label text="XP: 0/100" name="PlayerExpLabel" class="status-bar-label"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="TopActionSlotsRow" class="slot-row top-action-slot-row"/>
+            <ui:VisualElement name="BottomSkillSlotsRow" class="slot-row bottom-skill-slot-row"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

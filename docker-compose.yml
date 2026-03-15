@@ -1,0 +1,150 @@
+name: seawars
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: [ "redis-server", "--appendonly", "yes" ]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        set -eu
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb -p local/seawars-assets || true
+        mc mb -p local/seawars-logs || true
+        mc anonymous set download local/seawars-assets || true
+
+  auth-service:
+    build:
+      context: ./backend
+      dockerfile: ./src/SeaWars.AuthService/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=authdb;Username=seawars;Password=seawars
+      ConnectionStrings__Redis: redis:6379
+      Jwt__Issuer: seawars
+      Jwt__Audience: seawars
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-dev-insecure-change-me-please-use-at-least-32-bytes}
+      Auth__AccessTokenMinutes: 15
+      Auth__RefreshTokenDays: 30
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  player-data-service:
+    build:
+      context: ./backend
+      dockerfile: ./src/SeaWars.PlayerDataService/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=playerdb;Username=seawars;Password=seawars
+      ConnectionStrings__Redis: redis:6379
+      Jwt__Issuer: seawars
+      Jwt__Audience: seawars
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-dev-insecure-change-me-please-use-at-least-32-bytes}
+      # For presigned URLs the host must be reachable by the game client (Unity on the host machine).
+      S3__ServiceUrl: http://localhost:9000
+      S3__ForcePathStyle: "true"
+      S3__Region: us-east-1
+      S3__AccessKey: ${MINIO_ROOT_USER:-minioadmin}
+      S3__SecretKey: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3__Buckets__Assets: seawars-assets
+      S3__Buckets__Logs: seawars-logs
+    ports:
+      - "8082:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  game-server:
+    build:
+      context: ./Builds/LinuxServerBuild
+      dockerfile: ./Dockerfile
+    environment:
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:-dev-insecure-change-me-please-use-at-least-32-bytes}
+      SEAWARS_AUTH_BASE_URL: http://auth-service:8080
+      SEAWARS_PLAYERDATA_BASE_URL: http://player-data-service:8080
+      SEAWARS_SERVER_LISTEN_ADDRESS: 0.0.0.0
+      SEAWARS_PORT: 7777
+      # Optional compatibility overrides for admission control.
+      # Defaults:
+      # - required protocol version: 1
+      # - required client version: Unity Application.version from the server build
+      SEAWARS_REQUIRED_PROTOCOL_VERSION: ${SEAWARS_REQUIRED_PROTOCOL_VERSION:-1}
+      SEAWARS_REQUIRED_CLIENT_VERSION: ${SEAWARS_REQUIRED_CLIENT_VERSION:-}
+    ports:
+      - "7777:7777/udp"
+    depends_on:
+      auth-service:
+        condition: service_started
+      player-data-service:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

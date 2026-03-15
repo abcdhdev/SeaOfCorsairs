@@ -1,0 +1,22 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="ShipSectionOverlayRoot" class="window-overlay-root">
+        <ui:VisualElement name="ShipSectionPanel" class="window-panel">
+            <ui:VisualElement name="ShipSectionHeader" class="window-header">
+                <ui:VisualElement class="window-title-block">
+                    <ui:Label name="ShipSectionTitleLabel" text="Ship Section" class="window-title"/>
+                    <ui:Label name="ShipSectionSubtitleLabel" text="Placeholder data" class="window-subtitle"/>
+                </ui:VisualElement>
+                <ui:Button name="ShipSectionCloseButton" text="X" class="window-close-button"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="ShipSectionTabStrip" class="window-tab-strip"/>
+            <ui:VisualElement class="window-body">
+                <ui:ScrollView name="ShipSectionCategoryScrollView" mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" class="window-category-scroll">
+                    <ui:VisualElement name="ShipSectionCategoryList" class="window-category-list"/>
+                </ui:ScrollView>
+                <ui:ScrollView name="ShipSectionItemsScrollView" mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" class="window-items-scroll">
+                    <ui:VisualElement name="ShipSectionItemsList" class="window-items-list"/>
+                </ui:ScrollView>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

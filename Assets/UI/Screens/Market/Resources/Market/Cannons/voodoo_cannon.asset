@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83b03f724d89f224ea19ff12a5d1d069, type: 3}
+  m_Name: voodoo_cannon
+  m_EditorClassIdentifier: Assembly-CSharp::MarketCannonData
+  id: voodoo_cannon
+  displayName: Voodoo Cannon
+  description: These powerful cannons reveal their power if you have a Voodoo Priest
+    on board.
+  icon: {fileID: 2800000, guid: 14ca00500f5cbdb41ab74ba6402c2259, type: 3}
+  hitProbability: 75
+  cannonRange: 30
+  reloadTimeSeconds: 7
+  cost:
+    entries:
+    - currencyType: 0
+      amount: 70000
+    - currencyType: 1
+      amount: 1200
+  sortOrder: 12

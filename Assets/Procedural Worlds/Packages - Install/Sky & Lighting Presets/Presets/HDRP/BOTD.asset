@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f41dd2aec57f59b4fab4836a17950648, type: 3}
+  m_Name: BOTD
+  m_EditorClassIdentifier: 
+  m_displayName: Book of the Dead
+  m_directionalLightPrefab: {fileID: 5781066955872654177, guid: 105ff486c1451a74fb07e61695373f70, type: 3}
+  m_environmentPrefab: {fileID: 465599997883648137, guid: 6ac6cc0ee9d0df7459d9c87a609ae201, type: 3}
+  m_globalPostProcessingPrefab: {fileID: 4169328260469655728, guid: 3d102b55255564e47b14749cf5cd4655, type: 3}
+  m_worldDensityPrefab: {fileID: 0}
+  m_generalLocalFogPrefab: {fileID: 506433691577295012, guid: d903c3a2979106c4cbde9d367d63fd72, type: 3}
+  m_reflectionProbePrefab: {fileID: 4777573712427713105, guid: 78cf0c5432e2acf4ca3e84642a3e583c, type: 3}
+  m_envVolumeProfile: {fileID: 11400000, guid: d14e6efb4153e1648b52862c0968b951, type: 2}
+  m_gppVolumeProfile: {fileID: 11400000, guid: 9501baf15c77d13448b7b5c7e8180388, type: 2}
+  m_currentOverwritePermission: 0
+  m_enableDynamicDepthOfField: 0
+  m_autoAdjustFogHeight: 1
+  m_fogTextureScaling: 20
+  m_originTerrainMinHeight: 0
+  m_originTerrainMaxHeight: 115
+  m_targetTerrainMinHeight: 0
+  m_targetTerrainMaxHeight: 300
+  m_mainCamera: {fileID: 0}
