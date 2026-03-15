@@ -1,54 +1,67 @@
-using UnityEngine;
+using System.Collections;
+using Pathfinding;
 using Unity.Netcode;
-using UnityEngine.AI;
+using UnityEngine;
 
 /// <summary>
-/// Handles click-to-move navigation for the player.
-/// Works with NavMeshAgent for pathfinding.
+/// Handles server-authoritative click-to-move navigation over the runtime A* grid graph.
 /// </summary>
-[RequireComponent(typeof(NavMeshAgent))]
+[RequireComponent(typeof(Seeker))]
+[RequireComponent(typeof(AILerp))]
 public class ClickToMove : NetworkBehaviour, IClickable
 {
-    private const string WalkableAreaName = "Walkable";
+    [SerializeField, Min(0.1f)] private float clickSnapDistance = 12f;
 
-    private NavMeshAgent navMeshAgent;
-    private int walkableAreaMask = NavMesh.AllAreas;
-    private NavMeshPath validatedPath;
+    private AILerp aiLerp;
+    private PlayerDirectionSpriteController spriteController;
+    private Coroutine waitForNavigationCoroutine;
+    private Vector3 previousPosition;
+    private Vector3 lastValidDirection;
 
     private void Awake()
     {
-        navMeshAgent = GetComponent<NavMeshAgent>();
-        navMeshAgent.enabled = false;
-        validatedPath = new NavMeshPath();
-
-        int walkableArea = NavMesh.GetAreaFromName(WalkableAreaName);
-        if (walkableArea >= 0)
-        {
-            walkableAreaMask = 1 << walkableArea;
-        }
+        EnsureComponents();
+        aiLerp.enabled = false;
+        aiLerp.enableRotation = false;
+        previousPosition = transform.position;
     }
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
 
+        if (waitForNavigationCoroutine != null)
+        {
+            StopCoroutine(waitForNavigationCoroutine);
+        }
+
         if (IsServer)
         {
-            navMeshAgent.enabled = true;
-            navMeshAgent.updateRotation = false;
-            navMeshAgent.autoBraking = false;
-            navMeshAgent.stoppingDistance = 0.0f;
-            navMeshAgent.areaMask = walkableAreaMask;
+            waitForNavigationCoroutine = StartCoroutine(EnableMovementWhenNavigationReady());
         }
         else
         {
-            navMeshAgent.enabled = false;
+            aiLerp.enabled = false;
         }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        if (waitForNavigationCoroutine != null)
+        {
+            StopCoroutine(waitForNavigationCoroutine);
+            waitForNavigationCoroutine = null;
+        }
+
+        base.OnNetworkDespawn();
     }
 
     public void OnClick(Vector3 position)
     {
-        if (!IsOwner) return;
+        if (!IsOwner)
+        {
+            return;
+        }
 
         if (TryGetComponent(out Player player) && player.IsDead)
         {
@@ -66,54 +79,109 @@ public class ClickToMove : NetworkBehaviour, IClickable
             return;
         }
 
-        NavMeshHit hit;
-        // Sample slightly larger radius to ensure clicks near edges work
-        if (NavMesh.SamplePosition(position, out hit, 2.0f, walkableAreaMask) &&
-            navMeshAgent.CalculatePath(hit.position, validatedPath) &&
-            validatedPath.status == NavMeshPathStatus.PathComplete)
+        if (!AstarNavigationUtility.TryGetNearestWalkablePoint(position, clickSnapDistance, out Vector3 targetPoint))
         {
-            navMeshAgent.SetPath(validatedPath);
+            return;
         }
+
+        aiLerp.destination = targetPoint;
+        aiLerp.isStopped = false;
+        aiLerp.simulateMovement = true;
+        aiLerp.SearchPath();
+    }
+
+    public void ApplyMovementSettings(float movementSpeed)
+    {
+        if (!EnsureComponents())
+        {
+            return;
+        }
+
+        aiLerp.speed = Mathf.Max(0f, movementSpeed);
+    }
+
+    public void TeleportTo(Vector3 position, Quaternion rotation)
+    {
+        if (!EnsureComponents())
+        {
+            transform.SetPositionAndRotation(position, rotation);
+            previousPosition = position;
+            return;
+        }
+
+        transform.SetPositionAndRotation(position, rotation);
+        if (aiLerp != null)
+        {
+            aiLerp.destination = position;
+            aiLerp.Teleport(position, clearPath: true);
+        }
+
+        previousPosition = position;
+    }
+
+    public void SetMovementEnabled(bool enabled)
+    {
+        if (!IsServer || !EnsureComponents())
+        {
+            return;
+        }
+
+        aiLerp.simulateMovement = enabled;
+        aiLerp.isStopped = !enabled;
+
+        if (!enabled)
+        {
+            aiLerp.destination = transform.position;
+            aiLerp.SearchPath();
+        }
+    }
+
+    private IEnumerator EnableMovementWhenNavigationReady()
+    {
+        while (IsSpawned && !AstarNavigationUtility.IsReady)
+        {
+            yield return null;
+        }
+
+        if (!IsSpawned || !EnsureComponents())
+        {
+            yield break;
+        }
+
+        aiLerp.enabled = true;
+        aiLerp.simulateMovement = true;
+        aiLerp.isStopped = false;
+        waitForNavigationCoroutine = null;
+    }
+
+    private bool EnsureComponents()
+    {
+        aiLerp ??= GetComponent<AILerp>();
+        spriteController ??= GetComponentInChildren<PlayerDirectionSpriteController>(true);
+        return aiLerp != null;
     }
 
     private void Update()
     {
-        // Movement logic runs ONLY on Server
-        if (!IsServer || !navMeshAgent.enabled) return;
+        Vector3 displacement = transform.position - previousPosition;
+        displacement.y = 0f;
 
-        // If we have a path and are moving
-        if (navMeshAgent.hasPath)
+        if (displacement.sqrMagnitude > 0.0001f)
         {
-            // --- INSTANT ROTATION ---
-            // steeringTarget is the next immediate corner/point the agent is heading to.
-            Vector3 direction = (navMeshAgent.steeringTarget - transform.position).normalized;
+            lastValidDirection = displacement.normalized;
 
-            // Zero out Y so the character doesn't look at the ground/sky on slopes
-            direction.y = 0;
-
-            if (direction != Vector3.zero)
+            if (IsServer)
             {
-                // Snap rotation instantly
-                transform.rotation = Quaternion.LookRotation(direction);
+                transform.rotation = Quaternion.LookRotation(lastValidDirection, Vector3.up);
             }
 
-            // --- STOPPING LOGIC ---
-            // Check if we are close enough to the destination
-            if (navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.1f && !navMeshAgent.pathPending)
-            {
-                navMeshAgent.ResetPath(); // Hard stop
-                navMeshAgent.velocity = Vector3.zero;
-                return;
-            }
-
-            // --- INSTANT ACCELERATION ---
-            // If the agent wants to move, apply max speed immediately
-            // This bypasses the 'Acceleration' variable entirely.
-            if (navMeshAgent.desiredVelocity.sqrMagnitude > 0.1f)
-            {
-                // Apply velocity directly for "Instant" start
-                navMeshAgent.velocity = navMeshAgent.desiredVelocity.normalized * navMeshAgent.speed;
-            }
+            spriteController?.UpdateSprite(lastValidDirection);
         }
+        else if (lastValidDirection != Vector3.zero)
+        {
+            spriteController?.UpdateSprite(lastValidDirection);
+        }
+
+        previousPosition = transform.position;
     }
 }

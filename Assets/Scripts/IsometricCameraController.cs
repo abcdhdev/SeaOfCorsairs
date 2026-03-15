@@ -361,6 +361,17 @@ public class IsometricCameraController : MonoBehaviour
             return;
         }
 
+        if (AstarNavigationUtility.TryGetGridGraphBounds(out Bounds gridBounds))
+        {
+            movementMinX = gridBounds.min.x;
+            movementMaxX = gridBounds.max.x;
+            movementMinZ = gridBounds.min.z;
+            movementMaxZ = gridBounds.max.z;
+            movementBoundsResolved = true;
+            ConstrainResolvedBoundsToTerrain();
+            return;
+        }
+
         if (autoResolveBoundsFromNavMeshSurface && TryResolveBoundsFromNavMeshSurface())
         {
             ConstrainResolvedBoundsToTerrain();

@@ -1,20 +1,17 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 public class InputHandler : MonoBehaviour
 {
     private const string WaterLayerName = "Water";
-    private const string WalkableAreaName = "Walkable";
 
     private GameObject _player;
 
     private Camera _mainCamera;
     private ClickToMove _clickToMove;
     private int _waterLayer = -1;
-    private int _walkableAreaMask = NavMesh.AllAreas;
     private bool _loggedFallbackCameraSelection;
 
     private readonly List<RaycastResult> _uiRaycastResults = new List<RaycastResult>(8);
@@ -34,12 +31,6 @@ public class InputHandler : MonoBehaviour
         _mainCamera = Camera.main;
         _clickToMove = FindFirstObjectByType<ClickToMove>();
         _waterLayer = LayerMask.NameToLayer(WaterLayerName);
-
-        int walkableArea = NavMesh.GetAreaFromName(WalkableAreaName);
-        if (walkableArea >= 0)
-        {
-            _walkableAreaMask = 1 << walkableArea;
-        }
     }
 
     private void Start()
@@ -248,10 +239,10 @@ public class InputHandler : MonoBehaviour
             return true;
         }
 
-        if (TryResolveMovementDestination(hasMoveHit, moveHitPoint, hasWaterHit, waterHitPoint, out Vector3 navMeshPoint))
+        if (TryResolveMovementDestination(hasMoveHit, moveHitPoint, hasWaterHit, waterHitPoint, out Vector3 targetPoint))
         {
-            Debug.Log($"Moving player to: {navMeshPoint}");
-            _clickToMove.OnClick(navMeshPoint);
+            Debug.Log($"Moving player to: {targetPoint}");
+            _clickToMove.OnClick(targetPoint);
             return true;
         }
 
@@ -360,16 +351,16 @@ public class InputHandler : MonoBehaviour
         Vector3 moveHitPoint,
         bool hasWaterHit,
         Vector3 waterHitPoint,
-        out Vector3 navMeshPoint)
+        out Vector3 targetPoint)
     {
-        navMeshPoint = default;
+        targetPoint = default;
 
-        if (hasMoveHit && TryGetNavMeshPoint(moveHitPoint, out navMeshPoint))
+        if (hasMoveHit && TryGetNearestWalkablePoint(moveHitPoint, out targetPoint))
         {
             return true;
         }
 
-        if (!hasWaterHit || !TryGetNavMeshPoint(waterHitPoint, out navMeshPoint))
+        if (!hasWaterHit || !TryGetNearestWalkablePoint(waterHitPoint, out targetPoint))
         {
             return false;
         }
@@ -459,16 +450,9 @@ public class InputHandler : MonoBehaviour
                camera.cameraType == CameraType.Game;
     }
 
-    private bool TryGetNavMeshPoint(Vector3 worldPoint, out Vector3 navMeshPoint)
+    private bool TryGetNearestWalkablePoint(Vector3 worldPoint, out Vector3 targetPoint)
     {
-        navMeshPoint = default;
-        if (NavMesh.SamplePosition(worldPoint, out NavMeshHit navHit, navMeshClickSampleDistance, _walkableAreaMask))
-        {
-            navMeshPoint = navHit.position;
-            return true;
-        }
-
-        return false;
+        return AstarNavigationUtility.TryGetNearestWalkablePoint(worldPoint, navMeshClickSampleDistance, out targetPoint);
     }
 
     private bool IsWaterLayerHit(Collider hitCollider)

@@ -10,10 +10,17 @@ public sealed class RuntimeNavMeshSurfaceBootstrap : MonoBehaviour
     [SerializeField] private NavMeshSurface navMeshSurface;
     [SerializeField] private bool rebuildWhenTriangulationIsEmpty = true;
     [SerializeField] private bool logWhenBuilt = true;
+    [SerializeField] private bool skipRuntimeNavMeshWhenAstarGridBootstrapIsPresent = true;
 
     private IEnumerator Start()
     {
         if (!Application.isPlaying)
+        {
+            yield break;
+        }
+
+        if (skipRuntimeNavMeshWhenAstarGridBootstrapIsPresent &&
+            FindFirstObjectByType<RuntimeAstarGridBootstrap>(FindObjectsInactive.Include) != null)
         {
             yield break;
         }

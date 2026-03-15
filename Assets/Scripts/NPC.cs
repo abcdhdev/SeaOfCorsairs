@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.AI;
 using SeaWars.Utility;
 
 /// <summary>
@@ -16,6 +15,7 @@ public class NPC : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     [SerializeField] private PrefabGameplayConfig gameplayConfig;
     [SerializeField] private NpcDefinition npcDefinition;
     [SerializeField] private Transform visualRoot;
+    [SerializeField] private bool useDefinitionVisualPrefab = true;
 
     [Header("Health Settings")]
     [SerializeField] private int m_maxHealth = 100;
@@ -642,6 +642,11 @@ public class NPC : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             return;
         }
 
+        if (!useDefinitionVisualPrefab)
+        {
+            return;
+        }
+
         GameObject visualPrefab = npcDefinition.VisualPrefab;
         if (visualPrefab.TryGetComponent(out NetworkObject _))
         {
@@ -672,13 +677,7 @@ public class NPC : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             repairRate = gameplayConfig.RepairRate;
             repairAmount = gameplayConfig.RepairAmount;
 
-            if (TryGetComponent(out NavMeshAgent navMeshAgent))
-            {
-                navMeshAgent.speed = gameplayConfig.NavMeshSpeed;
-                navMeshAgent.acceleration = gameplayConfig.NavMeshAcceleration;
-                navMeshAgent.angularSpeed = gameplayConfig.NavMeshAngularSpeed;
-                navMeshAgent.stoppingDistance = gameplayConfig.NavMeshStoppingDistance;
-            }
+            movement?.ApplyMovementSettings(gameplayConfig.NavMeshSpeed);
 
             if (movement != null)
             {

@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.AI;
 using UnityEngine.Serialization;
 
 /// <summary>
@@ -34,7 +33,6 @@ public class NPCSpawner : NetworkBehaviour
         public Coroutine RespawnCoroutine;
     }
 
-    private const string WalkableAreaName = "Walkable";
     private const string WaterLayerName = "Water";
     private const int MaxSpawnSampleAttempts = 24;
     private const float WaterSurfaceProbeHeight = 100f;
@@ -49,7 +47,8 @@ public class NPCSpawner : NetworkBehaviour
     [SerializeField] private List<NpcDefinition> npcDefinitions = new();
     [SerializeField] private int spawnCount = 3;
     [SerializeField] private float spawnRadius = 50f;
-    [SerializeField, Min(0.1f)] private float navMeshSampleDistance = 3f;
+    [FormerlySerializedAs("navMeshSampleDistance")]
+    [SerializeField, Min(0.1f)] private float graphSampleDistance = 3f;
     [SerializeField] private Transform spawnCenter;
     [SerializeField] private bool preferAuthoredSpawnPoints = true;
     [SerializeField] private bool includeChildSpawnPoints = true;
@@ -65,7 +64,6 @@ public class NPCSpawner : NetworkBehaviour
     [SerializeField, Min(0f)] private float respawnPositionJitterRadius = 12f;
     [SerializeField, Min(0f)] private float respawnClearanceRadius = 10f;
 
-    private int walkableAreaMask;
     private int waterLayer = -1;
     private readonly RaycastHit[] waterProbeHits = new RaycastHit[8];
     private readonly List<Renderer> waterSurfaceRenderers = new();
@@ -73,6 +71,7 @@ public class NPCSpawner : NetworkBehaviour
     private GameObject resolvedNpcNetworkPrefab;
     private bool waterSurfaceDataCached;
     private float cachedWaterSurfaceY = float.NaN;
+    private Coroutine initializeNavigationCoroutine;
 
     private void Awake()
     {
@@ -86,6 +85,12 @@ public class NPCSpawner : NetworkBehaviour
 
     public override void OnDestroy()
     {
+        if (initializeNavigationCoroutine != null)
+        {
+            StopCoroutine(initializeNavigationCoroutine);
+            initializeNavigationCoroutine = null;
+        }
+
         ClearSpawnSlots();
 
         if (Instance == this)
@@ -105,13 +110,6 @@ public class NPCSpawner : NetworkBehaviour
             return;
         }
 
-        int walkableArea = NavMesh.GetAreaFromName(WalkableAreaName);
-        walkableAreaMask = walkableArea >= 0 ? 1 << walkableArea : NavMesh.AllAreas;
-        if (walkableArea < 0)
-        {
-            Debug.LogWarning($"NPCSpawner: NavMesh area '{WalkableAreaName}' was not found. Falling back to all NavMesh areas.");
-        }
-
         waterLayer = LayerMask.NameToLayer(WaterLayerName);
         if (waterLayer < 0)
         {
@@ -126,13 +124,24 @@ public class NPCSpawner : NetworkBehaviour
             return;
         }
 
-        InitializeSpawnSlots();
+        if (initializeNavigationCoroutine != null)
+        {
+            StopCoroutine(initializeNavigationCoroutine);
+        }
+
+        initializeNavigationCoroutine = StartCoroutine(WaitForNavigationReadyAndInitializeSpawnSlots());
     }
 
     public override void OnNetworkDespawn()
     {
         if (IsServer)
         {
+            if (initializeNavigationCoroutine != null)
+            {
+                StopCoroutine(initializeNavigationCoroutine);
+                initializeNavigationCoroutine = null;
+            }
+
             ClearSpawnSlots();
         }
 
@@ -202,6 +211,22 @@ public class NPCSpawner : NetworkBehaviour
         return -1;
     }
 
+    private IEnumerator WaitForNavigationReadyAndInitializeSpawnSlots()
+    {
+        while (IsServer && IsSpawned && !AstarNavigationUtility.IsReady)
+        {
+            yield return null;
+        }
+
+        if (!IsServer || !IsSpawned)
+        {
+            yield break;
+        }
+
+        InitializeSpawnSlots();
+        initializeNavigationCoroutine = null;
+    }
+
     private void InitializeSpawnSlots()
     {
         ClearSpawnSlots();
@@ -216,7 +241,7 @@ public class NPCSpawner : NetworkBehaviour
 
         for (int i = 0; i < desiredSpawnCount; i++)
         {
-            if (!TryGetRandomNavMeshPosition(center, spawnRadius, MaxSpawnSampleAttempts, out Vector3 homePosition))
+            if (!TryGetRandomWalkablePosition(center, spawnRadius, MaxSpawnSampleAttempts, out Vector3 homePosition))
             {
                 Debug.LogWarning($"NPCSpawner: Could not find valid spawn position for slot {i + 1}.");
                 continue;
@@ -272,9 +297,9 @@ public class NPCSpawner : NetworkBehaviour
                 continue;
             }
 
-            if (!TrySampleNavMeshPosition(spawnPoint.transform.position, out Vector3 homePosition))
+            if (!TrySnapToWalkablePosition(spawnPoint.transform.position, out Vector3 homePosition))
             {
-                Debug.LogWarning($"NPCSpawner: Authored spawn point '{spawnPoint.name}' is not on a valid water NavMesh location.");
+                Debug.LogWarning($"NPCSpawner: Authored spawn point '{spawnPoint.name}' is not on a valid water grid location.");
                 continue;
             }
 
@@ -628,13 +653,13 @@ public class NPCSpawner : NetworkBehaviour
 
         float jitterRadius = ResolveRespawnJitterRadius(slot);
         if (jitterRadius > 0f &&
-            TryGetRandomNavMeshPosition(slot.HomePosition, jitterRadius, MaxSpawnSampleAttempts / 2, out spawnPosition) &&
+            TryGetRandomWalkablePosition(slot.HomePosition, jitterRadius, MaxSpawnSampleAttempts / 2, out spawnPosition) &&
             IsRespawnLocationClear(spawnPosition, ignorePlayerClearance))
         {
             return true;
         }
 
-        if (TrySampleNavMeshPosition(slot.HomePosition, out spawnPosition) && IsRespawnLocationClear(spawnPosition, ignorePlayerClearance))
+        if (TrySnapToWalkablePosition(slot.HomePosition, out spawnPosition) && IsRespawnLocationClear(spawnPosition, ignorePlayerClearance))
         {
             return true;
         }
@@ -642,40 +667,30 @@ public class NPCSpawner : NetworkBehaviour
         return false;
     }
 
-    private bool TryGetRandomNavMeshPosition(Vector3 center, float radius, int maxAttempts, out Vector3 spawnPosition)
+    private bool TryGetRandomWalkablePosition(Vector3 center, float radius, int maxAttempts, out Vector3 spawnPosition)
     {
-        float sampleDistance = Mathf.Max(0.1f, navMeshSampleDistance);
-        int attempts = Mathf.Max(1, maxAttempts);
-        for (int attempt = 0; attempt < attempts; attempt++)
+        if (!AstarNavigationUtility.TryGetRandomWalkablePoint(
+                center,
+                radius,
+                Mathf.Max(1, maxAttempts),
+                Mathf.Max(0.1f, graphSampleDistance),
+                out spawnPosition))
         {
-            Vector2 planarOffset = Random.insideUnitCircle * Mathf.Max(0f, radius);
-            Vector3 randomDirection = center + new Vector3(planarOffset.x, 0f, planarOffset.y);
-            if (TryGetWaterSurfaceY(randomDirection, out float waterSurfaceY))
-            {
-                randomDirection.y = waterSurfaceY;
-            }
-            else
-            {
-                randomDirection.y = center.y;
-            }
-
-            NavMeshHit hit;
-            if (NavMesh.SamplePosition(randomDirection, out hit, sampleDistance, walkableAreaMask) &&
-                IsPointOnWaterSurface(hit.position))
-            {
-                spawnPosition = hit.position;
-                return true;
-            }
+            spawnPosition = default;
+            return false;
         }
 
-        spawnPosition = default;
-        return false;
+        if (TryGetWaterSurfaceY(spawnPosition, out float waterSurfaceY))
+        {
+            spawnPosition.y = waterSurfaceY;
+        }
+
+        return true;
     }
 
-    private bool TrySampleNavMeshPosition(Vector3 desiredPosition, out Vector3 sampledPosition)
+    private bool TrySnapToWalkablePosition(Vector3 desiredPosition, out Vector3 sampledPosition)
     {
-        NavMeshHit hit;
-        float sampleDistance = Mathf.Max(0.1f, navMeshSampleDistance);
+        float sampleDistance = Mathf.Max(0.1f, graphSampleDistance);
         Vector3 sampleOrigin = desiredPosition;
         if (TryGetWaterSurfaceY(desiredPosition, out float waterSurfaceY))
         {
@@ -683,10 +698,9 @@ public class NPCSpawner : NetworkBehaviour
             sampleDistance = Mathf.Max(sampleDistance, Mathf.Abs(desiredPosition.y - waterSurfaceY) + 0.5f);
         }
 
-        if (NavMesh.SamplePosition(sampleOrigin, out hit, sampleDistance, walkableAreaMask) &&
-            IsPointOnWaterSurface(hit.position))
+        if (AstarNavigationUtility.TryGetNearestWalkablePoint(sampleOrigin, sampleDistance, out sampledPosition) &&
+            IsPointOnWaterSurface(sampledPosition))
         {
-            sampledPosition = hit.position;
             return true;
         }
 
@@ -919,25 +933,21 @@ public class NPCSpawner : NetworkBehaviour
         return false;
     }
 
-    private void ApplyWaterlineOffset(GameObject npc, Vector3 navMeshSpawnPosition)
+    private void ApplyWaterlineOffset(GameObject npc, Vector3 spawnPosition)
     {
-        if (npc == null || !npc.TryGetComponent(out NavMeshAgent navMeshAgent))
+        if (npc == null)
         {
             return;
         }
 
-        float waterSurfaceY = navMeshSpawnPosition.y;
-        if (TryGetWaterSurfaceY(navMeshSpawnPosition, out float resolvedWaterSurfaceY))
+        float waterSurfaceY = spawnPosition.y;
+        if (TryGetWaterSurfaceY(spawnPosition, out float resolvedWaterSurfaceY))
         {
             waterSurfaceY = resolvedWaterSurfaceY;
         }
 
-        float navMeshToWaterDelta = waterSurfaceY - navMeshSpawnPosition.y;
-        float desiredBaseOffset = navMeshAgent.baseOffset + navMeshToWaterDelta + additionalWaterlineOffset;
-        navMeshAgent.baseOffset = Mathf.Max(navMeshAgent.baseOffset, desiredBaseOffset);
-
-        Vector3 correctedPosition = navMeshSpawnPosition;
-        correctedPosition.y = navMeshSpawnPosition.y + navMeshAgent.baseOffset;
+        Vector3 correctedPosition = spawnPosition;
+        correctedPosition.y = waterSurfaceY + additionalWaterlineOffset;
         npc.transform.position = correctedPosition;
     }
 

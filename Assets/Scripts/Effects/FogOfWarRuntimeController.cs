@@ -219,7 +219,7 @@ namespace Effects
         {
             boundsResolved = false;
 
-            if (TryResolveNavMeshBounds(out var bounds) || TryResolveTerrainBounds(out bounds) || TryResolveSceneRendererBounds(out bounds))
+            if (TryResolveGridBounds(out var bounds) || TryResolveNavMeshBounds(out bounds) || TryResolveTerrainBounds(out bounds) || TryResolveSceneRendererBounds(out bounds))
             {
                 ApplyBounds(bounds, clearMask);
                 return;
@@ -438,6 +438,11 @@ namespace Effects
             {
                 fogPlaneObject.SetActive(visible);
             }
+        }
+
+        private static bool TryResolveGridBounds(out Bounds bounds)
+        {
+            return AstarNavigationUtility.TryGetGridGraphBounds(out bounds);
         }
 
         private static bool TryResolveNavMeshBounds(out Bounds bounds)

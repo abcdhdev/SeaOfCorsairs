@@ -343,7 +343,7 @@ public sealed class MinimapHudController : MonoBehaviour
     {
         if (minimapModeLabel != null)
         {
-            minimapModeLabel.text = "NavMesh Map";
+            minimapModeLabel.text = "A* Grid Map";
         }
 
         if (minimapZoomLabel != null)
@@ -751,6 +751,12 @@ public sealed class MinimapHudController : MonoBehaviour
     {
         if (!autoComputeWorldBoundsFromNavMeshSurface || waypointBoundsInitialized)
         {
+            return;
+        }
+
+        if (AstarNavigationUtility.TryGetGridGraphBounds(out Bounds gridBounds))
+        {
+            ApplyResolvedWorldBounds(gridBounds.min.x, gridBounds.min.z, gridBounds.max.x, gridBounds.max.z);
             return;
         }
 

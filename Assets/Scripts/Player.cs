@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using Unity.Collections;
 using UnityEngine;
-using UnityEngine.AI;
 using SeaWars.Utility;
 
 /// <summary>
@@ -98,6 +97,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         NetworkVariableWritePermission.Server);
 
     private int selectedCannonAmmoIndex;
+    private ClickToMove clickToMove;
 
     public event Action<float> OnHealthChanged = delegate { };
     public event Action<int, int, int> OnRewardWalletChanged = delegate { };
@@ -153,6 +153,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
     private void Awake()
     {
+        clickToMove = GetComponent<ClickToMove>();
         ShadowCastingUtility.DisableShadowCastingInChildren(transform);
         EnsureWorldNameplate();
         ApplyGameplayConfig();
@@ -522,17 +523,14 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         if (TryGetSpawnTransform(out Vector3 spawnPosition, out Quaternion spawnRotation))
         {
-            if (TryGetComponent(out NavMeshAgent navMeshAgent) && navMeshAgent.enabled)
+            if (clickToMove != null)
             {
-                navMeshAgent.ResetPath();
-                navMeshAgent.Warp(spawnPosition);
+                clickToMove.TeleportTo(spawnPosition, spawnRotation);
             }
             else
             {
-                transform.position = spawnPosition;
+                transform.SetPositionAndRotation(spawnPosition, spawnRotation);
             }
-
-            transform.rotation = spawnRotation;
         }
 
         m_networkIsDead.Value = false;
@@ -552,15 +550,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             return;
         }
 
-        if (TryGetComponent(out NavMeshAgent navMeshAgent) && navMeshAgent.enabled)
-        {
-            navMeshAgent.isStopped = !enabled;
-            if (!enabled)
-            {
-                navMeshAgent.ResetPath();
-                navMeshAgent.velocity = Vector3.zero;
-            }
-        }
+        clickToMove?.SetMovementEnabled(enabled);
     }
 
     private static bool TryGetSpawnTransform(out Vector3 spawnPosition, out Quaternion spawnRotation)
@@ -1154,13 +1144,8 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         repairRate = gameplayConfig.RepairRate;
         repairAmount = gameplayConfig.RepairAmount;
 
-        if (TryGetComponent(out NavMeshAgent navMeshAgent))
-        {
-            navMeshAgent.speed = gameplayConfig.NavMeshSpeed;
-            navMeshAgent.acceleration = gameplayConfig.NavMeshAcceleration;
-            navMeshAgent.angularSpeed = gameplayConfig.NavMeshAngularSpeed;
-            navMeshAgent.stoppingDistance = gameplayConfig.NavMeshStoppingDistance;
-        }
+        clickToMove ??= GetComponent<ClickToMove>();
+        clickToMove?.ApplyMovementSettings(gameplayConfig.NavMeshSpeed);
 
         if (TryGetComponent(out WorldNameplateUI worldNameplate))
         {
