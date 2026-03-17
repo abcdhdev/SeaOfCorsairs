@@ -143,6 +143,12 @@ public class NPC : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
     private void Awake()
     {
+        if (TryGetComponent(out NetworkObject networkObject))
+        {
+            networkObject.SpawnWithObservers = true;
+            networkObject.CheckObjectVisibility = clientId => FogOfWarNetworkVisibilityController.ShouldNpcBeVisibleToClient(this, clientId);
+        }
+
         npcCannon = GetComponent<Cannon>();
         playerAttack = GetComponent<PlayerAttack>();
         movement = GetComponent<NPCMovement>();
@@ -228,12 +234,20 @@ public class NPC : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             {
                 movement?.SetHomeAnchor(homePosition, homeRotation);
             }
+
+            FogOfWarNetworkVisibilityController.Register(this);
         }
     }
 
     public override void OnNetworkDespawn()
     {
         CombatTargetingUtility.Unregister(this);
+
+        if (IsServer)
+        {
+            FogOfWarNetworkVisibilityController.Unregister(this);
+        }
+
         m_networkDefinitionIndex.OnValueChanged -= OnNetworkDefinitionIndexChanged;
         base.OnNetworkDespawn();
     }

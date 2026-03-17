@@ -14,8 +14,8 @@ namespace Effects
         private const string RuntimeObjectName = "[FogOfWarRuntime]";
         private const string FogPlaneMaterialResourcePath = "Materials/FogOfWarWorldPlane";
         private const int TextureResolution = 256;
-        private const float DefaultRevealRadius = 38f;
-        private const float DefaultRevealSoftness = 12f;
+        private const float DefaultRevealRadius = FogOfWarVisibilitySettings.DefaultRevealRadius;
+        private const float DefaultRevealSoftness = FogOfWarVisibilitySettings.DefaultRevealSoftness;
         private const float FallbackWorldSpan = 512f;
         private const string PreferredNavMeshSurfaceName = "NavMesh";
         private const float FogPlaneHeightOffset = 8f;

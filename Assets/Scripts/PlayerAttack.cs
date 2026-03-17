@@ -413,6 +413,12 @@ public class PlayerAttack : NetworkBehaviour
             return false;
         }
 
+        if (!HasFogOfWarVisibility(target, out string fogOfWarFailureReason))
+        {
+            failureReason = fogOfWarFailureReason;
+            return false;
+        }
+
         if (!HasLineOfSight(target, out string lineOfSightFailureReason))
         {
             failureReason = lineOfSightFailureReason;
@@ -423,6 +429,53 @@ public class PlayerAttack : NetworkBehaviour
         {
             failureReason = "target is dead";
             return false;
+        }
+
+        return true;
+    }
+
+    private bool HasFogOfWarVisibility(GameObject target, out string failureReason)
+    {
+        failureReason = string.Empty;
+        if (target == null)
+        {
+            failureReason = "target was hidden by fog of war";
+            return false;
+        }
+
+        if (TryGetComponent(out Player attackingPlayer))
+        {
+            ulong viewerClientId = attackingPlayer.OwnerClientId;
+
+            if (target.TryGetComponent(out Player targetPlayer))
+            {
+                if (!FogOfWarNetworkVisibilityController.ShouldPlayerBeVisibleToClient(targetPlayer, viewerClientId))
+                {
+                    failureReason = "target was hidden by fog of war";
+                    return false;
+                }
+
+                return true;
+            }
+
+            if (target.TryGetComponent(out NPC targetNpc))
+            {
+                if (!FogOfWarNetworkVisibilityController.ShouldNpcBeVisibleToClient(targetNpc, viewerClientId))
+                {
+                    failureReason = "target was hidden by fog of war";
+                    return false;
+                }
+
+                return true;
+            }
+        }
+        else if (TryGetComponent(out NPC attackingNpc) && target.TryGetComponent(out Player defendingPlayer))
+        {
+            if (!FogOfWarNetworkVisibilityController.ShouldNpcBeVisibleToClient(attackingNpc, defendingPlayer.OwnerClientId))
+            {
+                failureReason = "attacker was hidden by fog of war";
+                return false;
+            }
         }
 
         return true;
