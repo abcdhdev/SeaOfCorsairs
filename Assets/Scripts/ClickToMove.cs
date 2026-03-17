@@ -13,6 +13,7 @@ public class ClickToMove : NetworkBehaviour, IClickable
     [SerializeField, Min(0.1f)] private float clickSnapDistance = 12f;
 
     private AILerp aiLerp;
+    private Seeker seeker;
     private PlayerDirectionSpriteController spriteController;
     private Coroutine waitForNavigationCoroutine;
     private Vector3 previousPosition;
@@ -21,6 +22,7 @@ public class ClickToMove : NetworkBehaviour, IClickable
     private void Awake()
     {
         EnsureComponents();
+        RefreshNavigationGraphSelection();
         aiLerp.enabled = false;
         aiLerp.enableRotation = false;
         previousPosition = transform.position;
@@ -37,6 +39,7 @@ public class ClickToMove : NetworkBehaviour, IClickable
 
         if (IsServer)
         {
+            RefreshNavigationGraphSelection();
             waitForNavigationCoroutine = StartCoroutine(EnableMovementWhenNavigationReady());
         }
         else
@@ -79,7 +82,8 @@ public class ClickToMove : NetworkBehaviour, IClickable
             return;
         }
 
-        if (!AstarNavigationUtility.TryGetNearestWalkablePoint(position, clickSnapDistance, out Vector3 targetPoint))
+        bool diagonalOnly = ShouldUseDiagonalGraph();
+        if (!AstarNavigationUtility.TryGetNearestWalkablePoint(position, clickSnapDistance, out Vector3 targetPoint, diagonalOnly))
         {
             return;
         }
@@ -157,12 +161,18 @@ public class ClickToMove : NetworkBehaviour, IClickable
     private bool EnsureComponents()
     {
         aiLerp ??= GetComponent<AILerp>();
+        seeker ??= GetComponent<Seeker>();
         spriteController ??= GetComponentInChildren<PlayerDirectionSpriteController>(true);
         return aiLerp != null;
     }
 
     private void Update()
     {
+        if (spriteController == null)
+        {
+            RefreshNavigationGraphSelection();
+        }
+
         Vector3 displacement = transform.position - previousPosition;
         displacement.y = 0f;
 
@@ -183,5 +193,21 @@ public class ClickToMove : NetworkBehaviour, IClickable
         }
 
         previousPosition = transform.position;
+    }
+
+    private void RefreshNavigationGraphSelection()
+    {
+        EnsureComponents();
+        if (seeker == null)
+        {
+            return;
+        }
+
+        seeker.graphMask = AstarNavigationUtility.GetGraphMask(ShouldUseDiagonalGraph());
+    }
+
+    private bool ShouldUseDiagonalGraph()
+    {
+        return spriteController != null && !spriteController.SupportsEightWayMovement;
     }
 }

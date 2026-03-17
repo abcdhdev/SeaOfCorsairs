@@ -1,0 +1,485 @@
+fileFormatVersion: 2
+guid: 932e082595b87e9408bcef198901657c
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: ship_13_sprite
+      rect:
+        serializedVersion: 2
+        x: 226.07611
+        y: 0.047706604
+        width: 126.87256
+        height: 169.87616
+      alignment: 9
+      pivot: {x: 0.58902085, y: 0.205375}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 06b65c7391c90c148aea3ef2df9e9a93
+      internalID: 6347512798455799138
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_09_sprite
+      rect:
+        serializedVersion: 2
+        x: 201.04291
+        y: 701.02673
+        width: 111.93034
+        height: 133.89713
+      alignment: 9
+      pivot: {x: 0.54646474, y: 0.54877687}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9f76ac27298f58449aa327eb7daad1a5
+      internalID: 3202825144485210430
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_16_sprite
+      rect:
+        serializedVersion: 2
+        x: 0.042907715
+        y: 466.01294
+        width: 134.9208
+        height: 132.91096
+      alignment: 9
+      pivot: {x: 0.395114, y: 0.4156884}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6b2118a50ba42ad409462af8086f297d
+      internalID: -1077185560132535771
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_07_sprite
+      rect:
+        serializedVersion: 2
+        x: 0.01291275
+        y: 370.0761
+        width: 171.97418
+        height: 114.847755
+      alignment: 9
+      pivot: {x: 0.611465, y: 0.38}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5e5175066aa7348458f6ae2675ea309d
+      internalID: -3396314934196966145
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_01_sprite
+      rect:
+        serializedVersion: 2
+        x: 361.05133
+        y: 447.0761
+        width: 88.87256
+        height: 137.84775
+      alignment: 9
+      pivot: {x: 0.6100629, y: 0.35714287}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 70b53600b4af0754795b7f1265eeab72
+      internalID: 7521843385361171478
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_02_sprite
+      rect:
+        serializedVersion: 2
+        x: 0.07612038
+        y: 601.0429
+        width: 149.88097
+        height: 114.88097
+      alignment: 9
+      pivot: {x: 0.5344828, y: 0.3710692}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4b723aa07cf4b9941a390ee2a367c3b8
+      internalID: 3409222422831740751
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_03_sprite
+      rect:
+        serializedVersion: 2
+        x: 181.07613
+        y: 459.0761
+        width: 177.87256
+        height: 116.847755
+      alignment: 9
+      pivot: {x: 0.6815287, y: 0.3312102}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f50b84be0814d93479c22a3b70e4e2cb
+      internalID: 7849469612959341768
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_10_sprite
+      rect:
+        serializedVersion: 2
+        x: 316.1089
+        y: 303.0761
+        width: 146.8482
+        height: 141.89713
+      alignment: 9
+      pivot: {x: 0.7098836, y: 0.53194946}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 93660d524bb7e404ba3014864a28bf51
+      internalID: 1689381851440254846
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_05_sprite
+      rect:
+        serializedVersion: 2
+        x: 111.076126
+        y: 689.0761
+        width: 87.84775
+        height: 176.91096
+      alignment: 9
+      pivot: {x: 0.5849057, y: 0.36666667}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6fba30a5788c0cc4db4d8987da4d6e93
+      internalID: 2092229291788946662
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_08_sprite
+      rect:
+        serializedVersion: 2
+        x: 244.03629
+        y: 573.01294
+        width: 124.88759
+        height: 125.910965
+      alignment: 9
+      pivot: {x: 0.5204678, y: 0.3764045}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 41249a7780b61394c8d3cf2c10f1fe71
+      internalID: -2823931380496289246
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_12_sprite
+      rect:
+        serializedVersion: 2
+        x: 270.0761
+        y: 157.07611
+        width: 151.84775
+        height: 141.84775
+      alignment: 9
+      pivot: {x: 0.6831199, y: 0.21728542}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 87dcbfef57b177e42b102d086885ae13
+      internalID: -632798213256151918
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_06_sprite
+      rect:
+        serializedVersion: 2
+        x: 355.0363
+        y: 0.07611847
+        width: 138.88759
+        height: 149.84775
+      alignment: 9
+      pivot: {x: 0.5176471, y: 0.31137726}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7c628581d9d5c684da0b3c3f9857e44d
+      internalID: -1520209604115685424
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_14_sprite
+      rect:
+        serializedVersion: 2
+        x: 114.036285
+        y: 95.07611
+        width: 140.88759
+        height: 159.84775
+      alignment: 9
+      pivot: {x: 0.45218298, y: 0.23612015}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7b8388694056ef9478b53efb39075b30
+      internalID: 4419617554170702856
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_11_sprite
+      rect:
+        serializedVersion: 2
+        x: 0.05131626
+        y: 242.04291
+        width: 173.90578
+        height: 124.88097
+      alignment: 9
+      pivot: {x: 0.71896785, y: 0.26891527}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7eae00ef944fc4445a67635fc542478f
+      internalID: -1257115263612697660
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_15_sprite
+      rect:
+        serializedVersion: 2
+        x: 0.026752472
+        y: 0.07611847
+        width: 158.89713
+        height: 147.84775
+      alignment: 9
+      pivot: {x: 0.32474336, y: 0.24071896}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6bbfcc47aa474724db87247cc5276e0d
+      internalID: 7630034154919380241
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ship_04_sprite
+      rect:
+        serializedVersion: 2
+        x: 177.07613
+        y: 302.0761
+        width: 136.88097
+        height: 155.84775
+      alignment: 9
+      pivot: {x: 0.5681818, y: 0.36263737}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 90e39889362c33e44bf876823bdadda4
+      internalID: -4559682551962392155
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: e8304e7b0b3162a49b63e0f329100aca
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      ship_01_sprite: 7521843385361171478
+      ship_02_sprite: 3409222422831740751
+      ship_03_sprite: 7849469612959341768
+      ship_04_sprite: -4559682551962392155
+      ship_05_sprite: 2092229291788946662
+      ship_06_sprite: -1520209604115685424
+      ship_07_sprite: -3396314934196966145
+      ship_08_sprite: -2823931380496289246
+      ship_09_sprite: 3202825144485210430
+      ship_10_sprite: 1689381851440254846
+      ship_11_sprite: -1257115263612697660
+      ship_12_sprite: -632798213256151918
+      ship_13_sprite: 6347512798455799138
+      ship_14_sprite: 4419617554170702856
+      ship_15_sprite: 7630034154919380241
+      ship_16_sprite: -1077185560132535771
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

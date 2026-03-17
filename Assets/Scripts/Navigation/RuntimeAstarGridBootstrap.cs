@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using Pathfinding;
 using Pathfinding.Graphs.Grid;
@@ -9,18 +10,23 @@ using UnityEngine.SceneManagement;
 [RequireComponent(typeof(AstarPath))]
 public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
 {
+    public const string EightWayGraphName = "Sea Grid Graph (8-Way)";
+    public const string DiagonalGraphName = "Sea Grid Graph (Diagonal)";
+
     private const string WaterLayerName = "Water";
+    private const string LegacyGraphName = "Sea Grid Graph";
     private const string PreferredWaterSurfaceName = "Water Surface";
     private const float DefaultWorldSpan = 512f;
     private const float DefaultWorldHeight = 64f;
     private const float MinimumNodeSize = 0.25f;
+    private static readonly Vector3 DiagonalGraphRotation = new(0f, 45f, 0f);
 
     private static RuntimeAstarGridBootstrap instance;
 
     [Header("Grid")]
     [SerializeField] private float nodeSize = 1f;
     [SerializeField] private float scanPadding = 8f;
-    [SerializeField] private Vector3 graphRotation = new(0f, 45f, 0f);
+    [SerializeField] private Vector3 graphRotation = new(0f, 0f, 0f);
 
     [Header("Bake")]
     [SerializeField] private LayerMask waterHeightMask;
@@ -35,6 +41,8 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
 
     private Coroutine rebuildCoroutine;
     private AstarPath astarPath;
+    private GridGraph eightWayGraph;
+    private GridGraph diagonalGraph;
     private int waterLayer = -1;
     private readonly System.Collections.Generic.List<Renderer> waterSurfaceRenderers = new();
 
@@ -132,9 +140,9 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
         float graphHeight = ResolveGraphHeight(worldBounds);
 
         EnsureAstarPath();
-        ConfigureGridGraph(worldBounds, graphHeight);
+        ConfigureGridGraphs(worldBounds, graphHeight);
         astarPath.Scan();
-        RestrictGridGraphToWaterSurface();
+        RestrictGridGraphsToWaterSurface();
         rebuildCoroutine = null;
     }
 
@@ -180,25 +188,85 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
             return;
         }
 
-        if (astarPath.data.gridGraph == null)
-        {
-            GridGraph gridGraph = astarPath.data.AddGraph<GridGraph>();
-            gridGraph.name = "Sea Grid Graph";
-        }
+        eightWayGraph = GetOrCreateGridGraph(EightWayGraphName, true, LegacyGraphName);
+        diagonalGraph = GetOrCreateGridGraph(DiagonalGraphName, false);
     }
 
-    private void ConfigureGridGraph(Bounds worldBounds, float graphHeight)
+    private GridGraph GetOrCreateGridGraph(string graphName, bool allowLegacyFallback, params string[] legacyNames)
     {
-        GridGraph gridGraph = astarPath.data.gridGraph;
+        GridGraph graph = FindGridGraphByName(graphName);
+        if (graph == null && allowLegacyFallback)
+        {
+            for (int index = 0; index < legacyNames.Length; index++)
+            {
+                graph = FindGridGraphByName(legacyNames[index]);
+                if (graph != null)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (graph == null && allowLegacyFallback && astarPath.data.gridGraph != null)
+        {
+            graph = astarPath.data.gridGraph;
+        }
+
+        if (graph == null)
+        {
+            graph = astarPath.data.AddGraph<GridGraph>();
+        }
+
+        graph.name = graphName;
+        return graph;
+    }
+
+    private GridGraph FindGridGraphByName(string graphName)
+    {
+        if (astarPath?.data?.graphs == null)
+        {
+            return null;
+        }
+
+        for (int index = 0; index < astarPath.data.graphs.Length; index++)
+        {
+            if (astarPath.data.graphs[index] is GridGraph graph &&
+                string.Equals(graph.name, graphName, System.StringComparison.Ordinal))
+            {
+                return graph;
+            }
+        }
+
+        return null;
+    }
+
+    private void ConfigureGridGraphs(Bounds worldBounds, float graphHeight)
+    {
+        ConfigureGridGraph(eightWayGraph, worldBounds, graphHeight, graphRotation, NumNeighbours.Eight);
+        ConfigureGridGraph(diagonalGraph, worldBounds, graphHeight, DiagonalGraphRotation, NumNeighbours.Four);
+    }
+
+    private void ConfigureGridGraph(
+        GridGraph gridGraph,
+        Bounds worldBounds,
+        float graphHeight,
+        Vector3 rotationEuler,
+        NumNeighbours neighbours)
+    {
+        if (gridGraph == null)
+        {
+            return;
+        }
+
         float clampedNodeSize = Mathf.Max(MinimumNodeSize, nodeSize);
-        Quaternion rotation = Quaternion.Euler(graphRotation);
+        Quaternion rotation = Quaternion.Euler(rotationEuler);
         Vector2 graphSize = CalculateGraphSize(worldBounds, rotation, scanPadding);
         int gridWidth = Mathf.Max(1, Mathf.CeilToInt(graphSize.x / clampedNodeSize));
         int gridDepth = Mathf.Max(1, Mathf.CeilToInt(graphSize.y / clampedNodeSize));
 
-        gridGraph.rotation = graphRotation;
+        gridGraph.rotation = rotationEuler;
         gridGraph.center = new Vector3(worldBounds.center.x, graphHeight, worldBounds.center.z);
-        gridGraph.neighbours = NumNeighbours.Four;
+        gridGraph.neighbours = neighbours;
         gridGraph.cutCorners = false;
         gridGraph.uniformEdgeCosts = true;
         gridGraph.SetDimensions(gridWidth, gridDepth, clampedNodeSize);
@@ -218,31 +286,41 @@ public sealed class RuntimeAstarGridBootstrap : MonoBehaviour
         gridGraph.collision.collisionOffset = Mathf.Max(0f, collisionOffset);
     }
 
-    private void RestrictGridGraphToWaterSurface()
+    private void RestrictGridGraphsToWaterSurface()
     {
-        GridGraph gridGraph = astarPath.data.gridGraph;
-        if (gridGraph == null)
+        if (eightWayGraph == null && diagonalGraph == null)
         {
             return;
         }
 
         astarPath.AddWorkItem(new AstarWorkItem(_ =>
         {
-            gridGraph.GetNodes(node =>
-            {
-                if (node == null)
-                {
-                    return;
-                }
-
-                Vector3 worldPoint = (Vector3)node.position;
-                node.Walkable = node.Walkable && IsPointWithinWaterSurface(worldPoint);
-            });
-
-            gridGraph.RecalculateAllConnections();
+            RestrictGridGraphToWaterSurface(eightWayGraph);
+            RestrictGridGraphToWaterSurface(diagonalGraph);
         }));
 
         astarPath.FlushWorkItems();
+    }
+
+    private void RestrictGridGraphToWaterSurface(GridGraph gridGraph)
+    {
+        if (gridGraph == null)
+        {
+            return;
+        }
+
+        gridGraph.GetNodes(node =>
+        {
+            if (node == null)
+            {
+                return;
+            }
+
+            Vector3 worldPoint = (Vector3)node.position;
+            node.Walkable = node.Walkable && IsPointWithinWaterSurface(worldPoint);
+        });
+
+        gridGraph.RecalculateAllConnections();
     }
 
     private static Vector2 CalculateGraphSize(Bounds worldBounds, Quaternion rotation, float padding)

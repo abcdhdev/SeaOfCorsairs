@@ -654,10 +654,30 @@ public class NPC : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             return;
         }
 
-        Transform targetRoot = visualRoot != null ? visualRoot : transform;
+        Transform targetRoot = ResolveDefinitionVisualRoot(visualPrefab);
         spawnedVisual = Instantiate(visualPrefab, targetRoot, false);
         spawnedVisual.name = $"{visualPrefab.name}_Visual";
         ShadowCastingUtility.DisableShadowCastingInChildren(spawnedVisual.transform);
+        movement?.RefreshSpriteController();
+    }
+
+    private Transform ResolveDefinitionVisualRoot(GameObject visualPrefab)
+    {
+        if (visualPrefab == null)
+        {
+            return transform;
+        }
+
+        bool isSpriteVisual =
+            visualPrefab.GetComponentInChildren<PlayerDirectionSpriteController>(true) != null ||
+            visualPrefab.GetComponentInChildren<SpriteRenderer>(true) != null;
+
+        if (isSpriteVisual && visualRoot != null)
+        {
+            return visualRoot;
+        }
+
+        return transform;
     }
 
     private void ApplyGameplayConfig()

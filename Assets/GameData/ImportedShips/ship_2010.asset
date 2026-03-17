@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f2ba1d7758eb7d4292f3d50e3ef6f8c, type: 3}
+  m_Name: ship_2010
+  m_EditorClassIdentifier: Assembly-CSharp::NpcDefinition
+  npcName: Sprite Ship 2010
+  visualPrefab: {fileID: 1684820955277199912, guid: 153826c4e6db8d04684756504fafec27, type: 3}
+  health: 100
+  damage: 2
+  attackIntervalSeconds: 2
+  respawnDelaySeconds: 20
+  corpseLifetimeSeconds: 0
+  reward:
+    pearls: 100
+    gold: 50
+    experience: 2

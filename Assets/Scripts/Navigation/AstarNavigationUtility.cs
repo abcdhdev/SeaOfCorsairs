@@ -1,4 +1,6 @@
+using System;
 using Pathfinding;
+using Pathfinding.Graphs.Grid;
 using UnityEngine;
 
 public static class AstarNavigationUtility
@@ -10,16 +12,40 @@ public static class AstarNavigationUtility
             AstarPath activePath = AstarPath.active;
             return activePath != null &&
                    activePath.data != null &&
-                   activePath.data.gridGraph != null &&
+                   GetGridGraph() != null &&
+                   GetGridGraph(diagonalOnly: true) != null &&
                    !activePath.isScanning;
         }
     }
 
-    public static GridGraph GetGridGraph()
+    public static GridGraph GetGridGraph(bool diagonalOnly = false)
     {
-        return AstarPath.active != null && AstarPath.active.data != null
-            ? AstarPath.active.data.gridGraph
-            : null;
+        AstarPath activePath = AstarPath.active;
+        if (activePath?.data?.graphs == null)
+        {
+            return null;
+        }
+
+        string targetGraphName = diagonalOnly
+            ? RuntimeAstarGridBootstrap.DiagonalGraphName
+            : RuntimeAstarGridBootstrap.EightWayGraphName;
+
+        for (int index = 0; index < activePath.data.graphs.Length; index++)
+        {
+            if (activePath.data.graphs[index] is GridGraph graph &&
+                string.Equals(graph.name, targetGraphName, System.StringComparison.Ordinal))
+            {
+                return graph;
+            }
+        }
+
+        return !diagonalOnly ? activePath.data.gridGraph : null;
+    }
+
+    public static GraphMask GetGraphMask(bool diagonalOnly = false)
+    {
+        GridGraph gridGraph = GetGridGraph(diagonalOnly);
+        return gridGraph != null ? GraphMask.FromGraph(gridGraph) : GraphMask.everything;
     }
 
     public static bool TryGetGridGraphBounds(out Bounds bounds)
@@ -37,11 +63,15 @@ public static class AstarNavigationUtility
         return bounds.size.x > 0.01f && bounds.size.z > 0.01f;
     }
 
-    public static bool TryGetNearestWalkablePoint(Vector3 worldPoint, float maxDistance, out Vector3 walkablePoint)
+    public static bool TryGetNearestWalkablePoint(
+        Vector3 worldPoint,
+        float maxDistance,
+        out Vector3 walkablePoint,
+        bool diagonalOnly = false)
     {
         walkablePoint = default;
 
-        GridGraph gridGraph = GetGridGraph();
+        GridGraph gridGraph = GetGridGraph(diagonalOnly);
         AstarPath activePath = AstarPath.active;
         if (gridGraph == null || activePath == null)
         {
@@ -49,7 +79,7 @@ public static class AstarNavigationUtility
         }
 
         NearestNodeConstraint constraint = NearestNodeConstraint.Walkable;
-        constraint.graphMask = GraphMask.FromGraph(gridGraph);
+        constraint.graphMask = GetGraphMask(diagonalOnly);
         if (maxDistance > 0f)
         {
             constraint.maxDistance = maxDistance;
@@ -70,7 +100,8 @@ public static class AstarNavigationUtility
         float radius,
         int maxAttempts,
         float maxSnapDistance,
-        out Vector3 walkablePoint)
+        out Vector3 walkablePoint,
+        bool diagonalOnly = false)
     {
         walkablePoint = default;
 
@@ -79,16 +110,16 @@ public static class AstarNavigationUtility
         for (int attempt = 0; attempt < attempts; attempt++)
         {
             Vector2 offset = clampedRadius > 0f
-                ? Random.insideUnitCircle * clampedRadius
+                ? UnityEngine.Random.insideUnitCircle * clampedRadius
                 : Vector2.zero;
 
             Vector3 candidate = center + new Vector3(offset.x, 0f, offset.y);
-            if (TryGetNearestWalkablePoint(candidate, maxSnapDistance, out walkablePoint))
+            if (TryGetNearestWalkablePoint(candidate, maxSnapDistance, out walkablePoint, diagonalOnly))
             {
                 return true;
             }
         }
 
-        return TryGetNearestWalkablePoint(center, maxSnapDistance, out walkablePoint);
+        return TryGetNearestWalkablePoint(center, maxSnapDistance, out walkablePoint, diagonalOnly);
     }
 }

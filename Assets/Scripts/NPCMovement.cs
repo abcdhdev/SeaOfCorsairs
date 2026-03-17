@@ -17,6 +17,7 @@ public class NPCMovement : NetworkBehaviour
     [SerializeField, Min(0f)] private float homeArrivalDistance = 8f;
 
     private AILerp aiLerp;
+    private Seeker seeker;
     private PlayerDirectionSpriteController spriteController;
     private Coroutine roamCoroutine;
     private Coroutine waitForNavigationCoroutine;
@@ -33,6 +34,7 @@ public class NPCMovement : NetworkBehaviour
     private void Awake()
     {
         EnsureComponents();
+        RefreshNavigationGraphSelection();
         aiLerp.enabled = false;
         aiLerp.enableRotation = false;
         homePosition = transform.position;
@@ -58,6 +60,7 @@ public class NPCMovement : NetworkBehaviour
 
         if (IsServer)
         {
+            RefreshNavigationGraphSelection();
             waitForNavigationCoroutine = StartCoroutine(EnableMovementWhenNavigationReady());
         }
         else
@@ -151,7 +154,8 @@ public class NPCMovement : NetworkBehaviour
                 roamRadius,
                 MaxRoamSampleAttempts,
                 graphSnapDistance,
-                out Vector3 point))
+                out Vector3 point,
+                ShouldUseDiagonalGraph()))
         {
             point = center;
         }
@@ -288,6 +292,11 @@ public class NPCMovement : NetworkBehaviour
 
     private void Update()
     {
+        if (spriteController == null)
+        {
+            RefreshSpriteController();
+        }
+
         Vector3 displacement = transform.position - previousPosition;
         displacement.y = 0f;
 
@@ -310,10 +319,49 @@ public class NPCMovement : NetworkBehaviour
         previousPosition = transform.position;
     }
 
+    public void RefreshSpriteController()
+    {
+        spriteController = GetComponentInChildren<PlayerDirectionSpriteController>(true);
+        RefreshNavigationGraphSelection();
+        if (spriteController == null)
+        {
+            return;
+        }
+
+        Vector3 direction = lastValidDirection;
+        if (direction.sqrMagnitude <= 0.0001f)
+        {
+            direction = transform.forward;
+            direction.y = 0f;
+        }
+
+        if (direction.sqrMagnitude > 0.0001f)
+        {
+            spriteController.UpdateSprite(direction.normalized);
+        }
+    }
+
     private bool EnsureComponents()
     {
         aiLerp ??= GetComponent<AILerp>();
+        seeker ??= GetComponent<Seeker>();
         spriteController ??= GetComponentInChildren<PlayerDirectionSpriteController>(true);
         return aiLerp != null;
+    }
+
+    private void RefreshNavigationGraphSelection()
+    {
+        EnsureComponents();
+        if (seeker == null)
+        {
+            return;
+        }
+
+        seeker.graphMask = AstarNavigationUtility.GetGraphMask(ShouldUseDiagonalGraph());
+    }
+
+    private bool ShouldUseDiagonalGraph()
+    {
+        return spriteController != null && !spriteController.SupportsEightWayMovement;
     }
 }
