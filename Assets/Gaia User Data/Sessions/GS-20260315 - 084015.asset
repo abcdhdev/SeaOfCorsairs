@@ -40,6 +40,11 @@ MonoBehaviour:
     isWorldmap: 1
     recalculate: 0
     min: 0
-    max: 0
+    max: 33.43671
+  - guid: 2a1b4e743ef75e74a8dc2434f83e3182
+    isWorldmap: 0
+    recalculate: 0
+    min: 0
+    max: 35.953674
   m_bakedMaskCacheEntries: []
   m_worldBiomeMaskSettings: {fileID: 0}

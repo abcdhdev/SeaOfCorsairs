@@ -1,0 +1,183 @@
+:root {
+    --guild-panel-width: 820px;
+}
+
+.guild-overlay-root {
+    background-color: rgba(2, 11, 20, 0.52);
+}
+
+.guild-panel {
+    left: 72px;
+    top: 96px;
+    width: var(--guild-panel-width);
+    max-width: 92%;
+    height: auto;
+    max-height: 78%;
+    padding-top: 0;
+}
+
+.guild-header {
+    margin-bottom: 16px;
+}
+
+.guild-title {
+    font-size: 25px;
+}
+
+.guild-subtitle {
+    font-size: 12px;
+}
+
+.guild-summary-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.guild-summary-card {
+    min-width: 160px;
+    flex-grow: 1;
+    padding-top: 12px;
+    padding-right: 14px;
+    padding-bottom: 12px;
+    padding-left: 14px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(91, 66, 34, 0.92);
+    border-right-color: rgba(91, 66, 34, 0.92);
+    border-bottom-color: rgba(91, 66, 34, 0.92);
+    border-left-color: rgba(91, 66, 34, 0.92);
+    background-color: rgba(10, 15, 23, 0.94);
+}
+
+.guild-summary-card-wide {
+    min-width: 280px;
+    flex-grow: 2;
+}
+
+.guild-summary-label {
+    color: var(--window-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.guild-summary-value {
+    margin-top: 4px;
+    color: var(--window-text);
+    -unity-font-style: bold;
+    font-size: 24px;
+}
+
+.guild-summary-value-gold {
+    color: rgba(240, 192, 102, 0.99);
+}
+
+.guild-summary-copy {
+    margin-top: 6px;
+    color: var(--window-text);
+    font-size: 13px;
+    white-space: normal;
+}
+
+.guild-actions-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.guild-primary-button,
+.guild-secondary-button,
+.guild-danger-button {
+    height: 38px;
+    min-width: 190px;
+    padding-right: 16px;
+    padding-left: 16px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    color: var(--window-text);
+    -unity-font-style: bold;
+    font-size: 13px;
+}
+
+.guild-primary-button {
+    border-top-color: rgba(71, 145, 104, 0.92);
+    border-right-color: rgba(71, 145, 104, 0.92);
+    border-bottom-color: rgba(71, 145, 104, 0.92);
+    border-left-color: rgba(71, 145, 104, 0.92);
+    background-color: rgba(20, 62, 39, 0.96);
+}
+
+.guild-primary-button:hover {
+    background-color: rgba(27, 79, 49, 0.98);
+}
+
+.guild-secondary-button {
+    border-top-color: rgba(90, 112, 140, 0.92);
+    border-right-color: rgba(90, 112, 140, 0.92);
+    border-bottom-color: rgba(90, 112, 140, 0.92);
+    border-left-color: rgba(90, 112, 140, 0.92);
+    background-color: rgba(17, 28, 41, 0.96);
+}
+
+.guild-secondary-button:hover {
+    background-color: rgba(26, 40, 58, 0.98);
+}
+
+.guild-danger-button {
+    border-top-color: rgba(147, 68, 68, 0.92);
+    border-right-color: rgba(147, 68, 68, 0.92);
+    border-bottom-color: rgba(147, 68, 68, 0.92);
+    border-left-color: rgba(147, 68, 68, 0.92);
+    background-color: rgba(71, 21, 24, 0.96);
+}
+
+.guild-danger-button:hover {
+    background-color: rgba(92, 28, 32, 0.98);
+}
+
+.guild-selection-card {
+    margin-bottom: 12px;
+    padding-top: 12px;
+    padding-right: 14px;
+    padding-bottom: 12px;
+    padding-left: 14px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(79, 100, 126, 0.45);
+    border-right-color: rgba(79, 100, 126, 0.45);
+    border-bottom-color: rgba(79, 100, 126, 0.45);
+    border-left-color: rgba(79, 100, 126, 0.45);
+    background-color: rgba(10, 13, 20, 0.92);
+}
+
+.guild-section-title {
+    margin-bottom: 8px;
+    color: var(--window-text);
+    -unity-font-style: bold;
+    font-size: 14px;
+}
+
+.guild-selection-line {
+    color: var(--window-text);
+    font-size: 13px;
+}
+
+.guild-selection-line-muted {
+    margin-top: 4px;
+    color: var(--window-muted);
+}
+
+.guild-status-label {
+    margin-bottom: 4px;
+    color: rgba(207, 219, 232, 0.92);
+    font-size: 12px;
+    white-space: normal;
+}

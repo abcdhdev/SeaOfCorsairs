@@ -1,0 +1,38 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="GuildManagementOverlay" class="window-overlay-root guild-overlay-root">
+        <ui:VisualElement name="GuildManagementPanel" class="window-panel guild-panel">
+            <ui:VisualElement name="GuildManagementHeader" class="window-header guild-header">
+                <ui:VisualElement class="window-title-block">
+                    <ui:Label text="Guild Management" class="window-title guild-title"/>
+                    <ui:Label text="Build, move, and delete defensive island turrets." class="window-subtitle guild-subtitle"/>
+                </ui:VisualElement>
+                <ui:Button name="GuildCloseButton" text="X" class="window-close-button guild-close-button"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="guild-summary-row">
+                <ui:VisualElement class="guild-summary-card">
+                    <ui:Label text="Gold" class="guild-summary-label"/>
+                    <ui:Label name="GuildGoldValueLabel" text="0" class="guild-summary-value guild-summary-value-gold"/>
+                </ui:VisualElement>
+                <ui:VisualElement class="guild-summary-card">
+                    <ui:Label text="Built" class="guild-summary-label"/>
+                    <ui:Label name="GuildBuiltCountLabel" text="0 / 6" class="guild-summary-value"/>
+                </ui:VisualElement>
+                <ui:VisualElement class="guild-summary-card guild-summary-card-wide">
+                    <ui:Label text="Rules" class="guild-summary-label"/>
+                    <ui:Label text="Each turret costs 100 gold, tops out at 6, spawns at Y 15, and retaliates automatically." class="guild-summary-copy"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="guild-actions-row">
+                <ui:Button name="GuildBuildIslandButton" text="Build Island" class="guild-primary-button"/>
+                <ui:Button name="GuildMoveTurretButton" text="Move Selected Turret" class="guild-secondary-button"/>
+                <ui:Button name="GuildDeleteTurretButton" text="Delete Selected Turret" class="guild-danger-button"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="guild-selection-card">
+                <ui:Label text="Selection" class="guild-section-title"/>
+                <ui:Label name="GuildSelectedTurretLabel" text="No turret selected" class="guild-selection-line"/>
+                <ui:Label name="GuildSelectedTurretHealthLabel" text="Health: -" class="guild-selection-line guild-selection-line-muted"/>
+            </ui:VisualElement>
+            <ui:Label name="GuildStatusLabel" text="Shield button opens guild management." class="guild-status-label"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

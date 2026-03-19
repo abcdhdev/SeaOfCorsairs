@@ -103,6 +103,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     public event Action<int, int, int> OnRewardWalletChanged = delegate { };
     public event Action OnOwnedCannonsChanged = delegate { };
     public event Action<string, bool, string> OnCannonPurchaseResult = delegate { };
+    public event Action<string, bool> OnIslandActionFeedback = delegate { };
 
     // Public properties
     public int MaxHealth => m_maxHealth;
@@ -325,6 +326,161 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             NormalizeOwnedCannonId(cannonId),
             success,
             string.IsNullOrWhiteSpace(message) ? (success ? "Purchase completed." : "Purchase failed.") : message);
+    }
+
+    public bool RequestBuildTurret(Vector3 requestedPosition)
+    {
+        if (!IsOwner)
+        {
+            return false;
+        }
+
+        if (IsServer)
+        {
+            HandleBuildTurretRequest(requestedPosition);
+        }
+        else
+        {
+            RequestBuildTurretServerRpc(requestedPosition);
+        }
+
+        return true;
+    }
+
+    public bool RequestMoveTurret(ulong turretNetworkObjectId, Vector3 requestedPosition)
+    {
+        if (!IsOwner || turretNetworkObjectId == 0)
+        {
+            return false;
+        }
+
+        if (IsServer)
+        {
+            HandleMoveTurretRequest(turretNetworkObjectId, requestedPosition);
+        }
+        else
+        {
+            RequestMoveTurretServerRpc(turretNetworkObjectId, requestedPosition);
+        }
+
+        return true;
+    }
+
+    public bool RequestDeleteTurret(ulong turretNetworkObjectId)
+    {
+        if (!IsOwner || turretNetworkObjectId == 0)
+        {
+            return false;
+        }
+
+        if (IsServer)
+        {
+            HandleDeleteTurretRequest(turretNetworkObjectId);
+        }
+        else
+        {
+            RequestDeleteTurretServerRpc(turretNetworkObjectId);
+        }
+
+        return true;
+    }
+
+    public bool TrySpendGold(int amount)
+    {
+        if (!IsServer || amount < 0)
+        {
+            return false;
+        }
+
+        if (amount == 0)
+        {
+            return true;
+        }
+
+        if (m_networkGold.Value < amount)
+        {
+            return false;
+        }
+
+        m_networkGold.Value -= amount;
+        return true;
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void RequestBuildTurretServerRpc(Vector3 requestedPosition)
+    {
+        HandleBuildTurretRequest(requestedPosition);
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void RequestMoveTurretServerRpc(ulong turretNetworkObjectId, Vector3 requestedPosition)
+    {
+        HandleMoveTurretRequest(turretNetworkObjectId, requestedPosition);
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void RequestDeleteTurretServerRpc(ulong turretNetworkObjectId)
+    {
+        HandleDeleteTurretRequest(turretNetworkObjectId);
+    }
+
+    [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+    private void PushIslandActionFeedbackClientRpc(string message, bool success)
+    {
+        OnIslandActionFeedback?.Invoke(message ?? string.Empty, success);
+    }
+
+    private void HandleBuildTurretRequest(Vector3 requestedPosition)
+    {
+        bool success = TryGetIslandBuildManager(out IslandBuildManager buildManager, out string failureMessage) &&
+                       buildManager.TryServerBuildTurret(this, requestedPosition, out failureMessage);
+
+        SendIslandActionFeedback(success, failureMessage);
+    }
+
+    private void HandleMoveTurretRequest(ulong turretNetworkObjectId, Vector3 requestedPosition)
+    {
+        bool success = TryGetIslandBuildManager(out IslandBuildManager buildManager, out string failureMessage) &&
+                       buildManager.TryServerMoveTurret(this, turretNetworkObjectId, requestedPosition, out failureMessage);
+
+        SendIslandActionFeedback(success, failureMessage);
+    }
+
+    private void HandleDeleteTurretRequest(ulong turretNetworkObjectId)
+    {
+        bool success = TryGetIslandBuildManager(out IslandBuildManager buildManager, out string failureMessage) &&
+                       buildManager.TryServerDeleteTurret(this, turretNetworkObjectId, out failureMessage);
+
+        SendIslandActionFeedback(success, failureMessage);
+    }
+
+    private bool TryGetIslandBuildManager(out IslandBuildManager buildManager, out string failureMessage)
+    {
+        buildManager = IslandBuildManager.Instance;
+        if (buildManager != null)
+        {
+            failureMessage = string.Empty;
+            return true;
+        }
+
+        failureMessage = "Island build manager is not available.";
+        return false;
+    }
+
+    private void SendIslandActionFeedback(bool success, string message)
+    {
+        string normalizedMessage = string.IsNullOrWhiteSpace(message)
+            ? (success ? "Island action completed." : "Island action failed.")
+            : message;
+
+        if (IsOwner)
+        {
+            OnIslandActionFeedback?.Invoke(normalizedMessage, success);
+        }
+        else
+        {
+            PushIslandActionFeedbackClientRpc(normalizedMessage, success);
+        }
     }
 
     public override void OnNetworkSpawn()
