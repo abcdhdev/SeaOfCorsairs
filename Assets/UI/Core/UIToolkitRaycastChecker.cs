@@ -89,11 +89,6 @@ public static class UIToolkitRaycastChecker
             return false;
         }
 
-        if (_pointerYAxisOrigin == PointerYAxisOrigin.Unknown)
-        {
-            return false;
-        }
-
         _staleElements.Clear();
 
         foreach (VisualElement element in _blockingElements)
@@ -128,15 +123,45 @@ public static class UIToolkitRaycastChecker
 
     private static bool ContainsScreenPosition(VisualElement element, Vector2 screenPosition)
     {
-        Vector2 normalizedScreenPosition = NormalizeScreenPositionForPanel(screenPosition);
+        if (element == null || element.panel == null)
+        {
+            return false;
+        }
+
+        if (_pointerYAxisOrigin != PointerYAxisOrigin.Unknown)
+        {
+            return ContainsScreenPosition(element, screenPosition, _pointerYAxisOrigin);
+        }
+
+        bool matchesBottomLeft = ContainsScreenPosition(element, screenPosition, PointerYAxisOrigin.BottomLeft);
+        bool matchesTopLeft = ContainsScreenPosition(element, screenPosition, PointerYAxisOrigin.TopLeft);
+
+        if (matchesBottomLeft != matchesTopLeft)
+        {
+            _pointerYAxisOrigin = matchesBottomLeft
+                ? PointerYAxisOrigin.BottomLeft
+                : PointerYAxisOrigin.TopLeft;
+        }
+
+        return matchesBottomLeft || matchesTopLeft;
+    }
+
+    private static bool ContainsScreenPosition(
+        VisualElement element,
+        Vector2 screenPosition,
+        PointerYAxisOrigin pointerYAxisOrigin)
+    {
+        Vector2 normalizedScreenPosition = NormalizeScreenPositionForPanel(screenPosition, pointerYAxisOrigin);
         Vector2 panelPosition = RuntimePanelUtils.ScreenToPanel(element.panel, normalizedScreenPosition);
         Vector2 localPosition = element.WorldToLocal(panelPosition);
         return element.ContainsPoint(localPosition);
     }
-    
-    private static Vector2 NormalizeScreenPositionForPanel(Vector2 screenPosition)
+
+    private static Vector2 NormalizeScreenPositionForPanel(
+        Vector2 screenPosition,
+        PointerYAxisOrigin pointerYAxisOrigin)
     {
-        if (_pointerYAxisOrigin == PointerYAxisOrigin.TopLeft)
+        if (pointerYAxisOrigin == PointerYAxisOrigin.TopLeft)
         {
             return new Vector2(screenPosition.x, Screen.height - screenPosition.y);
         }

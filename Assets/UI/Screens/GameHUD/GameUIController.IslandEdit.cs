@@ -322,7 +322,7 @@ public partial class GameUIController
 
     private void OnIslandEditDestroyClicked()
     {
-        IslandBuildManager.Instance?.BeginDestroyConfirmation();
+        IslandBuildManager.Instance?.DeleteSelectedTurret();
         RefreshIslandEditUi();
     }
 

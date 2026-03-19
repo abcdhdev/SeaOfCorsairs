@@ -713,26 +713,6 @@ public class MultiplayerController : MonoBehaviour
         }
     }
 
-    public void RequestCannonPurchase(Player player, string cannonId)
-    {
-        if (player == null)
-        {
-            return;
-        }
-
-#if UNITY_SERVER || UNITY_EDITOR
-        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
-        {
-            player.NotifyCannonPurchaseResult(cannonId, false, "The market is only available while connected to the server.");
-            return;
-        }
-
-        _ = ProcessCannonPurchaseAsync(player, cannonId);
-#else
-        player.NotifyCannonPurchaseResult(cannonId, false, "Cannon purchases are only available on the game server.");
-#endif
-    }
-
     private async Task ProcessCannonPurchaseAsync(Player player, string cannonId)
     {
         if (player == null)
@@ -1103,6 +1083,26 @@ public class MultiplayerController : MonoBehaviour
         return url;
     }
 #endif
+
+    public void RequestCannonPurchase(Player player, string cannonId)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+#if UNITY_SERVER || UNITY_EDITOR
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
+        {
+            player.NotifyCannonPurchaseResult(cannonId, false, "The market is only available while connected to the server.");
+            return;
+        }
+
+        _ = ProcessCannonPurchaseAsync(player, cannonId);
+#else
+        player.NotifyCannonPurchaseResult(cannonId, false, "Cannon purchases are only available on the game server.");
+#endif
+    }
 
     public bool TryGetAuthenticatedUserId(ulong clientId, out string userId)
     {

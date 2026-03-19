@@ -111,3 +111,6 @@ backend/**/obj/
 
 # Builds
 /[Bb]uilds/**
+!/Builds/
+!/Builds/LinuxServerBuild/
+!/Builds/LinuxServerBuild/Dockerfile
