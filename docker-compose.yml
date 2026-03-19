@@ -100,6 +100,7 @@ services:
       Jwt__Issuer: seawars
       Jwt__Audience: seawars
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-dev-insecure-change-me-please-use-at-least-32-bytes}
+      WorldObjects__ServerApiKey: ${SEAWARS_SERVER_API_KEY:-dev-world-objects-api-key-change-me}
       # For presigned URLs the host must be reachable by the game client (Unity on the host machine).
       S3__ServiceUrl: http://localhost:9000
       S3__ForcePathStyle: "true"
@@ -127,6 +128,7 @@ services:
       JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:-dev-insecure-change-me-please-use-at-least-32-bytes}
       SEAWARS_AUTH_BASE_URL: http://auth-service:8080
       SEAWARS_PLAYERDATA_BASE_URL: http://player-data-service:8080
+      SEAWARS_SERVER_API_KEY: ${SEAWARS_SERVER_API_KEY:-dev-world-objects-api-key-change-me}
       SEAWARS_SERVER_LISTEN_ADDRESS: 0.0.0.0
       SEAWARS_PORT: 7777
       # Optional compatibility overrides for admission control.

@@ -392,9 +392,11 @@ public class PlayerAttack : NetworkBehaviour
             return false;
         }
 
-        if (!target.TryGetComponent(out NPC _) && !target.TryGetComponent(out Player _))
+        if (!target.TryGetComponent(out NPC _) &&
+            !target.TryGetComponent(out Player _) &&
+            !target.TryGetComponent(out IslandTurret _))
         {
-            failureReason = "target was not a player or npc";
+            failureReason = "target was not a player, npc, or turret";
             return false;
         }
 
@@ -493,6 +495,11 @@ public class PlayerAttack : NetworkBehaviour
             return !attackerPlayer.IsDead && attackerPlayer.CurrentHealth > 0;
         }
 
+        if (TryGetComponent(out IslandTurret attackerTurret))
+        {
+            return attackerTurret.CurrentHealth > 0;
+        }
+
         return true;
     }
 
@@ -574,6 +581,11 @@ public class PlayerAttack : NetworkBehaviour
         if (target.TryGetComponent(out Player player))
         {
             return player.CurrentHealth > 0;
+        }
+
+        if (target.TryGetComponent(out IslandTurret turret))
+        {
+            return turret.CurrentHealth > 0;
         }
 
         return true;

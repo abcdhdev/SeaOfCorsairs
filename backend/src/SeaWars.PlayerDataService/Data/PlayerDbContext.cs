@@ -11,6 +11,8 @@ public sealed class PlayerDbContext : DbContext
 
     public DbSet<PlayerState> PlayerStates => Set<PlayerState>();
 
+    public DbSet<WorldObject> WorldObjects => Set<WorldObject>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<PlayerState>(entity =>
@@ -22,6 +24,20 @@ public sealed class PlayerDbContext : DbContext
             entity.Property(x => x.Version).IsConcurrencyToken();
             entity.Property(x => x.CreatedAt).IsRequired();
             entity.Property(x => x.UpdatedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<WorldObject>(entity =>
+        {
+            entity.ToTable("world_objects");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.ObjectType).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.State).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+
+            entity.HasIndex(x => x.ObjectType);
+            entity.HasIndex(x => x.CreatorUserId);
         });
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Unity.Netcode;
 using Unity.Collections;
 using UnityEngine;
@@ -154,6 +155,12 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
     private void Awake()
     {
+        if (TryGetComponent(out NetworkObject networkObject))
+        {
+            networkObject.SpawnWithObservers = true;
+            networkObject.CheckObjectVisibility = clientId => FogOfWarNetworkVisibilityController.ShouldPlayerBeVisibleToClient(this, clientId);
+        }
+
         ShadowCastingUtility.DisableShadowCastingInChildren(transform);
         EnsureWorldNameplate();
         ApplyGameplayConfig();
@@ -337,7 +344,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         if (IsServer)
         {
-            HandleBuildTurretRequest(requestedPosition);
+            _ = HandleBuildTurretRequestAsync(requestedPosition);
         }
         else
         {
@@ -356,7 +363,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         if (IsServer)
         {
-            HandleMoveTurretRequest(turretNetworkObjectId, requestedPosition);
+            _ = HandleMoveTurretRequestAsync(turretNetworkObjectId, requestedPosition);
         }
         else
         {
@@ -375,7 +382,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         if (IsServer)
         {
-            HandleDeleteTurretRequest(turretNetworkObjectId);
+            _ = HandleDeleteTurretRequestAsync(turretNetworkObjectId);
         }
         else
         {
@@ -409,19 +416,19 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
     private void RequestBuildTurretServerRpc(Vector3 requestedPosition)
     {
-        HandleBuildTurretRequest(requestedPosition);
+        _ = HandleBuildTurretRequestAsync(requestedPosition);
     }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
     private void RequestMoveTurretServerRpc(ulong turretNetworkObjectId, Vector3 requestedPosition)
     {
-        HandleMoveTurretRequest(turretNetworkObjectId, requestedPosition);
+        _ = HandleMoveTurretRequestAsync(turretNetworkObjectId, requestedPosition);
     }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
     private void RequestDeleteTurretServerRpc(ulong turretNetworkObjectId)
     {
-        HandleDeleteTurretRequest(turretNetworkObjectId);
+        _ = HandleDeleteTurretRequestAsync(turretNetworkObjectId);
     }
 
     [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
@@ -430,28 +437,61 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         OnIslandActionFeedback?.Invoke(message ?? string.Empty, success);
     }
 
-    private void HandleBuildTurretRequest(Vector3 requestedPosition)
+    private async Task HandleBuildTurretRequestAsync(Vector3 requestedPosition)
     {
-        bool success = TryGetIslandBuildManager(out IslandBuildManager buildManager, out string failureMessage) &&
-                       buildManager.TryServerBuildTurret(this, requestedPosition, out failureMessage);
+        if (!TryGetIslandBuildManager(out IslandBuildManager buildManager, out string failureMessage))
+        {
+            SendIslandActionFeedback(false, failureMessage);
+            return;
+        }
 
-        SendIslandActionFeedback(success, failureMessage);
+        try
+        {
+            var result = await buildManager.TryServerBuildTurretAsync(this, requestedPosition);
+            SendIslandActionFeedback(result.success, result.message);
+        }
+        catch (Exception ex)
+        {
+            SendIslandActionFeedback(false, $"Build failed: {ex.Message}");
+        }
     }
 
-    private void HandleMoveTurretRequest(ulong turretNetworkObjectId, Vector3 requestedPosition)
+    private async Task HandleMoveTurretRequestAsync(ulong turretNetworkObjectId, Vector3 requestedPosition)
     {
-        bool success = TryGetIslandBuildManager(out IslandBuildManager buildManager, out string failureMessage) &&
-                       buildManager.TryServerMoveTurret(this, turretNetworkObjectId, requestedPosition, out failureMessage);
+        if (!TryGetIslandBuildManager(out IslandBuildManager buildManager, out string failureMessage))
+        {
+            SendIslandActionFeedback(false, failureMessage);
+            return;
+        }
 
-        SendIslandActionFeedback(success, failureMessage);
+        try
+        {
+            var result = await buildManager.TryServerMoveTurretAsync(this, turretNetworkObjectId, requestedPosition);
+            SendIslandActionFeedback(result.success, result.message);
+        }
+        catch (Exception ex)
+        {
+            SendIslandActionFeedback(false, $"Move failed: {ex.Message}");
+        }
     }
 
-    private void HandleDeleteTurretRequest(ulong turretNetworkObjectId)
+    private async Task HandleDeleteTurretRequestAsync(ulong turretNetworkObjectId)
     {
-        bool success = TryGetIslandBuildManager(out IslandBuildManager buildManager, out string failureMessage) &&
-                       buildManager.TryServerDeleteTurret(this, turretNetworkObjectId, out failureMessage);
+        if (!TryGetIslandBuildManager(out IslandBuildManager buildManager, out string failureMessage))
+        {
+            SendIslandActionFeedback(false, failureMessage);
+            return;
+        }
 
-        SendIslandActionFeedback(success, failureMessage);
+        try
+        {
+            var result = await buildManager.TryServerDeleteTurretAsync(this, turretNetworkObjectId);
+            SendIslandActionFeedback(result.success, result.message);
+        }
+        catch (Exception ex)
+        {
+            SendIslandActionFeedback(false, $"Delete failed: {ex.Message}");
+        }
     }
 
     private bool TryGetIslandBuildManager(out IslandBuildManager buildManager, out string failureMessage)
@@ -520,6 +560,11 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             Debug.LogWarning("Player: PlayerManager.Instance is null. Make sure PlayerManager exists in the scene.");
         }
 
+        if (IsServer)
+        {
+            FogOfWarNetworkVisibilityController.Register(this);
+        }
+
         // Set static reference for local player
         if (IsOwner)
         {
@@ -534,6 +579,11 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     public override void OnNetworkDespawn()
     {
         CombatTargetingUtility.Unregister(this);
+
+        if (IsServer)
+        {
+            FogOfWarNetworkVisibilityController.Unregister(this);
+        }
 
         if (repairCoroutine != null)
         {

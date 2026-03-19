@@ -46,6 +46,39 @@ namespace SeaWars.PlayerDataService.Data.Migrations
 
                     b.ToTable("player_states", (string)null);
                 });
+
+            modelBuilder.Entity("SeaWars.PlayerDataService.Data.Entities.WorldObject", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ObjectType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatorUserId");
+
+                    b.HasIndex("ObjectType");
+
+                    b.ToTable("world_objects", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }

@@ -75,12 +75,14 @@ public partial class GameUIController : MonoBehaviour
     private Label resourceDiamondLabel;
     private Button topMenuChatButton;
     private Button topMenuBagButton;
+    private Button topMenuShieldButton;
     private Button topMenuShipButton;
     private Button topMenuLogoutButton;
     private float fpsDeltaTime;
     private float fpsPingTimer;
 
     private MarketController marketController;
+    private GuildManagementController guildManagementController;
 
     private VisualElement combatOverlayLayer;
     private VisualElement npcHealthBox;
@@ -145,6 +147,7 @@ public partial class GameUIController : MonoBehaviour
         SetCombatOverlayVisible(true);
         EnsureAmmoMenu();
         EnsureMarketSection();
+        EnsureGuildManagementSection();
         RegisterBlockingUiElements();
         BuildSourceSkills();
         BuildActionBarSlots();
@@ -180,6 +183,8 @@ public partial class GameUIController : MonoBehaviour
         CloseAmmoMenu();
         marketController?.Dispose();
         marketController = null;
+        guildManagementController?.Dispose();
+        guildManagementController = null;
         StopSkillDrag();
         ClearPendingSourcePress();
         TrackNpc(null);
@@ -244,6 +249,7 @@ public partial class GameUIController : MonoBehaviour
         UpdateCameraZoomControl();
         UpdateFpsAndPing();
         marketController?.Refresh();
+        guildManagementController?.Refresh();
         UpdateTopMenuButtonStates();
     }
 
@@ -317,6 +323,7 @@ public partial class GameUIController : MonoBehaviour
         resourceDiamondLabel = root.Q<Label>("ResourceDiamondLabel");
         topMenuChatButton = root.Q<Button>("TopMenuChatButton");
         topMenuBagButton = root.Q<Button>("TopMenuBagButton");
+        topMenuShieldButton = root.Q<Button>("TopMenuShieldButton");
         topMenuShipButton = root.Q<Button>("TopMenuShipButton");
         topMenuLogoutButton = root.Q<Button>("TopMenuLogoutButton");
     }
@@ -339,9 +346,11 @@ public partial class GameUIController : MonoBehaviour
         resourceDiamondLabel = null;
         topMenuChatButton = null;
         topMenuBagButton = null;
+        topMenuShieldButton = null;
         topMenuShipButton = null;
         topMenuLogoutButton = null;
         marketController = null;
+        guildManagementController = null;
         actionBarToggleButton = null;
         actionBarBody = null;
         centerCameraButton = null;
@@ -390,5 +399,20 @@ public partial class GameUIController : MonoBehaviour
         VisualElement attachTarget = root.Q<VisualElement>("MetaRoot") ?? root;
         marketController = new MarketController(attachTarget, GetLocalPlayerForMarket);
         marketController.Attach();
+    }
+
+    private void EnsureGuildManagementSection()
+    {
+        if (root == null || guildManagementController != null)
+        {
+            return;
+        }
+
+        VisualElement attachTarget = root.Q<VisualElement>("MetaRoot") ?? root;
+        guildManagementController = new GuildManagementController(
+            attachTarget,
+            GetLocalPlayerForMarket,
+            () => IslandBuildManager.Instance);
+        guildManagementController.Attach();
     }
 }

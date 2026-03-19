@@ -30,6 +30,11 @@ public partial class GameUIController
             UIToolkitRaycastChecker.RegisterBlockingElement(marketController.OverlayRoot);
         }
 
+        if (guildManagementController != null && guildManagementController.OverlayRoot != null)
+        {
+            UIToolkitRaycastChecker.RegisterBlockingElement(guildManagementController.OverlayRoot);
+        }
+
         if (topMenuBar != null)
         {
             UIToolkitRaycastChecker.RegisterBlockingElement(topMenuBar);
@@ -71,6 +76,11 @@ public partial class GameUIController
         if (marketController != null && marketController.OverlayRoot != null)
         {
             UIToolkitRaycastChecker.UnregisterBlockingElement(marketController.OverlayRoot);
+        }
+
+        if (guildManagementController != null && guildManagementController.OverlayRoot != null)
+        {
+            UIToolkitRaycastChecker.UnregisterBlockingElement(guildManagementController.OverlayRoot);
         }
 
         if (topMenuBar != null)
@@ -122,6 +132,11 @@ public partial class GameUIController
             topMenuBagButton.clicked += OnTopMenuBagClicked;
         }
 
+        if (topMenuShieldButton != null)
+        {
+            topMenuShieldButton.clicked += OnTopMenuShieldClicked;
+        }
+
         if (topMenuShipButton != null)
         {
             topMenuShipButton.clicked += OnTopMenuShipClicked;
@@ -171,6 +186,11 @@ public partial class GameUIController
         if (topMenuBagButton != null)
         {
             topMenuBagButton.clicked -= OnTopMenuBagClicked;
+        }
+
+        if (topMenuShieldButton != null)
+        {
+            topMenuShieldButton.clicked -= OnTopMenuShieldClicked;
         }
 
         if (topMenuShipButton != null)

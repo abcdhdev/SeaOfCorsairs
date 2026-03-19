@@ -49,6 +49,16 @@ public partial class GameUIController
         marketController?.Hide();
     }
 
+    private void ToggleGuildManagement()
+    {
+        guildManagementController?.ToggleVisibility();
+    }
+
+    private void CloseGuildManagement()
+    {
+        guildManagementController?.Hide();
+    }
+
     private void UpdateTopMenuButtonStates()
     {
         if (topMenuBagButton != null)
@@ -61,6 +71,13 @@ public partial class GameUIController
         {
             bool shipPanelVisible = shipSectionController != null && shipSectionController.IsVisible;
             topMenuShipButton.EnableInClassList("top-menu-slot-button-active", shipPanelVisible);
+        }
+
+        if (topMenuShieldButton != null)
+        {
+            bool guildVisible = guildManagementController != null && guildManagementController.IsVisible;
+            bool placementActive = IslandBuildManager.Instance != null && IslandBuildManager.Instance.IsPlacementActive;
+            topMenuShieldButton.EnableInClassList("top-menu-slot-button-active", guildVisible || placementActive);
         }
     }
 
@@ -86,6 +103,7 @@ public partial class GameUIController
 
     private void OnTopMenuBagClicked()
     {
+        CloseGuildManagement();
         shipSectionController?.Hide();
         ToggleMarket();
     }
@@ -93,12 +111,29 @@ public partial class GameUIController
     private void OnTopMenuShipClicked()
     {
         CloseMarket();
+        CloseGuildManagement();
         shipSectionController?.ToggleVisibility();
     }
 
     private void OnTopMenuLogoutClicked()
     {
         CloseMarket();
+        CloseGuildManagement();
         NetworkManager.Singleton?.Shutdown();
+    }
+
+    private void OnTopMenuShieldClicked()
+    {
+        CloseMarket();
+        shipSectionController?.Hide();
+
+        if (IslandBuildManager.Instance != null && IslandBuildManager.Instance.IsPlacementActive)
+        {
+            IslandBuildManager.Instance.CancelPlacement("Placement canceled.");
+            guildManagementController?.Show();
+            return;
+        }
+
+        ToggleGuildManagement();
     }
 }

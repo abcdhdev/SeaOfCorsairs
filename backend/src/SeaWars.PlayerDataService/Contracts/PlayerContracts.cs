@@ -18,6 +18,18 @@ public sealed record CannonPurchaseResponse(string CannonId, string[] OwnedCanno
 
 public sealed record ConflictResponse(int CurrentVersion, DateTimeOffset UpdatedAt);
 
+public sealed record WorldObjectResponse(
+    Guid Id,
+    string ObjectType,
+    Guid CreatorUserId,
+    JsonElement State,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+public sealed record CreateWorldObjectRequest(string ObjectType, Guid CreatorUserId, JsonElement State);
+
+public sealed record UpdateWorldObjectRequest(JsonElement State);
+
 public sealed record PresignLogUploadRequest(string FileName, string? ContentType);
 
 public sealed record PresignResponse(string Url, string Method, string? ContentType, string ObjectKey, DateTimeOffset ExpiresAt);

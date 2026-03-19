@@ -113,7 +113,9 @@ public static class CombatTargetingUtility
     {
         if (TryGetTargetBounds(target, out Bounds targetBounds))
         {
-            return targetBounds.center;
+            Vector3 aimPoint = targetBounds.center;
+            aimPoint.y = targetBounds.max.y + 0.2f;
+            return aimPoint;
         }
 
         return target != null ? target.transform.position : Vector3.zero;

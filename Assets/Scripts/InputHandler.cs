@@ -164,6 +164,11 @@ public class InputHandler : MonoBehaviour
         }
 
         Ray ray = _mainCamera.ScreenPointToRay(pointerPosition);
+        if (IslandBuildManager.Instance != null && IslandBuildManager.Instance.TryHandleGameplayClick(ray))
+        {
+            return;
+        }
+
         if (TryHandleClickRay(ray))
         {
             return;
@@ -172,6 +177,11 @@ public class InputHandler : MonoBehaviour
 
     public void OnFire(InputAction.CallbackContext context)
     {
+        if (IslandBuildManager.Instance != null && IslandBuildManager.Instance.IsPlacementActive)
+        {
+            return;
+        }
+
         if (!TryGetLocalPlayerComponent(out Player localPlayer)) return;
         if (localPlayer.IsDead) return;
 
@@ -188,6 +198,11 @@ public class InputHandler : MonoBehaviour
         if (!TryResolveMainCamera())
         {
             Debug.LogError("InputHandler could not resolve a gameplay camera. Ensure an active camera is tagged MainCamera.");
+            return;
+        }
+
+        if (IslandBuildManager.Instance != null && IslandBuildManager.Instance.IsPlacementActive)
+        {
             return;
         }
 

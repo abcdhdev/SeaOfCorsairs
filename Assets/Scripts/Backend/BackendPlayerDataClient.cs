@@ -398,3 +398,178 @@ public sealed class CannonPurchaseResponse
     public int version;
     public string updatedAt;
 }
+
+public sealed class BackendWorldObjectClient
+{
+    private readonly string _playerDataBaseUrl;
+    private readonly string _serverApiKey;
+
+    public BackendWorldObjectClient(string playerDataBaseUrl, string serverApiKey)
+    {
+        _playerDataBaseUrl = NormalizeBaseUrl(playerDataBaseUrl);
+        _serverApiKey = (serverApiKey ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(_playerDataBaseUrl))
+        {
+            throw new ArgumentException("Player Data base URL is required.", nameof(playerDataBaseUrl));
+        }
+
+        if (string.IsNullOrWhiteSpace(_serverApiKey))
+        {
+            throw new ArgumentException("Server API key is required.", nameof(serverApiKey));
+        }
+    }
+
+    public async Task<BackendWorldObjectResponse[]> GetWorldObjectsAsync(string objectType = null, CancellationToken cancellationToken = default)
+    {
+        var url = $"{_playerDataBaseUrl}/v1/world-objects";
+        if (!string.IsNullOrWhiteSpace(objectType))
+        {
+            url = $"{url}?objectType={UnityWebRequest.EscapeURL(objectType.Trim())}";
+        }
+
+        using var request = UnityWebRequest.Get(url);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        ApplyServerHeaders(request);
+
+        await request.SendWebRequestAsync(cancellationToken);
+        return ParseOrThrow<BackendWorldObjectResponse[]>(request, url) ?? Array.Empty<BackendWorldObjectResponse>();
+    }
+
+    public async Task<BackendWorldObjectResponse> CreateWorldObjectAsync(
+        string objectType,
+        string creatorUserId,
+        JObject state,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"{_playerDataBaseUrl}/v1/world-objects";
+        var body = new JObject
+        {
+            ["objectType"] = (objectType ?? string.Empty).Trim(),
+            ["creatorUserId"] = (creatorUserId ?? string.Empty).Trim(),
+            ["state"] = state ?? new JObject(),
+        };
+
+        using var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST);
+        request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body.ToString(Formatting.None)));
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        ApplyServerHeaders(request);
+
+        await request.SendWebRequestAsync(cancellationToken);
+        return ParseOrThrow<BackendWorldObjectResponse>(request, url);
+    }
+
+    public async Task<BackendWorldObjectResponse> UpdateWorldObjectAsync(
+        string worldObjectId,
+        JObject state,
+        CancellationToken cancellationToken = default)
+    {
+        var trimmedId = (worldObjectId ?? string.Empty).Trim();
+        var url = $"{_playerDataBaseUrl}/v1/world-objects/{trimmedId}";
+        var body = new JObject
+        {
+            ["state"] = state ?? new JObject(),
+        };
+
+        using var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPUT);
+        request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body.ToString(Formatting.None)));
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        ApplyServerHeaders(request);
+
+        await request.SendWebRequestAsync(cancellationToken);
+        return ParseOrThrow<BackendWorldObjectResponse>(request, url);
+    }
+
+    public async Task DeleteWorldObjectAsync(string worldObjectId, CancellationToken cancellationToken = default)
+    {
+        var trimmedId = (worldObjectId ?? string.Empty).Trim();
+        var url = $"{_playerDataBaseUrl}/v1/world-objects/{trimmedId}";
+
+        using var request = UnityWebRequest.Delete(url);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        ApplyServerHeaders(request);
+
+        await request.SendWebRequestAsync(cancellationToken);
+        ParseOrThrow<object>(request, url);
+    }
+
+    private void ApplyServerHeaders(UnityWebRequest request)
+    {
+        request.SetRequestHeader("X-Server-Api-Key", _serverApiKey);
+    }
+
+    private static string NormalizeBaseUrl(string url)
+    {
+        url ??= string.Empty;
+        url = url.Trim();
+        while (url.EndsWith("/", StringComparison.Ordinal))
+        {
+            url = url.Substring(0, url.Length - 1);
+        }
+
+        return url;
+    }
+
+    private static T ParseOrThrow<T>(UnityWebRequest request, string url)
+    {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        var statusCode = request.responseCode;
+        var text = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
+
+        if (request.result != UnityWebRequest.Result.Success)
+        {
+            throw BackendApiException.FromResponse(url, statusCode, request.error, text);
+        }
+
+        if (statusCode < 200 || statusCode >= 300)
+        {
+            throw BackendApiException.FromResponse(url, statusCode, request.error, text);
+        }
+
+        if (typeof(T) == typeof(object))
+        {
+            return default;
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw BackendApiException.FromResponse(url, statusCode, "Empty response", text);
+        }
+
+        try
+        {
+            return JsonConvert.DeserializeObject<T>(text);
+        }
+        catch (Exception ex)
+        {
+            throw BackendApiException.FromResponse(url, statusCode, $"Failed to parse JSON: {ex.Message}", text);
+        }
+    }
+}
+
+public sealed class BackendWorldObjectResponse
+{
+    [JsonProperty("id")]
+    public string Id = string.Empty;
+
+    [JsonProperty("objectType")]
+    public string ObjectType = string.Empty;
+
+    [JsonProperty("creatorUserId")]
+    public string CreatorUserId = string.Empty;
+
+    [JsonProperty("state")]
+    public JObject State = new();
+
+    [JsonProperty("createdAt")]
+    public string CreatedAt = string.Empty;
+
+    [JsonProperty("updatedAt")]
+    public string UpdatedAt = string.Empty;
+}

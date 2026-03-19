@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
@@ -19,8 +20,7 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
     private readonly HashSet<NPC> trackedNpcs = new();
     private readonly List<Player> playerSnapshot = new(16);
     private readonly List<NPC> npcSnapshot = new(64);
-
-    private float nextRefreshAt;
+    private Coroutine refreshLoop;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
@@ -101,29 +101,12 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
             return true;
         }
 
-        Player viewer = ResolveViewer(clientId);
-        if (viewer == null || viewer.NetworkObject == null || !viewer.NetworkObject.IsSpawned)
-        {
-            return false;
-        }
-
-        return IsWithinRevealRadius(viewer.transform.position, targetPlayer.transform.position);
+        return ShouldPlayerBeVisibleToViewer(targetPlayer, ResolveViewer(clientId));
     }
 
     public static bool ShouldNpcBeVisibleToClient(NPC targetNpc, ulong clientId)
     {
-        if (targetNpc == null || targetNpc.NetworkObject == null)
-        {
-            return false;
-        }
-
-        Player viewer = ResolveViewer(clientId);
-        if (viewer == null || viewer.NetworkObject == null || !viewer.NetworkObject.IsSpawned)
-        {
-            return false;
-        }
-
-        return IsWithinRevealRadius(viewer.transform.position, targetNpc.transform.position);
+        return ShouldNpcBeVisibleToViewer(targetNpc, ResolveViewer(clientId));
     }
 
     private static void EnsureInstance()
@@ -136,20 +119,21 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
         Bootstrap();
     }
 
-    private void Update()
+    private void OnEnable()
     {
-        if (!ShouldRefreshVisibility())
+        if (refreshLoop == null)
         {
-            return;
+            refreshLoop = StartCoroutine(RefreshLoop());
         }
+    }
 
-        if (Time.unscaledTime < nextRefreshAt)
+    private void OnDisable()
+    {
+        if (refreshLoop != null)
         {
-            return;
+            StopCoroutine(refreshLoop);
+            refreshLoop = null;
         }
-
-        nextRefreshAt = Time.unscaledTime + Mathf.Max(0.05f, visibilityRefreshInterval);
-        RefreshVisibility();
     }
 
     private void OnDestroy()
@@ -160,10 +144,23 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
         }
     }
 
+    private IEnumerator RefreshLoop()
+    {
+        while (true)
+        {
+            if (ShouldRefreshVisibility())
+            {
+                RefreshVisibility();
+                yield return new WaitForSecondsRealtime(Mathf.Max(0.05f, visibilityRefreshInterval));
+                continue;
+            }
+
+            yield return new WaitForSecondsRealtime(0.5f);
+        }
+    }
+
     private void RefreshVisibilityNow()
     {
-        nextRefreshAt = 0f;
-
         if (ShouldRefreshVisibility())
         {
             RefreshVisibility();
@@ -211,7 +208,7 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
                     continue;
                 }
 
-                bool shouldBeVisible = targetPlayer == viewer || ShouldPlayerBeVisibleToClient(targetPlayer, viewerClientId);
+                bool shouldBeVisible = ShouldPlayerBeVisibleToViewer(targetPlayer, viewer);
                 SyncVisibility(targetPlayer.NetworkObject, viewerClientId, shouldBeVisible);
             }
 
@@ -223,7 +220,7 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
                     continue;
                 }
 
-                bool shouldBeVisible = ShouldNpcBeVisibleToClient(targetNpc, viewerClientId);
+                bool shouldBeVisible = ShouldNpcBeVisibleToViewer(targetNpc, viewer);
                 SyncVisibility(targetNpc.NetworkObject, viewerClientId, shouldBeVisible);
             }
         }
@@ -267,6 +264,36 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
         }
 
         return PlayerManager.Instance != null ? PlayerManager.Instance.GetPlayer(clientId) : null;
+    }
+
+    private static bool ShouldPlayerBeVisibleToViewer(Player targetPlayer, Player viewer)
+    {
+        if (targetPlayer == null || targetPlayer.NetworkObject == null)
+        {
+            return false;
+        }
+
+        if (viewer == null || viewer.NetworkObject == null || !viewer.NetworkObject.IsSpawned)
+        {
+            return false;
+        }
+
+        return targetPlayer == viewer || IsWithinRevealRadius(viewer.transform.position, targetPlayer.transform.position);
+    }
+
+    private static bool ShouldNpcBeVisibleToViewer(NPC targetNpc, Player viewer)
+    {
+        if (targetNpc == null || targetNpc.NetworkObject == null)
+        {
+            return false;
+        }
+
+        if (viewer == null || viewer.NetworkObject == null || !viewer.NetworkObject.IsSpawned)
+        {
+            return false;
+        }
+
+        return IsWithinRevealRadius(viewer.transform.position, targetNpc.transform.position);
     }
 
     private static bool IsWithinRevealRadius(Vector3 viewerPosition, Vector3 targetPosition)

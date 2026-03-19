@@ -2,6 +2,10 @@ using UnityEngine;
 
 public class SelectObject : MonoBehaviour
 {
+    private const float MinimumSelectionCircleScale = 1f;
+    private const float SelectionCirclePadding = 2.5f;
+    private const float TurretSelectionCircleMultiplier = 1.35f;
+
     public static SelectObject Instance; // Singleton
 
     private GameObject selectedTarget;
@@ -48,12 +52,8 @@ public class SelectObject : MonoBehaviour
             selectionCircle = Instantiate(selectionCirclePrefab, target.transform.position, selectionCirclePrefab.transform.rotation);
             selectionCircleWorldRotation = selectionCircle.transform.rotation;
         }
-        else
-        {
-            selectionCircle.transform.position = target.transform.position;
-            selectionCircle.transform.rotation = selectionCircleWorldRotation;
-            selectionCircle.transform.SetParent(null, true);
-        }
+
+        UpdateSelectionCircleTransform(target);
         selectionCircle.SetActive(true);
     }
 
@@ -70,9 +70,7 @@ public class SelectObject : MonoBehaviour
             return;
         }
 
-        // Follow target position only; keep ring orientation fixed in world space.
-        selectionCircle.transform.position = selectedTarget.transform.position;
-        selectionCircle.transform.rotation = selectionCircleWorldRotation;
+        UpdateSelectionCircleTransform(selectedTarget);
     }
 
     public void Deselect()
@@ -84,5 +82,29 @@ public class SelectObject : MonoBehaviour
         }
 
         selectedTarget = null;
+    }
+
+    private void UpdateSelectionCircleTransform(GameObject target)
+    {
+        if (selectionCircle == null || target == null)
+        {
+            return;
+        }
+
+        // Keep the ring centered on the target and scale it from the target footprint.
+        selectionCircle.transform.SetParent(null, true);
+        selectionCircle.transform.position = target.transform.position;
+        selectionCircle.transform.rotation = selectionCircleWorldRotation;
+
+        float selectionScale = Mathf.Max(
+            MinimumSelectionCircleScale,
+            CombatTargetingUtility.GetSelectionRadius(target, SelectionCirclePadding));
+
+        if (target.TryGetComponent(out IslandTurret _))
+        {
+            selectionScale *= TurretSelectionCircleMultiplier;
+        }
+
+        selectionCircle.transform.localScale = Vector3.one * selectionScale;
     }
 }

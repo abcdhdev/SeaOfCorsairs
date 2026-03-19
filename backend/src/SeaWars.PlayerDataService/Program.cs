@@ -129,6 +129,10 @@ app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
+var worldObjectsServerApiKey = builder.Configuration["WorldObjects:ServerApiKey"];
+if (string.IsNullOrWhiteSpace(worldObjectsServerApiKey))
+    throw new InvalidOperationException("Missing WorldObjects:ServerApiKey (set WorldObjects__ServerApiKey).");
+
 app.MapGet("/v1/player/me", async (
     ClaimsPrincipal principal,
     PlayerDbContext db,
@@ -412,6 +416,111 @@ app.MapPost("/v1/player/me/cannons/purchase", async (
     .WithTags("Player")
     .RequireAuthorization();
 
+app.MapGet("/v1/world-objects", async (
+    HttpRequest request,
+    string? objectType,
+    PlayerDbContext db) =>
+{
+    if (!IsAuthorizedServerRequest(request, worldObjectsServerApiKey))
+        return Results.Json(new ErrorResponse("unauthorized", "Unauthorized."), statusCode: StatusCodes.Status401Unauthorized);
+
+    var query = db.WorldObjects.AsNoTracking().AsQueryable();
+    var normalizedObjectType = NormalizeWorldObjectType(objectType);
+    if (!string.IsNullOrWhiteSpace(normalizedObjectType))
+        query = query.Where(x => x.ObjectType == normalizedObjectType);
+
+    var entities = await query
+        .OrderBy(x => x.CreatedAt)
+        .ToListAsync();
+
+    var response = new WorldObjectResponse[entities.Count];
+    for (var index = 0; index < entities.Count; index++)
+        response[index] = CreateWorldObjectResponse(entities[index]);
+
+    return Results.Ok(response);
+})
+    .WithTags("WorldObjects");
+
+app.MapPost("/v1/world-objects", async (
+    HttpRequest request,
+    CreateWorldObjectRequest createRequest,
+    PlayerDbContext db) =>
+{
+    if (!IsAuthorizedServerRequest(request, worldObjectsServerApiKey))
+        return Results.Json(new ErrorResponse("unauthorized", "Unauthorized."), statusCode: StatusCodes.Status401Unauthorized);
+
+    var normalizedObjectType = NormalizeWorldObjectType(createRequest.ObjectType);
+    if (string.IsNullOrWhiteSpace(normalizedObjectType))
+        return Results.BadRequest(new ErrorResponse("invalid_object_type", "ObjectType is required."));
+
+    if (createRequest.State.ValueKind == System.Text.Json.JsonValueKind.Undefined ||
+        createRequest.State.ValueKind == System.Text.Json.JsonValueKind.Null)
+    {
+        return Results.BadRequest(new ErrorResponse("invalid_state", "State is required."));
+    }
+
+    var now = DateTimeOffset.UtcNow;
+    var entity = new WorldObject
+    {
+        Id = Guid.NewGuid(),
+        ObjectType = normalizedObjectType,
+        CreatorUserId = createRequest.CreatorUserId,
+        State = createRequest.State.GetRawText(),
+        CreatedAt = now,
+        UpdatedAt = now,
+    };
+
+    db.WorldObjects.Add(entity);
+    await db.SaveChangesAsync();
+    return Results.Ok(CreateWorldObjectResponse(entity));
+})
+    .WithTags("WorldObjects");
+
+app.MapPut("/v1/world-objects/{id:guid}", async (
+    HttpRequest request,
+    Guid id,
+    UpdateWorldObjectRequest updateRequest,
+    PlayerDbContext db) =>
+{
+    if (!IsAuthorizedServerRequest(request, worldObjectsServerApiKey))
+        return Results.Json(new ErrorResponse("unauthorized", "Unauthorized."), statusCode: StatusCodes.Status401Unauthorized);
+
+    if (updateRequest.State.ValueKind == System.Text.Json.JsonValueKind.Undefined ||
+        updateRequest.State.ValueKind == System.Text.Json.JsonValueKind.Null)
+    {
+        return Results.BadRequest(new ErrorResponse("invalid_state", "State is required."));
+    }
+
+    var entity = await db.WorldObjects.FindAsync(id);
+    if (entity is null)
+        return Results.NotFound(new ErrorResponse("not_found", "World object was not found."));
+
+    entity.State = updateRequest.State.GetRawText();
+    entity.UpdatedAt = DateTimeOffset.UtcNow;
+
+    await db.SaveChangesAsync();
+    return Results.Ok(CreateWorldObjectResponse(entity));
+})
+    .WithTags("WorldObjects");
+
+app.MapDelete("/v1/world-objects/{id:guid}", async (
+    HttpRequest request,
+    Guid id,
+    PlayerDbContext db) =>
+{
+    if (!IsAuthorizedServerRequest(request, worldObjectsServerApiKey))
+        return Results.Json(new ErrorResponse("unauthorized", "Unauthorized."), statusCode: StatusCodes.Status401Unauthorized);
+
+    var entity = await db.WorldObjects.FindAsync(id);
+    if (entity is null)
+        return Results.NotFound(new ErrorResponse("not_found", "World object was not found."));
+
+    db.WorldObjects.Remove(entity);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+})
+    .WithTags("WorldObjects");
+
 app.MapPost("/v1/logs/presign", (ClaimsPrincipal principal, PresignLogUploadRequest request, IAmazonS3 s3Client, IOptions<S3Options> s3OptionsAccessor) =>
 {
     var userId = GetUserId(principal);
@@ -478,6 +587,17 @@ static Guid? GetUserId(ClaimsPrincipal principal)
 {
     var sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
     return Guid.TryParse(sub, out var id) ? id : null;
+}
+
+static bool IsAuthorizedServerRequest(HttpRequest request, string expectedApiKey)
+{
+    if (request.Headers.TryGetValue("X-Server-Api-Key", out var providedValue) &&
+        string.Equals(providedValue.ToString(), expectedApiKey, StringComparison.Ordinal))
+    {
+        return true;
+    }
+
+    return false;
 }
 
 static async Task ApplyMigrationsWithRetryAsync(DbContext db, ILogger logger, int maxAttempts, TimeSpan initialDelay)
@@ -749,6 +869,25 @@ static int ReadNonNegativeIntValue(JsonNode node)
         return Math.Max(0, parsed);
 
     return 0;
+}
+
+static string NormalizeWorldObjectType(string? objectType)
+{
+    return string.IsNullOrWhiteSpace(objectType)
+        ? string.Empty
+        : objectType.Trim().ToLowerInvariant();
+}
+
+static WorldObjectResponse CreateWorldObjectResponse(WorldObject entity)
+{
+    using var doc = JsonDocument.Parse(entity.State);
+    return new WorldObjectResponse(
+        entity.Id,
+        entity.ObjectType,
+        entity.CreatorUserId,
+        doc.RootElement.Clone(),
+        entity.CreatedAt,
+        entity.UpdatedAt);
 }
 
 readonly record struct CannonCatalogEntry(string Id, string DisplayName, int GoldCost, int DiamondCost, int SortOrder);

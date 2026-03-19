@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Unity.AI.Navigation;
 using Unity.Netcode;
 using Unity.Netcode.Components;
@@ -9,12 +10,13 @@ using UnityEngine.InputSystem;
 public sealed class IslandBuildManager : MonoBehaviour
 {
     private const string TurretResourcePath = "Island/Turret";
-    private const float PlacementY = 15f;
+    private const string TurretWorldObjectType = "turret";
+    private const float PlacementY = 11f;
     private const int TurretGoldCost = 100;
     private const int MaxOwnedTurrets = 6;
     private const float MinimumTurretSpacing = 26f;
-    private const float FoundationInnerRadius = 14f;
-    private const float FoundationOuterRadius = 22f;
+    private const float FoundationInnerRadius = 5f;
+    private const float FoundationOuterRadius = 8f;
     private const float TerrainRebuildDebounceSeconds = 0.08f;
 
     private enum PlacementMode
@@ -42,6 +44,8 @@ public sealed class IslandBuildManager : MonoBehaviour
     private float[,] baseHeights;
     private bool terrainDirty;
     private float terrainRebuildReadyAt;
+    private bool restoreInProgress;
+    private bool restoreCompleted;
 
     public bool IsPlacementActive => placementMode != PlacementMode.None;
     public string StatusMessage => statusMessage;
@@ -85,11 +89,17 @@ public sealed class IslandBuildManager : MonoBehaviour
         IslandTurret.RegistryChanged -= HandleTurretRegistryChanged;
         Player.LocalPlayerSpawned -= HandleLocalPlayerSpawned;
         UntrackObservedLocalPlayer();
+        RestoreTerrainState();
 
         if (Instance == this)
         {
             Instance = null;
         }
+    }
+
+    private void OnDestroy()
+    {
+        RestoreTerrainState();
     }
 
     private void Update()
@@ -268,84 +278,231 @@ public sealed class IslandBuildManager : MonoBehaviour
         terrainRebuildReadyAt = Time.unscaledTime + TerrainRebuildDebounceSeconds;
     }
 
-    public bool TryServerBuildTurret(Player owner, Vector3 requestedPosition, out string resultMessage)
+    public async Task RestorePersistentTurretsAsync()
     {
-        resultMessage = string.Empty;
-
-        if (!ValidateServerBuildRequest(owner, requestedPosition, out Vector3 resolvedPosition, out resultMessage))
+        if (restoreCompleted || restoreInProgress)
         {
-            return false;
+            return;
+        }
+
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
+        {
+            return;
+        }
+
+        restoreInProgress = true;
+        try
+        {
+            if (!TryCreateWorldObjectClient(out BackendWorldObjectClient worldObjectClient, out string failureMessage))
+            {
+                Debug.LogWarning($"[WorldObjects] {failureMessage}");
+                return;
+            }
+
+            LoadTurretPrefab();
+            EnsureNetworkPrefabRegistered();
+
+            BackendWorldObjectResponse[] worldObjects = await worldObjectClient.GetWorldObjectsAsync(TurretWorldObjectType);
+            for (int index = 0; index < worldObjects.Length; index++)
+            {
+                BackendWorldObjectResponse worldObject = worldObjects[index];
+                if (worldObject == null || string.IsNullOrWhiteSpace(worldObject.Id))
+                {
+                    continue;
+                }
+
+                if (TryFindTurretByWorldObjectId(worldObject.Id, out _))
+                {
+                    continue;
+                }
+
+                if (!PersistentTurretState.TryParse(worldObject.State, out PersistentTurretState persistentState))
+                {
+                    Debug.LogWarning($"[WorldObjects] Skipping turret {worldObject.Id}: missing or invalid position state.");
+                    continue;
+                }
+
+                if (!TrySanitizePlacementPosition(persistentState.Position, 0, out Vector3 resolvedPosition, out string restoreFailure))
+                {
+                    Debug.LogWarning($"[WorldObjects] Skipping turret {worldObject.Id}: {restoreFailure}");
+                    continue;
+                }
+
+                if (!TrySpawnPersistentTurret(worldObject.CreatorUserId, worldObject.Id, resolvedPosition, out _, out restoreFailure))
+                {
+                    Debug.LogWarning($"[WorldObjects] Failed to restore turret {worldObject.Id}: {restoreFailure}");
+                }
+            }
+
+            restoreCompleted = true;
+            MarkTerrainDirty();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[WorldObjects] Failed to restore persistent turrets: {ex.Message}");
+        }
+        finally
+        {
+            restoreInProgress = false;
+        }
+    }
+
+    public void AssignLiveOwnerClientId(string creatorUserId, ulong clientId)
+    {
+        if (string.IsNullOrWhiteSpace(creatorUserId) || clientId == ulong.MaxValue)
+        {
+            return;
+        }
+
+        foreach (IslandTurret turret in IslandTurret.ActiveTurrets)
+        {
+            if (turret == null || !turret.IsSpawned || !turret.IsOwnedByCreator(creatorUserId))
+            {
+                continue;
+            }
+
+            turret.SetLiveOwnerClientId(clientId);
+        }
+    }
+
+    public void ClearLiveOwnerClientId(string creatorUserId, ulong clientId)
+    {
+        if (string.IsNullOrWhiteSpace(creatorUserId))
+        {
+            return;
+        }
+
+        foreach (IslandTurret turret in IslandTurret.ActiveTurrets)
+        {
+            if (turret == null || !turret.IsSpawned || !turret.IsOwnedByCreator(creatorUserId))
+            {
+                continue;
+            }
+
+            if (clientId != ulong.MaxValue && turret.OwnerClientId != clientId)
+            {
+                continue;
+            }
+
+            turret.SetLiveOwnerClientId(ulong.MaxValue);
+        }
+    }
+
+    public void NotifyTurretDestroyed(IslandTurret turret)
+    {
+        if (turret == null || !turret.HasPersistentWorldObjectId)
+        {
+            return;
+        }
+
+        _ = DeletePersistentWorldObjectAsync(turret.PersistentWorldObjectId);
+    }
+
+    public async Task<(bool success, string message)> TryServerBuildTurretAsync(Player owner, Vector3 requestedPosition)
+    {
+        if (!TryResolveCreatorUserId(owner, out string creatorUserId, out string resultMessage))
+        {
+            return (false, resultMessage);
+        }
+
+        if (!ValidateServerBuildRequest(owner, creatorUserId, requestedPosition, out Vector3 resolvedPosition, out resultMessage))
+        {
+            return (false, resultMessage);
+        }
+
+        if (!TryCreateWorldObjectClient(out BackendWorldObjectClient worldObjectClient, out resultMessage))
+        {
+            return (false, resultMessage);
+        }
+
+        BackendWorldObjectResponse worldObject;
+        try
+        {
+            worldObject = await worldObjectClient.CreateWorldObjectAsync(
+                TurretWorldObjectType,
+                creatorUserId,
+                PersistentTurretState.FromPosition(resolvedPosition).ToJson());
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Could not persist turret: {ex.Message}");
         }
 
         if (!owner.TrySpendGold(TurretGoldCost))
         {
-            resultMessage = $"You need {TurretGoldCost} gold to build a turret.";
-            return false;
+            await DeletePersistentWorldObjectAsync(worldObject.Id);
+            return (false, $"You need {TurretGoldCost} gold to build a turret.");
         }
 
-        GameObject instance = Instantiate(turretPrefab, resolvedPosition, Quaternion.identity);
-        IslandTurret turret = instance.GetComponent<IslandTurret>();
-        if (turret == null)
+        if (!TrySpawnPersistentTurret(creatorUserId, worldObject.Id, resolvedPosition, out _, out resultMessage))
         {
-            Destroy(instance);
-            resultMessage = "Turret prefab is missing the IslandTurret component.";
-            return false;
+            await DeletePersistentWorldObjectAsync(worldObject.Id);
+            owner.ApplyPersistedWallet(owner.Gold + TurretGoldCost, owner.Diamonds);
+            return (false, resultMessage);
         }
 
-        turret.InitializeOwner(owner.OwnerClientId);
-        turret.SetPlacementPosition(resolvedPosition);
-
-        NetworkObject networkObject = instance.GetComponent<NetworkObject>();
-        if (networkObject == null)
-        {
-            Destroy(instance);
-            resultMessage = "Turret prefab is missing a NetworkObject.";
-            return false;
-        }
-
-        networkObject.Spawn(true);
         MarkTerrainDirty();
-        resultMessage = "Turret built.";
-        return true;
+        return (true, "Turret built.");
     }
 
-    public bool TryServerMoveTurret(Player owner, ulong turretNetworkObjectId, Vector3 requestedPosition, out string resultMessage)
+    public async Task<(bool success, string message)> TryServerMoveTurretAsync(Player owner, ulong turretNetworkObjectId, Vector3 requestedPosition)
     {
-        resultMessage = string.Empty;
         if (owner == null || !owner.IsServer)
         {
-            resultMessage = "Only the server can move turrets.";
-            return false;
+            return (false, "Only the server can move turrets.");
         }
 
-        if (!TryResolveOwnedTurret(owner, turretNetworkObjectId, out IslandTurret turret, out resultMessage))
+        if (!TryResolveOwnedTurret(owner, turretNetworkObjectId, out IslandTurret turret, out string resultMessage))
         {
-            return false;
+            return (false, resultMessage);
         }
 
         if (!TrySanitizePlacementPosition(requestedPosition, turretNetworkObjectId, out Vector3 resolvedPosition, out resultMessage))
         {
-            return false;
+            return (false, resultMessage);
+        }
+
+        if (!TryCreateWorldObjectClient(out BackendWorldObjectClient worldObjectClient, out resultMessage))
+        {
+            return (false, resultMessage);
+        }
+
+        try
+        {
+            await worldObjectClient.UpdateWorldObjectAsync(
+                turret.PersistentWorldObjectId,
+                PersistentTurretState.FromPosition(resolvedPosition).ToJson());
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Could not save turret position: {ex.Message}");
         }
 
         turret.SetPlacementPosition(resolvedPosition);
         MarkTerrainDirty();
-        resultMessage = "Turret moved.";
-        return true;
+        return (true, "Turret moved.");
     }
 
-    public bool TryServerDeleteTurret(Player owner, ulong turretNetworkObjectId, out string resultMessage)
+    public async Task<(bool success, string message)> TryServerDeleteTurretAsync(Player owner, ulong turretNetworkObjectId)
     {
-        resultMessage = string.Empty;
         if (owner == null || !owner.IsServer)
         {
-            resultMessage = "Only the server can delete turrets.";
-            return false;
+            return (false, "Only the server can delete turrets.");
         }
 
-        if (!TryResolveOwnedTurret(owner, turretNetworkObjectId, out IslandTurret turret, out resultMessage))
+        if (!TryResolveOwnedTurret(owner, turretNetworkObjectId, out IslandTurret turret, out string resultMessage))
         {
-            return false;
+            return (false, resultMessage);
+        }
+
+        if (!TryCreateWorldObjectClient(out _, out resultMessage))
+        {
+            return (false, resultMessage);
+        }
+
+        if (!await DeletePersistentWorldObjectAsync(turret.PersistentWorldObjectId))
+        {
+            return (false, "Could not remove turret from persistent world storage.");
         }
 
         NetworkObject networkObject = turret.NetworkObject;
@@ -359,8 +516,7 @@ public sealed class IslandBuildManager : MonoBehaviour
         }
 
         MarkTerrainDirty();
-        resultMessage = "Turret deleted.";
-        return true;
+        return (true, "Turret deleted.");
     }
 
     private void HandleTurretRegistryChanged()
@@ -569,7 +725,156 @@ public sealed class IslandBuildManager : MonoBehaviour
         return true;
     }
 
-    private bool ValidateServerBuildRequest(Player owner, Vector3 requestedPosition, out Vector3 resolvedPosition, out string resultMessage)
+    private bool TryCreateWorldObjectClient(out BackendWorldObjectClient worldObjectClient, out string failureMessage)
+    {
+        worldObjectClient = null;
+        failureMessage = string.Empty;
+
+        string playerDataBaseUrl = MultiplayerController.ResolvePlayerDataBaseUrlForServer();
+        if (string.IsNullOrWhiteSpace(playerDataBaseUrl))
+        {
+            failureMessage = "Player-data backend URL is not configured.";
+            return false;
+        }
+
+        string serverApiKey = MultiplayerController.ResolveServerApiKeyForWorldObjects();
+        if (string.IsNullOrWhiteSpace(serverApiKey))
+        {
+            failureMessage = "World-object server API key is not configured.";
+            return false;
+        }
+
+        try
+        {
+            worldObjectClient = new BackendWorldObjectClient(playerDataBaseUrl, serverApiKey);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            failureMessage = $"Could not create world-object backend client: {ex.Message}";
+            return false;
+        }
+    }
+
+    private async Task<bool> DeletePersistentWorldObjectAsync(string worldObjectId)
+    {
+        if (string.IsNullOrWhiteSpace(worldObjectId))
+        {
+            return true;
+        }
+
+        if (!TryCreateWorldObjectClient(out BackendWorldObjectClient worldObjectClient, out string failureMessage))
+        {
+            Debug.LogWarning($"[WorldObjects] {failureMessage}");
+            return false;
+        }
+
+        try
+        {
+            await worldObjectClient.DeleteWorldObjectAsync(worldObjectId);
+            return true;
+        }
+        catch (BackendApiException ex) when (ex.StatusCode == 404)
+        {
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[WorldObjects] Failed to delete world object {worldObjectId}: {ex.Message}");
+            return false;
+        }
+    }
+
+    private bool TryFindTurretByWorldObjectId(string worldObjectId, out IslandTurret foundTurret)
+    {
+        foundTurret = null;
+        if (string.IsNullOrWhiteSpace(worldObjectId))
+        {
+            return false;
+        }
+
+        foreach (IslandTurret turret in IslandTurret.ActiveTurrets)
+        {
+            if (turret == null || !turret.IsSpawned)
+            {
+                continue;
+            }
+
+            if (!string.Equals(turret.PersistentWorldObjectId, worldObjectId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            foundTurret = turret;
+            return true;
+        }
+
+        return false;
+    }
+
+    private ulong ResolveLiveOwnerClientId(string creatorUserId)
+    {
+        MultiplayerController controller = MultiplayerController.Instance;
+        if (controller != null && controller.TryGetClientIdForUserId(creatorUserId, out ulong liveOwnerClientId))
+        {
+            return liveOwnerClientId;
+        }
+
+        return ulong.MaxValue;
+    }
+
+    private bool TrySpawnPersistentTurret(string creatorUserId, string worldObjectId, Vector3 resolvedPosition, out IslandTurret turret, out string resultMessage)
+    {
+        turret = null;
+        resultMessage = string.Empty;
+
+        LoadTurretPrefab();
+        EnsureNetworkPrefabRegistered();
+        if (turretPrefab == null)
+        {
+            resultMessage = "Turret prefab is unavailable.";
+            return false;
+        }
+
+        GameObject instance = Instantiate(turretPrefab, resolvedPosition, Quaternion.identity);
+        turret = instance.GetComponent<IslandTurret>();
+        if (turret == null)
+        {
+            Destroy(instance);
+            resultMessage = "Turret prefab is missing the IslandTurret component.";
+            return false;
+        }
+
+        NetworkObject networkObject = instance.GetComponent<NetworkObject>();
+        if (networkObject == null)
+        {
+            Destroy(instance);
+            resultMessage = "Turret prefab is missing a NetworkObject.";
+            return false;
+        }
+
+        turret.InitializeOwnership(creatorUserId, ResolveLiveOwnerClientId(creatorUserId), worldObjectId);
+        turret.SetPlacementPosition(resolvedPosition);
+        networkObject.Spawn(true);
+        return true;
+    }
+
+    private bool TryResolveCreatorUserId(Player owner, out string creatorUserId, out string resultMessage)
+    {
+        creatorUserId = string.Empty;
+        resultMessage = string.Empty;
+
+        MultiplayerController controller = MultiplayerController.Instance;
+        if (controller == null || !controller.TryGetAuthenticatedUserId(owner.OwnerClientId, out creatorUserId))
+        {
+            resultMessage = "Unable to resolve your account for turret ownership.";
+            return false;
+        }
+
+        return !string.IsNullOrWhiteSpace(creatorUserId);
+    }
+
+    private bool ValidateServerBuildRequest(Player owner, string creatorUserId, Vector3 requestedPosition, out Vector3 resolvedPosition, out string resultMessage)
     {
         resolvedPosition = default;
         resultMessage = string.Empty;
@@ -580,13 +885,14 @@ public sealed class IslandBuildManager : MonoBehaviour
             return false;
         }
 
+        LoadTurretPrefab();
         if (turretPrefab == null)
         {
             resultMessage = "Turret prefab is unavailable.";
             return false;
         }
 
-        if (IslandTurret.CountOwnedBy(owner.OwnerClientId) >= MaxOwnedTurrets)
+        if (IslandTurret.CountOwnedByCreator(creatorUserId) >= MaxOwnedTurrets)
         {
             resultMessage = $"You can only build {MaxOwnedTurrets} turrets.";
             return false;
@@ -605,7 +911,12 @@ public sealed class IslandBuildManager : MonoBehaviour
         turret = null;
         resultMessage = string.Empty;
 
-        if (!IslandTurret.TryResolveOwnedTurret(turretNetworkObjectId, owner.OwnerClientId, out turret) || turret == null)
+        if (!TryResolveCreatorUserId(owner, out string creatorUserId, out resultMessage))
+        {
+            return false;
+        }
+
+        if (!IslandTurret.TryResolveOwnedTurret(turretNetworkObjectId, creatorUserId, out turret) || turret == null)
         {
             resultMessage = "That turret is no longer available.";
             return false;
@@ -862,6 +1173,41 @@ public sealed class IslandBuildManager : MonoBehaviour
         }
     }
 
+    // TerrainData is shared asset data, so restore the original heightmap when the runtime manager shuts down.
+    private void RestoreTerrainState()
+    {
+        if (cachedTerrain == null || cachedTerrain.terrainData == null || baseHeights == null)
+        {
+            baseHeights = null;
+            cachedTerrain = null;
+            cachedNavMeshSurface = null;
+            terrainDirty = false;
+            terrainRebuildReadyAt = 0f;
+            return;
+        }
+
+        TerrainData terrainData = cachedTerrain.terrainData;
+        int resolution = terrainData.heightmapResolution;
+        if (baseHeights.GetLength(0) != resolution || baseHeights.GetLength(1) != resolution)
+        {
+            baseHeights = null;
+            cachedTerrain = null;
+            cachedNavMeshSurface = null;
+            terrainDirty = false;
+            terrainRebuildReadyAt = 0f;
+            return;
+        }
+
+        terrainData.SetHeights(0, 0, baseHeights);
+        cachedTerrain.Flush();
+
+        baseHeights = null;
+        cachedTerrain = null;
+        cachedNavMeshSurface = null;
+        terrainDirty = false;
+        terrainRebuildReadyAt = 0f;
+    }
+
     private static void ApplyFoundation(float[,] heights, Terrain terrain, Vector3 centerPosition)
     {
         TerrainData terrainData = terrain.terrainData;
@@ -902,6 +1248,71 @@ public sealed class IslandBuildManager : MonoBehaviour
                 float raisedHeight = Mathf.Lerp(currentHeight, normalizedTargetHeight, blend);
                 heights[z, x] = Mathf.Max(currentHeight, raisedHeight);
             }
+        }
+    }
+}
+
+public readonly struct PersistentTurretState
+{
+    public PersistentTurretState(Vector3 position)
+    {
+        Position = position;
+    }
+
+    public Vector3 Position { get; }
+
+    public Newtonsoft.Json.Linq.JObject ToJson()
+    {
+        return new Newtonsoft.Json.Linq.JObject
+        {
+            ["positionX"] = Position.x,
+            ["positionY"] = Position.y,
+            ["positionZ"] = Position.z,
+        };
+    }
+
+    public static PersistentTurretState FromPosition(Vector3 position)
+    {
+        return new PersistentTurretState(position);
+    }
+
+    public static bool TryParse(Newtonsoft.Json.Linq.JObject state, out PersistentTurretState persistentState)
+    {
+        persistentState = default;
+        if (state == null)
+        {
+            return false;
+        }
+
+        if (!TryReadFloat(state, "positionX", out float x) ||
+            !TryReadFloat(state, "positionY", out float y) ||
+            !TryReadFloat(state, "positionZ", out float z))
+        {
+            return false;
+        }
+
+        persistentState = new PersistentTurretState(new Vector3(x, y, z));
+        return true;
+    }
+
+    private static bool TryReadFloat(Newtonsoft.Json.Linq.JObject state, string propertyName, out float value)
+    {
+        value = 0f;
+        if (state == null || !state.TryGetValue(propertyName, out var token) || token == null)
+        {
+            return false;
+        }
+
+        switch (token.Type)
+        {
+            case Newtonsoft.Json.Linq.JTokenType.Float:
+            case Newtonsoft.Json.Linq.JTokenType.Integer:
+                value = token.ToObject<float>();
+                return true;
+            case Newtonsoft.Json.Linq.JTokenType.String:
+                return float.TryParse(token.ToObject<string>(), out value);
+            default:
+                return false;
         }
     }
 }

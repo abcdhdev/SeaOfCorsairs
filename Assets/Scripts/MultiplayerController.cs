@@ -26,7 +26,9 @@ public class MultiplayerController : MonoBehaviour
     private const string RequiredProtocolVersionEnvVar = "SEAWARS_REQUIRED_PROTOCOL_VERSION";
     private const string AuthBaseUrlEnvVar = "SEAWARS_AUTH_BASE_URL";
     private const string PlayerDataBaseUrlEnvVar = "SEAWARS_PLAYERDATA_BASE_URL";
+    private const string ServerApiKeyEnvVar = "SEAWARS_SERVER_API_KEY";
     private const string LocalDevFallbackJwtSigningKey = "dev-insecure-change-me-please-use-at-least-32-bytes";
+    private const string LocalDevFallbackServerApiKey = "dev-world-objects-api-key-change-me";
 
     private sealed class AuthenticatedClientSession
     {
@@ -591,6 +593,7 @@ public class MultiplayerController : MonoBehaviour
                 return;
             }
 
+            IslandBuildManager.Instance?.AssignLiveOwnerClientId(session.UserId, clientId);
             SubscribeToWalletChanges(session, player);
         }
         catch (OperationCanceledException)
@@ -997,6 +1000,7 @@ public class MultiplayerController : MonoBehaviour
             return;
         }
 
+        IslandBuildManager.Instance?.ClearLiveOwnerClientId(session.UserId, clientId);
         UnsubscribeFromWalletChanges(session);
 
         if (!session.LifetimeCts.IsCancellationRequested)
@@ -1018,6 +1022,22 @@ public class MultiplayerController : MonoBehaviour
 
         _clientIdToUserId.Remove(clientId);
         _clientIdToDisplayName.Remove(clientId);
+    }
+
+    private static string ResolveServerApiKey()
+    {
+        string configured = Environment.GetEnvironmentVariable(ServerApiKeyEnvVar);
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            return configured.Trim();
+        }
+
+        if (TryReadDotEnvVariable(ServerApiKeyEnvVar, out string fromDotEnv))
+        {
+            return fromDotEnv;
+        }
+
+        return LocalDevFallbackServerApiKey;
     }
 
     private static string ResolveAuthBaseUrl()
@@ -1084,6 +1104,49 @@ public class MultiplayerController : MonoBehaviour
     }
 #endif
 
+    public bool TryGetAuthenticatedUserId(ulong clientId, out string userId)
+    {
+#if UNITY_SERVER || UNITY_EDITOR
+        if (_clientSessions.TryGetValue(clientId, out var session) && !string.IsNullOrWhiteSpace(session.UserId))
+        {
+            userId = session.UserId;
+            return true;
+        }
+#endif
+        userId = string.Empty;
+        return false;
+    }
+
+    public bool TryGetClientIdForUserId(string userId, out ulong clientId)
+    {
+#if UNITY_SERVER || UNITY_EDITOR
+        if (!string.IsNullOrWhiteSpace(userId) && _userIdToClientId.TryGetValue(userId, out clientId))
+        {
+            return true;
+        }
+#endif
+        clientId = ulong.MaxValue;
+        return false;
+    }
+
+    public static string ResolvePlayerDataBaseUrlForServer()
+    {
+#if UNITY_SERVER || UNITY_EDITOR
+        return ResolvePlayerDataBaseUrl();
+#else
+        return BackendSession.GetPlayerDataBaseUrlOrDefault(BackendSession.PlayerDataBaseUrl);
+#endif
+    }
+
+    public static string ResolveServerApiKeyForWorldObjects()
+    {
+#if UNITY_SERVER || UNITY_EDITOR
+        return ResolveServerApiKey();
+#else
+        return string.Empty;
+#endif
+    }
+
     private void OnDestroy()
     {
         if (Instance == this)
@@ -1111,9 +1174,37 @@ public class MultiplayerController : MonoBehaviour
     }
 
 #if UNITY_SERVER || UNITY_EDITOR
-    private void OnServerStarted()
+    private async void OnServerStarted()
     {
         Debug.Log("Server Started");
+
+        try
+        {
+            var buildManager = await WaitForIslandBuildManagerAsync();
+            if (buildManager != null)
+            {
+                await buildManager.RestorePersistentTurretsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[WorldObjects] Failed to restore persistent turrets on server start: {ex.Message}");
+        }
+    }
+
+    private static async Task<IslandBuildManager> WaitForIslandBuildManagerAsync()
+    {
+        for (int attempt = 0; attempt < 300; attempt++)
+        {
+            if (IslandBuildManager.Instance != null)
+            {
+                return IslandBuildManager.Instance;
+            }
+
+            await Task.Yield();
+        }
+
+        return null;
     }
 #endif
 

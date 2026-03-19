@@ -31,20 +31,20 @@ MonoBehaviour:
   m_previewImageHeight: 0
   m_operations: []
   m_terrainMinMaxCache:
-  - guid: 1cabe26483b261e4db2e4d3126d95893
+  - guid: 1adfdce0aba3d23449482ba8580dedf8
     isWorldmap: 0
     recalculate: 0
     min: 0
-    max: 35.85992
+    max: 35.53179
   - guid: Worldmap
     isWorldmap: 1
     recalculate: 0
     min: 0
-    max: 33.43671
-  - guid: 2a1b4e743ef75e74a8dc2434f83e3182
+    max: 33.437283
+  - guid: 08fa118746ca15d4f93e680b2ecf3953
     isWorldmap: 0
     recalculate: 0
     min: 0
-    max: 35.953674
+    max: 35.04741
   m_bakedMaskCacheEntries: []
   m_worldBiomeMaskSettings: {fileID: 0}

@@ -39,6 +39,8 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
     private PlayerAttack cachedAttack;
     private ulong retaliatingAgainstId;
     private Vector3 lastNotifiedPosition;
+    private string creatorUserId = string.Empty;
+    private string persistentWorldObjectId = string.Empty;
 
     public static event Action RegistryChanged = delegate { };
     public event Action<float> OnHealthChanged = delegate { };
@@ -47,7 +49,10 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
 
     public int MaxHealth => maxHealth;
     public int CurrentHealth => networkHealth.Value;
-    public ulong OwnerClientId => ownerClientId.Value;
+    public new ulong OwnerClientId => ownerClientId.Value;
+    public string CreatorUserId => creatorUserId;
+    public string PersistentWorldObjectId => persistentWorldObjectId;
+    public bool HasPersistentWorldObjectId => !string.IsNullOrWhiteSpace(persistentWorldObjectId);
     public GameObject TargetGameObject => gameObject;
     public bool CanBeTargeted => IsSpawned && isActiveAndEnabled && CurrentHealth > 0;
 
@@ -130,15 +135,38 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
         IslandBuildManager.Instance?.MarkTerrainDirty();
     }
 
-    public void InitializeOwner(ulong clientId)
+    public void InitializeOwnership(string creatorUserIdValue, ulong liveOwnerClientId, string worldObjectId)
     {
         if (!IsServer)
         {
-            Debug.LogWarning($"IslandTurret {name}: InitializeOwner is server-only.");
+            Debug.LogWarning($"IslandTurret {name}: InitializeOwnership is server-only.");
+            return;
+        }
+
+        creatorUserId = string.IsNullOrWhiteSpace(creatorUserIdValue)
+            ? string.Empty
+            : creatorUserIdValue.Trim();
+        persistentWorldObjectId = string.IsNullOrWhiteSpace(worldObjectId)
+            ? string.Empty
+            : worldObjectId.Trim();
+        ownerClientId.Value = liveOwnerClientId;
+    }
+
+    public void SetLiveOwnerClientId(ulong clientId)
+    {
+        if (!IsServer)
+        {
+            Debug.LogWarning($"IslandTurret {name}: SetLiveOwnerClientId is server-only.");
             return;
         }
 
         ownerClientId.Value = clientId;
+    }
+
+    public bool IsOwnedByCreator(string userId)
+    {
+        return !string.IsNullOrWhiteSpace(creatorUserId) &&
+               string.Equals(creatorUserId, userId?.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     public bool IsOwnedBy(ulong clientId)
@@ -157,6 +185,11 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
         transform.position = new Vector3(position.x, placementY, position.z);
         lastNotifiedPosition = transform.position;
         IslandBuildManager.Instance?.MarkTerrainDirty();
+    }
+
+    public PersistentTurretState CapturePersistentState()
+    {
+        return PersistentTurretState.FromPosition(transform.position);
     }
 
     public void TakeDamage(int damage)
@@ -267,6 +300,20 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
         return count;
     }
 
+    public static int CountOwnedByCreator(string creatorUserId)
+    {
+        int count = 0;
+        foreach (IslandTurret turret in ActiveTurretsInternal)
+        {
+            if (turret != null && turret.IsSpawned && turret.IsOwnedByCreator(creatorUserId))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
     public static bool TryResolveOwnedTurret(ulong networkObjectId, ulong clientId, out IslandTurret turret)
     {
         turret = null;
@@ -283,6 +330,33 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
             }
 
             if (!candidate.IsOwnedBy(clientId))
+            {
+                return false;
+            }
+
+            turret = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    public static bool TryResolveOwnedTurret(ulong networkObjectId, string creatorUserId, out IslandTurret turret)
+    {
+        turret = null;
+        foreach (IslandTurret candidate in ActiveTurretsInternal)
+        {
+            if (candidate == null || !candidate.IsSpawned || candidate.NetworkObject == null)
+            {
+                continue;
+            }
+
+            if (candidate.NetworkObject.NetworkObjectId != networkObjectId)
+            {
+                continue;
+            }
+
+            if (!candidate.IsOwnedByCreator(creatorUserId))
             {
                 return false;
             }
@@ -336,6 +410,7 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
         aggressorIds.Clear();
         retaliatingAgainstId = 0;
         Attack?.StopAttack();
+        IslandBuildManager.Instance?.NotifyTurretDestroyed(this);
 
         if (NetworkObject != null && NetworkObject.IsSpawned)
         {
