@@ -531,9 +531,11 @@ public partial class GameUIController
 
     private void RefreshActionBarVisibility()
     {
+        bool islandEditActive = IslandBuildManager.Instance != null && IslandBuildManager.Instance.IsEditModeActive;
+
         if (actionBarBody != null)
         {
-            if (isActionBarOpen)
+            if (isActionBarOpen && !islandEditActive)
             {
                 actionBarBody.RemoveFromClassList(ActionBarClosedClass);
             }
@@ -545,6 +547,7 @@ public partial class GameUIController
 
         if (actionBarToggleButton != null)
         {
+            actionBarToggleButton.style.display = islandEditActive ? DisplayStyle.None : DisplayStyle.Flex;
             actionBarToggleButton.text = isActionBarOpen ? "<" : ">";
 
             if (isActionBarOpen)

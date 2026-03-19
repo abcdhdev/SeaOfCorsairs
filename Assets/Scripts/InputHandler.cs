@@ -177,7 +177,8 @@ public class InputHandler : MonoBehaviour
 
     public void OnFire(InputAction.CallbackContext context)
     {
-        if (IslandBuildManager.Instance != null && IslandBuildManager.Instance.IsPlacementActive)
+        if (IslandBuildManager.Instance != null &&
+            (IslandBuildManager.Instance.IsPlacementActive || IslandBuildManager.Instance.IsEditModeActive))
         {
             return;
         }
@@ -201,7 +202,8 @@ public class InputHandler : MonoBehaviour
             return;
         }
 
-        if (IslandBuildManager.Instance != null && IslandBuildManager.Instance.IsPlacementActive)
+        if (IslandBuildManager.Instance != null &&
+            (IslandBuildManager.Instance.IsPlacementActive || IslandBuildManager.Instance.IsEditModeActive))
         {
             return;
         }

@@ -7,12 +7,14 @@ public partial class GameUIController
     private const string MinimapMountName = "MinimapMount";
     private const string ChatMountName = "ChatMount";
     private const string ActionBarMountName = "ActionBarMount";
+    private const string IslandEditMountName = "IslandEditMount";
     private const string DeadOverlayMountName = "DeadOverlayMount";
 
     private const string TopBarFragmentPath = "GameHUD/Fragments/TopBar";
     private const string MinimapFragmentPath = "GameHUD/Fragments/Minimap";
     private const string ChatFragmentPath = "GameHUD/Fragments/ChatPanel";
     private const string ActionBarFragmentPath = "GameHUD/Fragments/ActionBar";
+    private const string IslandEditFragmentPath = "GameHUD/Fragments/IslandEditBar";
     private const string DeadOverlayFragmentPath = "GameHUD/Fragments/DeadOverlay";
 
     private void EnsureHudLayoutComposed()
@@ -26,6 +28,7 @@ public partial class GameUIController
         EnsureFragmentMounted(MinimapMountName, "MinimapRoot", MinimapFragmentPath);
         EnsureFragmentMounted(ChatMountName, "MmoChatRoot", ChatFragmentPath);
         EnsureFragmentMounted(ActionBarMountName, "BottomHudContainer", ActionBarFragmentPath);
+        EnsureFragmentMounted(IslandEditMountName, "IslandEditRoot", IslandEditFragmentPath);
         EnsureFragmentMounted(DeadOverlayMountName, "DeadOverlayRoot", DeadOverlayFragmentPath);
     }
 

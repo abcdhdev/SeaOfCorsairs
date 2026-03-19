@@ -88,6 +88,240 @@
     align-items: flex-end;
 }
 
+.island-edit-root {
+    position: absolute;
+    right: 90px;
+    bottom: 18px;
+    left: 350px;
+    display: none;
+    align-items: center;
+}
+
+.island-edit-banner {
+    margin-bottom: 8px;
+    padding-top: 4px;
+    padding-right: 14px;
+    padding-bottom: 4px;
+    padding-left: 14px;
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-left-radius: 999px;
+    border-bottom-right-radius: 999px;
+    background-color: rgba(8, 23, 31, 0.9);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(99, 183, 206, 0.68);
+    border-right-color: rgba(99, 183, 206, 0.68);
+    border-bottom-color: rgba(99, 183, 206, 0.68);
+    border-left-color: rgba(99, 183, 206, 0.68);
+    color: rgba(214, 244, 255, 0.96);
+    -unity-font-style: bold;
+    font-size: 12px;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+}
+
+.island-edit-info-panel {
+    width: 860px;
+    max-width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 8px;
+    padding-top: 14px;
+    padding-right: 18px;
+    padding-bottom: 14px;
+    padding-left: 18px;
+    background-color: rgba(10, 14, 20, 0.95);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(205, 138, 52, 0.78);
+    border-right-color: rgba(205, 138, 52, 0.78);
+    border-bottom-color: rgba(205, 138, 52, 0.78);
+    border-left-color: rgba(205, 138, 52, 0.78);
+}
+
+.island-edit-info-column {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.island-edit-info-column-right {
+    align-items: flex-end;
+}
+
+.island-edit-info-title {
+    color: rgba(255, 214, 163, 0.96);
+    -unity-font-style: bold;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.island-edit-info-line {
+    margin-top: 4px;
+    color: rgba(241, 228, 210, 0.98);
+    font-size: 14px;
+}
+
+.island-edit-info-line-muted {
+    color: rgba(182, 190, 196, 0.86);
+}
+
+.island-build-catalog {
+    width: 860px;
+    max-width: 100%;
+    display: none;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.island-build-card {
+    min-width: 240px;
+    height: 44px;
+    padding-right: 18px;
+    padding-left: 18px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(87, 170, 118, 0.92);
+    border-right-color: rgba(87, 170, 118, 0.92);
+    border-bottom-color: rgba(87, 170, 118, 0.92);
+    border-left-color: rgba(87, 170, 118, 0.92);
+    background-color: rgba(15, 48, 29, 0.96);
+    color: rgba(230, 248, 234, 0.98);
+    -unity-font-style: bold;
+    font-size: 13px;
+}
+
+.island-build-card:hover {
+    background-color: rgba(24, 70, 41, 0.99);
+}
+
+.island-edit-status-label {
+    width: 860px;
+    max-width: 100%;
+    margin-bottom: 8px;
+    padding-top: 8px;
+    padding-right: 14px;
+    padding-bottom: 8px;
+    padding-left: 14px;
+    background-color: rgba(8, 12, 18, 0.9);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    color: rgba(216, 223, 230, 0.96);
+    font-size: 12px;
+    -unity-text-align: middle-left;
+}
+
+.island-edit-bar {
+    width: 860px;
+    max-width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding-top: 12px;
+    padding-right: 14px;
+    padding-bottom: 12px;
+    padding-left: 14px;
+    background-color: rgba(15, 9, 3, 0.96);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgba(204, 129, 28, 0.88);
+    border-right-color: rgba(204, 129, 28, 0.88);
+    border-bottom-color: rgba(204, 129, 28, 0.88);
+    border-left-color: rgba(204, 129, 28, 0.88);
+}
+
+.island-edit-button-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.island-edit-button-group-right {
+    justify-content: flex-end;
+}
+
+.island-edit-button {
+    min-width: 106px;
+    height: 38px;
+    padding-right: 14px;
+    padding-left: 14px;
+    color: rgba(250, 232, 203, 0.98);
+    -unity-font-style: bold;
+    font-size: 12px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+}
+
+.island-edit-button-primary {
+    border-top-color: rgba(80, 162, 109, 0.92);
+    border-right-color: rgba(80, 162, 109, 0.92);
+    border-bottom-color: rgba(80, 162, 109, 0.92);
+    border-left-color: rgba(80, 162, 109, 0.92);
+    background-color: rgba(24, 63, 41, 0.96);
+}
+
+.island-edit-button-primary:hover {
+    background-color: rgba(31, 82, 52, 0.98);
+}
+
+.island-edit-button-secondary {
+    border-top-color: rgba(106, 126, 154, 0.92);
+    border-right-color: rgba(106, 126, 154, 0.92);
+    border-bottom-color: rgba(106, 126, 154, 0.92);
+    border-left-color: rgba(106, 126, 154, 0.92);
+    background-color: rgba(19, 28, 40, 0.95);
+}
+
+.island-edit-button-secondary:hover {
+    background-color: rgba(28, 40, 57, 0.98);
+}
+
+.island-edit-button-danger {
+    border-top-color: rgba(168, 84, 73, 0.92);
+    border-right-color: rgba(168, 84, 73, 0.92);
+    border-bottom-color: rgba(168, 84, 73, 0.92);
+    border-left-color: rgba(168, 84, 73, 0.92);
+    background-color: rgba(78, 23, 24, 0.96);
+}
+
+.island-edit-button-danger:hover {
+    background-color: rgba(100, 31, 31, 0.98);
+}
+
+.island-edit-button-exit {
+    border-top-color: rgba(199, 150, 79, 0.92);
+    border-right-color: rgba(199, 150, 79, 0.92);
+    border-bottom-color: rgba(199, 150, 79, 0.92);
+    border-left-color: rgba(199, 150, 79, 0.92);
+    background-color: rgba(71, 48, 14, 0.96);
+}
+
+.island-edit-button-exit:hover {
+    background-color: rgba(96, 61, 17, 0.98);
+}
+
 .action-bar-toggle-button {
     width: 32px;
     min-height: 186px;

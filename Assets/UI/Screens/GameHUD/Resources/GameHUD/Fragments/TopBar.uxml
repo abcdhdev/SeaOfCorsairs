@@ -8,7 +8,7 @@
                 <ui:Button text="" name="TopMenuChatButton" tooltip="Chat" class="top-menu-slot-button top-menu-slot-button-active">
                     <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-chat"/>
                 </ui:Button>
-                <ui:Button text="" name="TopMenuShieldButton" tooltip="Shield" class="top-menu-slot-button">
+                <ui:Button text="" name="TopMenuShieldButton" tooltip="Manage Defenses" class="top-menu-slot-button">
                     <ui:VisualElement picking-mode="Ignore" class="top-menu-slot-icon top-menu-icon-shield"/>
                 </ui:Button>
                 <ui:Button text="" name="TopMenuCompassButton" tooltip="Map" class="top-menu-slot-button">

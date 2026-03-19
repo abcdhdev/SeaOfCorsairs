@@ -49,6 +49,11 @@ public partial class GameUIController
         {
             UIToolkitRaycastChecker.RegisterBlockingElement(cameraZoomRoot);
         }
+
+        if (islandEditRoot != null)
+        {
+            UIToolkitRaycastChecker.RegisterBlockingElement(islandEditRoot);
+        }
     }
 
     private void UnregisterBlockingUiElements()
@@ -96,6 +101,11 @@ public partial class GameUIController
         if (cameraZoomRoot != null)
         {
             UIToolkitRaycastChecker.UnregisterBlockingElement(cameraZoomRoot);
+        }
+
+        if (islandEditRoot != null)
+        {
+            UIToolkitRaycastChecker.UnregisterBlockingElement(islandEditRoot);
         }
     }
 
@@ -153,6 +163,8 @@ public partial class GameUIController
             root.RegisterCallback<PointerUpEvent>(OnRootPointerUp);
             root.RegisterCallback<PointerCancelEvent>(OnRootPointerCancel);
         }
+
+        RegisterIslandEditCallbacks();
     }
 
     private void UnregisterUiCallbacks()
@@ -209,5 +221,7 @@ public partial class GameUIController
             root.UnregisterCallback<PointerUpEvent>(OnRootPointerUp);
             root.UnregisterCallback<PointerCancelEvent>(OnRootPointerCancel);
         }
+
+        UnregisterIslandEditCallbacks();
     }
 }

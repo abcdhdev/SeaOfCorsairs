@@ -10,6 +10,7 @@
         </ui:VisualElement>
         <ui:VisualElement name="ChatMount" picking-mode="Ignore"/>
         <ui:VisualElement name="ActionBarMount" picking-mode="Ignore"/>
+        <ui:VisualElement name="IslandEditMount" picking-mode="Ignore"/>
         <ui:VisualElement name="DeadOverlayMount" picking-mode="Ignore"/>
     </ui:VisualElement>
     <ui:VisualElement name="MetaRoot" picking-mode="Ignore" class="meta-root"/>

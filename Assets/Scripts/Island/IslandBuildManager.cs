@@ -6,6 +6,22 @@ using Unity.Netcode.Components;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+public enum PlayerUIMode
+{
+    Normal,
+    IslandEdit
+}
+
+public enum IslandEditState
+{
+    None,
+    Selecting,
+    BuildChooseType,
+    BuildPlacing,
+    Moving,
+    DestroyConfirm
+}
+
 [DefaultExecutionOrder(-200)]
 public sealed class IslandBuildManager : MonoBehaviour
 {
@@ -18,6 +34,8 @@ public sealed class IslandBuildManager : MonoBehaviour
     private const float FoundationInnerRadius = 5f;
     private const float FoundationOuterRadius = 8f;
     private const float TerrainRebuildDebounceSeconds = 0.08f;
+    private const float EditModeTargetSelectionRadius = 2.5f;
+    private const float EditModeTargetSelectionDistance = 1000f;
 
     private enum PlacementMode
     {
@@ -37,7 +55,7 @@ public sealed class IslandBuildManager : MonoBehaviour
     private Vector3 previewPosition;
     private ulong movingTurretId;
     private bool networkPrefabRegistered;
-    private string statusMessage = "Shield button opens guild management.";
+    private string statusMessage = "Manage Defenses enters defense edit mode.";
     private Player observedLocalPlayer;
     private Terrain cachedTerrain;
     private NavMeshSurface cachedNavMeshSurface;
@@ -47,7 +65,11 @@ public sealed class IslandBuildManager : MonoBehaviour
     private bool restoreInProgress;
     private bool restoreCompleted;
 
+    public PlayerUIMode UiMode { get; private set; } = PlayerUIMode.Normal;
+    public IslandEditState EditState { get; private set; } = IslandEditState.None;
+    public bool IsEditModeActive => UiMode == PlayerUIMode.IslandEdit;
     public bool IsPlacementActive => placementMode != PlacementMode.None;
+    public bool IsBuildCatalogVisible => EditState == IslandEditState.BuildChooseType || EditState == IslandEditState.BuildPlacing;
     public string StatusMessage => statusMessage;
     public int TurretCost => TurretGoldCost;
     public int MaxTurrets => MaxOwnedTurrets;
@@ -107,6 +129,8 @@ public sealed class IslandBuildManager : MonoBehaviour
         LoadTurretPrefab();
         EnsureNetworkPrefabRegistered();
         TrackObservedLocalPlayer();
+        HandleEditModeCancelInput();
+        SanitizeEditModeState();
         UpdatePlacementPreview();
         RebuildTerrainIfNeeded();
     }
@@ -139,8 +163,102 @@ public sealed class IslandBuildManager : MonoBehaviour
         return selectedTurret.IsOwnedBy(localClientId) ? selectedTurret : null;
     }
 
+    public void EnterEditMode()
+    {
+        UiMode = PlayerUIMode.IslandEdit;
+        EditState = IslandEditState.Selecting;
+        CancelPlacement();
+        DeselectNonTurretTarget();
+        SetStatus("Defense edit mode active. Select a turret or choose Build.");
+    }
+
+    public void ExitEditMode(string reason = null)
+    {
+        CancelPlacement();
+        UiMode = PlayerUIMode.Normal;
+        EditState = IslandEditState.None;
+        DeselectSelectedTurret();
+        SetStatus(string.IsNullOrWhiteSpace(reason) ? "Defense edit mode closed." : reason);
+    }
+
+    public void OpenBuildCatalog()
+    {
+        if (!IsEditModeActive)
+        {
+            EnterEditMode();
+        }
+
+        CancelPlacement();
+        EditState = IslandEditState.BuildChooseType;
+        SetStatus("Choose a turret to place, then click a clear position on the island.");
+    }
+
+    public void ReturnToSelectionMode(string reason = null)
+    {
+        if (!IsEditModeActive)
+        {
+            return;
+        }
+
+        CancelPlacement();
+        EditState = IslandEditState.Selecting;
+        if (!string.IsNullOrWhiteSpace(reason))
+        {
+            SetStatus(reason);
+        }
+    }
+
+    public void CancelCurrentAction(string reason = null)
+    {
+        if (IsPlacementActive)
+        {
+            CancelPlacement(reason);
+            return;
+        }
+
+        if (!IsEditModeActive)
+        {
+            return;
+        }
+
+        if (EditState == IslandEditState.BuildChooseType || EditState == IslandEditState.DestroyConfirm)
+        {
+            EditState = IslandEditState.Selecting;
+        }
+
+        if (!string.IsNullOrWhiteSpace(reason))
+        {
+            SetStatus(reason);
+        }
+    }
+
+    public bool BeginDestroyConfirmation()
+    {
+        if (!IsEditModeActive)
+        {
+            EnterEditMode();
+        }
+
+        IslandTurret selectedTurret = GetSelectedOwnedTurret();
+        if (selectedTurret == null)
+        {
+            SetStatus("Select one of your turrets before demolishing it.");
+            return false;
+        }
+
+        CancelPlacement();
+        EditState = IslandEditState.DestroyConfirm;
+        SetStatus($"Confirm demolish for {selectedTurret.name}.");
+        return true;
+    }
+
     public bool BeginBuildPlacement()
     {
+        if (!IsEditModeActive)
+        {
+            EnterEditMode();
+        }
+
         if (!CanLoadTurretPrefab())
         {
             SetStatus("Turret prefab could not be loaded.");
@@ -166,12 +284,18 @@ public sealed class IslandBuildManager : MonoBehaviour
         }
 
         StartPlacement(PlacementMode.Build, 0);
-        SetStatus("Move the cursor over the water and click to place your island turret.");
+        EditState = IslandEditState.BuildPlacing;
+        SetStatus("Move the cursor over the island and click to place your turret. Right-click or Esc cancels.");
         return true;
     }
 
     public bool BeginMovePlacement(IslandTurret turret)
     {
+        if (!IsEditModeActive)
+        {
+            EnterEditMode();
+        }
+
         if (turret == null)
         {
             SetStatus("Select one of your turrets before moving it.");
@@ -186,8 +310,9 @@ public sealed class IslandBuildManager : MonoBehaviour
         }
 
         StartPlacement(PlacementMode.Move, turret.NetworkObjectId);
+        EditState = IslandEditState.Moving;
         previewPosition = turret.transform.position;
-        SetStatus("Click a new location to move the selected turret.");
+        SetStatus("Click a new location for the selected turret. Right-click or Esc cancels.");
         return true;
     }
 
@@ -212,7 +337,8 @@ public sealed class IslandBuildManager : MonoBehaviour
             return false;
         }
 
-        SetStatus("Delete request sent.");
+        EditState = IsEditModeActive ? IslandEditState.Selecting : EditState;
+        SetStatus("Demolish request sent.");
         return true;
     }
 
@@ -223,6 +349,11 @@ public sealed class IslandBuildManager : MonoBehaviour
         previewValid = false;
         SetPreviewVisible(false);
 
+        if (EditState == IslandEditState.BuildPlacing || EditState == IslandEditState.Moving)
+        {
+            EditState = IslandEditState.Selecting;
+        }
+
         if (!string.IsNullOrWhiteSpace(reason))
         {
             SetStatus(reason);
@@ -231,10 +362,20 @@ public sealed class IslandBuildManager : MonoBehaviour
 
     public bool TryHandleGameplayClick(Ray ray)
     {
-        _ = ray;
-        if (!IsPlacementActive)
+        if (!IsEditModeActive && !IsPlacementActive)
         {
             return false;
+        }
+
+        if (!IsPlacementActive)
+        {
+            if (EditState == IslandEditState.BuildChooseType)
+            {
+                SetStatus("Choose a turret from the build bar, or cancel to return to selection.");
+                return true;
+            }
+
+            return TryHandleEditSelectionClick(ray);
         }
 
         if (!previewValid)
@@ -570,6 +711,56 @@ public sealed class IslandBuildManager : MonoBehaviour
         }
     }
 
+    private void HandleEditModeCancelInput()
+    {
+        if (!IsEditModeActive)
+        {
+            return;
+        }
+
+        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            if (IsPlacementActive || EditState == IslandEditState.BuildChooseType || EditState == IslandEditState.DestroyConfirm)
+            {
+                CancelCurrentAction("Action canceled.");
+            }
+            else
+            {
+                ExitEditMode("Defense edit mode closed.");
+            }
+
+            return;
+        }
+
+        if (Mouse.current == null || !Mouse.current.rightButton.wasPressedThisFrame)
+        {
+            return;
+        }
+
+        if (IsPlacementActive || EditState == IslandEditState.BuildChooseType || EditState == IslandEditState.DestroyConfirm)
+        {
+            CancelCurrentAction("Action canceled.");
+        }
+    }
+
+    private void SanitizeEditModeState()
+    {
+        if (!IsEditModeActive)
+        {
+            return;
+        }
+
+        if (EditState == IslandEditState.None)
+        {
+            EditState = IslandEditState.Selecting;
+        }
+
+        if (EditState == IslandEditState.DestroyConfirm && GetSelectedOwnedTurret() == null)
+        {
+            EditState = IslandEditState.Selecting;
+        }
+    }
+
     private void LoadTurretPrefab()
     {
         if (turretPrefab == null)
@@ -723,6 +914,67 @@ public sealed class IslandBuildManager : MonoBehaviour
         isValid = IsPlacementWithinTerrainBounds(resolvedPosition) &&
                   IsPlacementPositionClear(resolvedPosition, movingTurretId);
         return true;
+    }
+
+    private bool TryHandleEditSelectionClick(Ray ray)
+    {
+        if (TryResolveTurretFromRay(ray, out IslandTurret turret))
+        {
+            if (SelectObject.Instance != null)
+            {
+                SelectObject.Instance.Select(turret.gameObject);
+            }
+
+            EditState = IslandEditState.Selecting;
+            SetStatus(turret.IsOwnedBy(GetLocalClientId())
+                ? $"Selected {turret.name}. Choose an action from the defense bar."
+                : $"Selected {turret.name}. You can inspect it, but only your own turrets can be changed.");
+            return true;
+        }
+
+        DeselectSelectedTurret();
+        EditState = IslandEditState.Selecting;
+        SetStatus("No turret selected. Choose one of your defenses or enter Build mode.");
+        return true;
+    }
+
+    private bool TryResolveTurretFromRay(Ray ray, out IslandTurret turret)
+    {
+        turret = null;
+        GameObject requester = Player.LocalPlayer != null ? Player.LocalPlayer.gameObject : null;
+        if (!CombatTargetingUtility.TryFindTargetAlongRay(
+                ray,
+                requester,
+                EditModeTargetSelectionDistance,
+                EditModeTargetSelectionRadius,
+                out GameObject target))
+        {
+            return false;
+        }
+
+        return target != null && target.TryGetComponent(out turret);
+    }
+
+    private void DeselectSelectedTurret()
+    {
+        if (SelectObject.Instance?.SelectedTarget != null &&
+            SelectObject.Instance.SelectedTarget.TryGetComponent(out IslandTurret _))
+        {
+            SelectObject.Instance.Deselect();
+        }
+    }
+
+    private void DeselectNonTurretTarget()
+    {
+        if (SelectObject.Instance?.SelectedTarget == null)
+        {
+            return;
+        }
+
+        if (!SelectObject.Instance.SelectedTarget.TryGetComponent(out IslandTurret _))
+        {
+            SelectObject.Instance.Deselect();
+        }
     }
 
     private bool TryCreateWorldObjectClient(out BackendWorldObjectClient worldObjectClient, out string failureMessage)

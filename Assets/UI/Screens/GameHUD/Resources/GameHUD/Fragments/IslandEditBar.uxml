@@ -1,0 +1,39 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="IslandEditRoot" class="island-edit-root">
+        <ui:Label name="IslandEditBannerLabel" text="DEFENSE EDIT MODE" class="island-edit-banner"/>
+        <ui:VisualElement name="IslandEditInfoPanel" class="island-edit-info-panel">
+            <ui:VisualElement class="island-edit-info-column">
+                <ui:Label text="Selection" class="island-edit-info-title"/>
+                <ui:Label name="IslandEditSelectedNameLabel" text="No turret selected" class="island-edit-info-line"/>
+                <ui:Label name="IslandEditSelectedHealthLabel" text="HP: -" class="island-edit-info-line island-edit-info-line-muted"/>
+                <ui:Label name="IslandEditSelectedOwnerLabel" text="Owner: -" class="island-edit-info-line island-edit-info-line-muted"/>
+                <ui:Label name="IslandEditSelectedStatusLabel" text="Status: Waiting" class="island-edit-info-line island-edit-info-line-muted"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="island-edit-info-column island-edit-info-column-right">
+                <ui:Label text="Resources" class="island-edit-info-title"/>
+                <ui:Label name="IslandEditGoldLabel" text="Gold: 0" class="island-edit-info-line"/>
+                <ui:Label name="IslandEditCapacityLabel" text="Capacity: 0 / 6" class="island-edit-info-line island-edit-info-line-muted"/>
+                <ui:Label name="IslandEditModeLabel" text="Mode: Select" class="island-edit-info-line island-edit-info-line-muted"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="IslandBuildCatalog" class="island-build-catalog">
+            <ui:Button name="IslandEditBuildCannonButton" text="Cannon Tower  100g" class="island-build-card"/>
+        </ui:VisualElement>
+        <ui:Label name="IslandEditStatusLabel" text="Select a turret or choose Build." class="island-edit-status-label"/>
+        <ui:VisualElement name="IslandEditBar" class="island-edit-bar">
+            <ui:VisualElement class="island-edit-button-group">
+                <ui:Button name="IslandEditBuildButton" text="Build" class="island-edit-button island-edit-button-primary"/>
+                <ui:Button name="IslandEditSelectButton" text="Select" class="island-edit-button island-edit-button-secondary"/>
+                <ui:Button name="IslandEditMoveButton" text="Move" class="island-edit-button island-edit-button-secondary"/>
+                <ui:Button name="IslandEditRepairButton" text="Repair" class="island-edit-button island-edit-button-secondary"/>
+                <ui:Button name="IslandEditUpgradeButton" text="Upgrade" class="island-edit-button island-edit-button-secondary"/>
+                <ui:Button name="IslandEditDestroyButton" text="Destroy" class="island-edit-button island-edit-button-danger"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="island-edit-button-group island-edit-button-group-right">
+                <ui:Button name="IslandEditConfirmDestroyButton" text="Confirm Demolish" class="island-edit-button island-edit-button-danger"/>
+                <ui:Button name="IslandEditCancelButton" text="Cancel" class="island-edit-button island-edit-button-secondary"/>
+                <ui:Button name="IslandEditExitButton" text="Exit" class="island-edit-button island-edit-button-exit"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

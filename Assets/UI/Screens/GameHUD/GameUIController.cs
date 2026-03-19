@@ -147,13 +147,13 @@ public partial class GameUIController : MonoBehaviour
         SetCombatOverlayVisible(true);
         EnsureAmmoMenu();
         EnsureMarketSection();
-        EnsureGuildManagementSection();
         RegisterBlockingUiElements();
         BuildSourceSkills();
         BuildActionBarSlots();
         InitializeCameraZoomControl();
         RegisterUiCallbacks();
         RefreshActionBarVisibility();
+        RefreshIslandEditUi();
 
         SetNpcHealthVisible(false);
         SetDeadOverlayVisible(false);
@@ -249,7 +249,8 @@ public partial class GameUIController : MonoBehaviour
         UpdateCameraZoomControl();
         UpdateFpsAndPing();
         marketController?.Refresh();
-        guildManagementController?.Refresh();
+        RefreshIslandEditUi();
+        RefreshActionBarVisibility();
         UpdateTopMenuButtonStates();
     }
 
@@ -281,6 +282,7 @@ public partial class GameUIController : MonoBehaviour
         BuildSourceSkills();
         BuildActionBarPreviewSlots();
         InitializeCameraZoomControl();
+        RefreshIslandEditUi();
 
         isActionBarOpen = true;
         RefreshActionBarVisibility();
@@ -326,6 +328,7 @@ public partial class GameUIController : MonoBehaviour
         topMenuShieldButton = root.Q<Button>("TopMenuShieldButton");
         topMenuShipButton = root.Q<Button>("TopMenuShipButton");
         topMenuLogoutButton = root.Q<Button>("TopMenuLogoutButton");
+        BindIslandEditElements();
     }
 
     private void ClearUiElementReferences()
@@ -370,6 +373,7 @@ public partial class GameUIController : MonoBehaviour
         cameraZoomRoot = null;
         cameraZoomSlider = null;
         cameraZoomThumb = null;
+        ClearIslandEditReferences();
         root = null;
 
         topSlotLookup.Clear();
