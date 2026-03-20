@@ -65,18 +65,18 @@ public sealed class ShipSectionItemData
         string categoryId,
         string name,
         string description,
-        int cost,
+        string thumbnailLabel,
         string accentColor,
-        int quantity = 1)
+        int sortOrder = 0)
     {
         Id = id ?? string.Empty;
         TabId = tabId ?? string.Empty;
         CategoryId = categoryId ?? string.Empty;
         Name = name ?? string.Empty;
         Description = description ?? string.Empty;
-        Cost = Math.Max(0, cost);
+        ThumbnailLabel = thumbnailLabel ?? string.Empty;
         AccentColor = accentColor ?? "#C9A86B";
-        Quantity = Math.Max(1, quantity);
+        SortOrder = Math.Max(0, sortOrder);
     }
 
     public string Id { get; }
@@ -89,14 +89,9 @@ public sealed class ShipSectionItemData
 
     public string Description { get; }
 
-    public int Cost { get; }
+    public string ThumbnailLabel { get; }
 
     public string AccentColor { get; }
 
-    public int Quantity { get; private set; }
-
-    public void ChangeQuantity(int delta)
-    {
-        Quantity = Math.Max(1, Quantity + delta);
-    }
+    public int SortOrder { get; }
 }

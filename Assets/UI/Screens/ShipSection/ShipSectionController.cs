@@ -13,6 +13,10 @@ public sealed class ShipSectionController : IDisposable
     private const string CategoryButtonClass = "window-category-button";
     private const string CategoryButtonSelectedClass = "window-category-button-selected";
     private const string EmptyStateClass = "window-empty-state";
+    private const string StatusSelectedClass = "ship-section-item-status-selected";
+    private const string StatusOwnedClass = "ship-section-item-status-owned";
+    private const string StatusLockedClass = "ship-section-item-status-locked";
+    private const string StatusUnavailableClass = "ship-section-item-status-unavailable";
 
     private readonly VisualElement attachTarget;
     private readonly ShipSectionData data;
@@ -31,6 +35,11 @@ public sealed class ShipSectionController : IDisposable
 
     private string selectedTabId;
     private string selectedCategoryId;
+    private Player observedPlayer;
+    private string displayedOwnedShipsCsv = string.Empty;
+    private string displayedCurrentShipId = string.Empty;
+    private bool displayedHasVisualController;
+    private bool isDirty = true;
 
     public ShipSectionController(VisualElement attachTarget, ShipSectionData data)
     {
@@ -83,7 +92,7 @@ public sealed class ShipSectionController : IDisposable
         panelDragController = new DraggableWindowController(overlayRoot, panelRoot, headerRoot, closeButton);
         RegisterCallbacks();
         EnsureDefaultSelection();
-        RefreshView();
+        Refresh();
         SetVisible(false);
     }
 
@@ -99,12 +108,51 @@ public sealed class ShipSectionController : IDisposable
             return;
         }
 
+        if (!IsVisible)
+        {
+            InvalidateView();
+            Refresh();
+        }
+
         SetVisible(!IsVisible);
     }
 
     public void Hide()
     {
         SetVisible(false);
+    }
+
+    public void Refresh()
+    {
+        if (overlayRoot == null)
+        {
+            return;
+        }
+
+        Player localPlayer = Player.LocalPlayer;
+        PlayerShipVisualController shipVisualController = GetLocalPlayerShipVisualController();
+        string ownedShipsCsv = localPlayer != null ? localPlayer.OwnedShipIdsCsv ?? string.Empty : string.Empty;
+        string currentShipId = shipVisualController != null ? NormalizeShipId(shipVisualController.CurrentShipId) : string.Empty;
+        bool hasVisualController = shipVisualController != null;
+
+        bool stateChanged = isDirty ||
+                            !ReferenceEquals(observedPlayer, localPlayer) ||
+                            !string.Equals(displayedOwnedShipsCsv, ownedShipsCsv, StringComparison.Ordinal) ||
+                            !string.Equals(displayedCurrentShipId, currentShipId, StringComparison.OrdinalIgnoreCase) ||
+                            displayedHasVisualController != hasVisualController;
+
+        if (!stateChanged)
+        {
+            return;
+        }
+
+        observedPlayer = localPlayer;
+        displayedOwnedShipsCsv = ownedShipsCsv;
+        displayedCurrentShipId = currentShipId;
+        displayedHasVisualController = hasVisualController;
+        isDirty = false;
+
+        RefreshView();
     }
 
     public void Dispose()
@@ -134,6 +182,11 @@ public sealed class ShipSectionController : IDisposable
         itemList = null;
         closeButton = null;
         itemRowTemplate = null;
+        observedPlayer = null;
+        displayedOwnedShipsCsv = string.Empty;
+        displayedCurrentShipId = string.Empty;
+        displayedHasVisualController = false;
+        isDirty = true;
     }
 
     private void BindUiElements()
@@ -249,9 +302,12 @@ public sealed class ShipSectionController : IDisposable
         {
             string tabTitle = GetTabTitle(selectedTabId);
             string categoryTitle = GetCategoryTitle(selectedCategoryId);
+            string shipTitle = GetCurrentShipTitle();
             subtitleLabel.text = string.IsNullOrEmpty(tabTitle)
-                ? data.Subtitle
-                : $"{data.Subtitle} Active: {tabTitle}{(string.IsNullOrEmpty(categoryTitle) ? string.Empty : $" / {categoryTitle}")}";
+                ? string.IsNullOrEmpty(shipTitle)
+                    ? data.Subtitle
+                    : $"{data.Subtitle} Active: {shipTitle}"
+                : $"{data.Subtitle} Active: {tabTitle}{(string.IsNullOrEmpty(categoryTitle) ? string.Empty : $" / {categoryTitle}")}{(string.IsNullOrEmpty(shipTitle) ? string.Empty : $" | Current: {shipTitle}")}";
         }
 
         RefreshTabs();
@@ -275,6 +331,7 @@ public sealed class ShipSectionController : IDisposable
             {
                 selectedTabId = tab.Id;
                 EnsureCategorySelectionForTab(selectedTabId);
+                InvalidateView();
                 RefreshView();
             })
             {
@@ -311,6 +368,7 @@ public sealed class ShipSectionController : IDisposable
             Button button = new Button(() =>
             {
                 selectedCategoryId = category.Id;
+                InvalidateView();
                 RefreshView();
             })
             {
@@ -336,6 +394,8 @@ public sealed class ShipSectionController : IDisposable
 
         itemList.Clear();
 
+        Player localPlayer = Player.LocalPlayer;
+        PlayerShipVisualController shipVisualController = GetLocalPlayerShipVisualController();
         bool hasItems = false;
         for (int i = 0; i < data.Items.Count; i++)
         {
@@ -346,32 +406,30 @@ public sealed class ShipSectionController : IDisposable
             }
 
             hasItems = true;
-            itemList.Add(CreateItemRow(item));
+            itemList.Add(CreateItemRow(item, localPlayer, shipVisualController));
         }
 
         if (!hasItems)
         {
-            Label emptyState = new Label("No dummy items are configured for this category yet.");
+            Label emptyState = new Label("No ship visuals are configured for this category yet.");
             emptyState.AddToClassList(EmptyStateClass);
             itemList.Add(emptyState);
         }
     }
 
-    private VisualElement CreateItemRow(ShipSectionItemData item)
+    private VisualElement CreateItemRow(ShipSectionItemData item, Player localPlayer, PlayerShipVisualController shipVisualController)
     {
         VisualElement row = CreateItemRowFromTemplate();
         Label thumbLabel = row.Q<Label>("ShipSectionItemThumbLabel");
         Label nameLabel = row.Q<Label>("ShipSectionItemNameLabel");
         Label descriptionLabel = row.Q<Label>("ShipSectionItemDescriptionLabel");
-        Label priceLabel = row.Q<Label>("ShipSectionItemPriceLabel");
-        Label quantityLabel = row.Q<Label>("ShipSectionItemQuantityLabel");
-        Button minusButton = row.Q<Button>("ShipSectionItemMinusButton");
-        Button plusButton = row.Q<Button>("ShipSectionItemPlusButton");
+        Label statusLabel = row.Q<Label>("ShipSectionItemStatusLabel");
+        Button selectButton = row.Q<Button>("ShipSectionItemSelectButton");
         VisualElement thumb = row.Q<VisualElement>("ShipSectionItemThumb");
 
         if (thumbLabel != null)
         {
-            thumbLabel.text = BuildThumbLabel(item.Name);
+            thumbLabel.text = string.IsNullOrWhiteSpace(item.ThumbnailLabel) ? BuildThumbLabel(item.Name) : item.ThumbnailLabel;
         }
 
         if (nameLabel != null)
@@ -384,14 +442,28 @@ public sealed class ShipSectionController : IDisposable
             descriptionLabel.text = item.Description;
         }
 
-        if (priceLabel != null)
-        {
-            priceLabel.text = item.Cost.ToString();
-        }
+        string normalizedItemId = NormalizeShipId(item.Id);
+        bool hasVisualController = shipVisualController != null;
+        bool isOwnedShip = localPlayer != null && localPlayer.OwnsShip(normalizedItemId);
+        bool isCurrentShip = hasVisualController && string.Equals(shipVisualController.CurrentShipId, normalizedItemId, StringComparison.OrdinalIgnoreCase);
+        bool isKnownShip = hasVisualController && shipVisualController.HasShipVisual(normalizedItemId);
 
-        if (quantityLabel != null)
+        if (statusLabel != null)
         {
-            quantityLabel.text = item.Quantity.ToString();
+            string statusText = !hasVisualController
+                ? "Missing"
+                : !isKnownShip
+                    ? "Unavailable"
+                    : !isOwnedShip
+                        ? "Locked"
+                        : isCurrentShip
+                            ? "Selected"
+                            : "Owned";
+            statusLabel.text = statusText;
+            statusLabel.EnableInClassList(StatusSelectedClass, isCurrentShip);
+            statusLabel.EnableInClassList(StatusOwnedClass, isOwnedShip && !isCurrentShip && isKnownShip);
+            statusLabel.EnableInClassList(StatusLockedClass, !isOwnedShip && isKnownShip);
+            statusLabel.EnableInClassList(StatusUnavailableClass, !hasVisualController || !isKnownShip);
         }
 
         if (thumb != null)
@@ -399,21 +471,44 @@ public sealed class ShipSectionController : IDisposable
             thumb.style.backgroundColor = new StyleColor(ParseColor(item.AccentColor, new Color(0.41f, 0.73f, 0.88f, 1f)));
         }
 
-        if (minusButton != null && quantityLabel != null)
+        if (MarketShipCatalogRuntime.TryGetShip(normalizedItemId, out MarketShipData shipDefinition) &&
+            shipDefinition != null &&
+            shipDefinition.Icon != null)
         {
-            minusButton.clicked += () =>
+            if (thumb != null)
             {
-                item.ChangeQuantity(-1);
-                quantityLabel.text = item.Quantity.ToString();
-            };
+                thumb.style.backgroundImage = new StyleBackground(shipDefinition.Icon);
+            }
+
+            if (thumbLabel != null)
+            {
+                thumbLabel.style.display = DisplayStyle.None;
+            }
+        }
+        else
+        {
+            if (thumb != null)
+            {
+                thumb.style.backgroundImage = new StyleBackground();
+            }
+
+            if (thumbLabel != null)
+            {
+                thumbLabel.style.display = DisplayStyle.Flex;
+            }
         }
 
-        if (plusButton != null && quantityLabel != null)
+        if (selectButton != null)
         {
-            plusButton.clicked += () =>
+            selectButton.text = !isKnownShip ? "Missing" : !isOwnedShip ? "Locked" : isCurrentShip ? "Selected" : "Select";
+            selectButton.SetEnabled(hasVisualController && isOwnedShip && isKnownShip && !isCurrentShip);
+            selectButton.clicked += () =>
             {
-                item.ChangeQuantity(1);
-                quantityLabel.text = item.Quantity.ToString();
+                if (shipVisualController != null && shipVisualController.TrySetShipVisual(item.Id))
+                {
+                    InvalidateView();
+                    Refresh();
+                }
             };
         }
 
@@ -501,6 +596,48 @@ public sealed class ShipSectionController : IDisposable
         }
 
         return string.Empty;
+    }
+
+    private string GetCurrentShipTitle()
+    {
+        PlayerShipVisualController shipVisualController = GetLocalPlayerShipVisualController();
+        if (shipVisualController == null || string.IsNullOrWhiteSpace(shipVisualController.CurrentShipId))
+        {
+            return string.Empty;
+        }
+
+        string currentShipId = shipVisualController.CurrentShipId;
+        for (int i = 0; i < data.Items.Count; i++)
+        {
+            ShipSectionItemData item = data.Items[i];
+            if (item != null && string.Equals(item.Id, currentShipId, StringComparison.OrdinalIgnoreCase))
+            {
+                return item.Name;
+            }
+        }
+
+        return currentShipId;
+    }
+
+    private static PlayerShipVisualController GetLocalPlayerShipVisualController()
+    {
+        Player localPlayer = Player.LocalPlayer;
+        if (localPlayer == null)
+        {
+            return null;
+        }
+
+        return localPlayer.GetComponent<PlayerShipVisualController>();
+    }
+
+    private static string NormalizeShipId(string shipId)
+    {
+        return MarketShipCatalogRuntime.NormalizeShipId(shipId);
+    }
+
+    private void InvalidateView()
+    {
+        isDirty = true;
     }
 
     private static string BuildThumbLabel(string value)

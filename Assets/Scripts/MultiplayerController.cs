@@ -827,6 +827,120 @@ public class MultiplayerController : MonoBehaviour
         }
     }
 
+    private async Task ProcessShipPurchaseAsync(Player player, string shipId)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        if (!_clientSessions.TryGetValue(player.OwnerClientId, out var session))
+        {
+            player.NotifyShipPurchaseResult(shipId, false, "Unable to find your backend session.");
+            return;
+        }
+
+        var acquiredPlayerStateLock = false;
+        try
+        {
+            await session.PlayerStateSyncLock.WaitAsync(session.LifetimeCts.Token);
+            acquiredPlayerStateLock = true;
+
+            if (session.LifetimeCts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            string normalizedShipId = MarketShipCatalogRuntime.NormalizeShipId(shipId);
+            if (!TryGetShipPurchaseDisplayName(normalizedShipId, out var shipDisplayName))
+            {
+                player.NotifyShipPurchaseResult(normalizedShipId, false, "Unknown ship.");
+                return;
+            }
+
+            if (player.OwnsShip(normalizedShipId))
+            {
+                player.NotifyShipPurchaseResult(normalizedShipId, false, $"{shipDisplayName} is already owned.");
+                return;
+            }
+
+            var playerDataClient = new BackendPlayerDataClient(ResolvePlayerDataBaseUrl());
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                session.LifetimeCts.Token.ThrowIfCancellationRequested();
+
+                try
+                {
+                    var purchase = await playerDataClient.PurchaseShipAsync(
+                        session.AccessToken,
+                        normalizedShipId,
+                        player.Gold,
+                        player.Diamonds,
+                        session.HasWalletVersion ? session.WalletVersion : (int?)null,
+                        session.LifetimeCts.Token);
+
+                    session.WalletVersion = purchase.version;
+                    session.HasWalletVersion = true;
+                    session.PendingGold = Mathf.Max(0, purchase.gold);
+                    session.PendingDiamond = Mathf.Max(0, purchase.diamond);
+                    session.WalletDirty = false;
+
+                    session.IsApplyingWallet = true;
+                    try
+                    {
+                        player.ApplyPersistedWallet(purchase.gold, purchase.diamond);
+                        player.ApplyPersistedOwnedShips(purchase.ownedShipIds);
+                    }
+                    finally
+                    {
+                        session.IsApplyingWallet = false;
+                    }
+
+                    player.NotifyShipPurchaseResult(normalizedShipId, true, $"{shipDisplayName} purchased.");
+                    return;
+                }
+                catch (BackendApiException ex) when (ex.StatusCode == 401 && attempt < 2)
+                {
+                    if (!await TryRefreshSessionTokensAsync(session, session.LifetimeCts.Token))
+                    {
+                        player.NotifyShipPurchaseResult(normalizedShipId, false, $"Could not refresh your session: {ex.Message}");
+                        return;
+                    }
+                }
+                catch (BackendApiException ex) when (ex.StatusCode == 409 && attempt < 2)
+                {
+                    if (!await TryReloadWalletVersionAsync(session, session.LifetimeCts.Token))
+                    {
+                        player.NotifyShipPurchaseResult(normalizedShipId, false, $"Could not refresh your latest wallet state: {ex.Message}");
+                        return;
+                    }
+                }
+                catch (BackendApiException ex)
+                {
+                    player.NotifyShipPurchaseResult(normalizedShipId, false, ex.Message);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    player.NotifyShipPurchaseResult(normalizedShipId, false, $"Purchase failed: {ex.Message}");
+                    return;
+                }
+            }
+
+            player.NotifyShipPurchaseResult(normalizedShipId, false, $"Purchase failed for {shipDisplayName}.");
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (acquiredPlayerStateLock)
+            {
+                session.PlayerStateSyncLock.Release();
+            }
+        }
+    }
+
     private static async Task<bool> TryLoadPlayerStateIntoPlayerAsync(AuthenticatedClientSession session, Player player, CancellationToken cancellationToken)
     {
         var playerDataClient = new BackendPlayerDataClient(ResolvePlayerDataBaseUrl());
@@ -849,6 +963,7 @@ public class MultiplayerController : MonoBehaviour
                 {
                     player.ApplyPersistedWallet(playerState.gold, playerState.diamond);
                     player.ApplyPersistedOwnedCannons(playerState.ownedCannonIds);
+                    player.ApplyPersistedOwnedShips(playerState.ownedShipIds);
                 }
                 finally
                 {
@@ -1049,6 +1164,19 @@ public class MultiplayerController : MonoBehaviour
         return false;
     }
 
+    private static bool TryGetShipPurchaseDisplayName(string shipId, out string displayName)
+    {
+        string normalizedShipId = MarketShipCatalogRuntime.NormalizeShipId(shipId);
+        if (MarketShipCatalogRuntime.TryGetShip(normalizedShipId, out MarketShipData ship) && ship != null)
+        {
+            displayName = string.IsNullOrWhiteSpace(ship.DisplayName) ? normalizedShipId : ship.DisplayName;
+            return true;
+        }
+
+        displayName = string.Empty;
+        return false;
+    }
+
     private static string ResolveConfiguredBaseUrl(string envVarName, string configuredSessionUrl, string fallbackUrl)
     {
         string configured = Environment.GetEnvironmentVariable(envVarName);
@@ -1100,6 +1228,26 @@ public class MultiplayerController : MonoBehaviour
         _ = ProcessCannonPurchaseAsync(player, cannonId);
 #else
         player.NotifyCannonPurchaseResult(cannonId, false, "Cannon purchases are only available on the game server.");
+#endif
+    }
+
+    public void RequestShipPurchase(Player player, string shipId)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+#if UNITY_SERVER || UNITY_EDITOR
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
+        {
+            player.NotifyShipPurchaseResult(shipId, false, "The market is only available while connected to the server.");
+            return;
+        }
+
+        _ = ProcessShipPurchaseAsync(player, shipId);
+#else
+        player.NotifyShipPurchaseResult(shipId, false, "Ship purchases are only available on the game server.");
 #endif
     }
 

@@ -1,2 +1,108 @@
 /* ShipSection-specific overrides belong here.
    Shared overlay panel chrome now lives in Assets/UI/Core/Resources/Shared/OverlayPanel.uss. */
+
+.ship-section-item-row {
+    min-height: 128px;
+    align-items: center;
+    padding-top: 12px;
+    padding-right: 14px;
+    padding-bottom: 12px;
+    padding-left: 14px;
+    background-color: rgba(10, 13, 20, 0.92);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(79, 100, 126, 0.45);
+    border-right-color: rgba(79, 100, 126, 0.45);
+    border-bottom-color: rgba(79, 100, 126, 0.45);
+    border-left-color: rgba(79, 100, 126, 0.45);
+}
+
+.ship-section-item-thumb {
+    width: 78px;
+    height: 78px;
+    min-width: 78px;
+    min-height: 78px;
+    margin-right: 14px;
+    background-color: rgba(16, 11, 6, 0.98);
+    background-repeat: no-repeat;
+    background-position: center;
+    -unity-background-scale-mode: stretch-to-fill;
+}
+
+.ship-section-item-thumb-label {
+    color: rgba(232, 241, 247, 0.95);
+    font-size: 16px;
+    -unity-font-style: bold;
+}
+
+.ship-section-item-meta {
+    min-width: 0;
+    flex-grow: 1;
+}
+
+.ship-section-item-name {
+    font-size: 18px;
+}
+
+.ship-section-item-description {
+    font-size: 12px;
+}
+
+.ship-section-item-status {
+    width: 112px;
+    min-width: 112px;
+    margin-right: 12px;
+    align-self: center;
+    color: rgba(214, 168, 95, 0.95);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.ship-section-item-status.ship-section-item-status-owned {
+    color: rgba(121, 229, 145, 0.98);
+}
+
+.ship-section-item-status.ship-section-item-status-selected {
+    color: rgba(103, 230, 130, 0.98);
+}
+
+.ship-section-item-status.ship-section-item-status-locked {
+    color: rgba(214, 168, 95, 0.95);
+}
+
+.ship-section-item-status.ship-section-item-status-unavailable {
+    color: rgba(255, 157, 126, 0.98);
+}
+
+.ship-section-item-actions {
+    width: 104px;
+    min-width: 104px;
+    justify-content: center;
+    align-items: center;
+}
+
+.ship-section-select-button {
+    width: 84px;
+    min-width: 84px;
+    color: rgba(219, 242, 255, 0.99);
+    background-color: rgba(5, 65, 97, 0.96);
+    border-top-color: rgba(86, 168, 188, 0.9);
+    border-right-color: rgba(86, 168, 188, 0.9);
+    border-bottom-color: rgba(86, 168, 188, 0.9);
+    border-left-color: rgba(86, 168, 188, 0.9);
+}
+
+.ship-section-select-button:hover {
+    background-color: rgba(8, 92, 132, 0.98);
+}
+
+.ship-section-select-button:disabled {
+    opacity: 0.45;
+    background-color: rgba(34, 47, 61, 0.96);
+    border-top-color: rgba(108, 132, 154, 0.72);
+    border-right-color: rgba(108, 132, 154, 0.72);
+    border-bottom-color: rgba(108, 132, 154, 0.72);
+    border-left-color: rgba(108, 132, 154, 0.72);
+}

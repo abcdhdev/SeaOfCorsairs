@@ -10,7 +10,8 @@ public sealed class MarketController : IDisposable
     private const string MarketItemRowUxmlResourcePath = "Market/MarketItemRow";
     private const string MarketStyleResourcePath = "Market/Market";
     private const string MarketCategoryCannonsId = "cannons";
-    private const string DefaultStatusMessage = "Select a cannon to buy it from the armory.";
+    private const string MarketCategoryShipsId = "ships";
+    private const string DefaultStatusMessage = "Select a ship or cannon to buy it from the market.";
     private const string CategoryButtonClass = "window-category-button";
     private const string CategoryButtonSelectedClass = "window-category-button-selected";
     private const string OwnedStateOwnedClass = "market-owned-state-owned";
@@ -22,8 +23,9 @@ public sealed class MarketController : IDisposable
 
     private readonly VisualElement attachTarget;
     private readonly Func<Player> localPlayerProvider;
-    private readonly List<MarketCannonData> visibleCannons = new List<MarketCannonData>();
+    private readonly List<MarketItemViewModel> visibleItems = new List<MarketItemViewModel>();
     private readonly HashSet<string> ownedCannonIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> ownedShipIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     private VisualElement overlayRoot;
     private VisualElement panelRoot;
@@ -40,10 +42,11 @@ public sealed class MarketController : IDisposable
     private Player observedPlayer;
 
     private string selectedCategoryId = MarketCategoryCannonsId;
-    private string pendingPurchaseId = string.Empty;
+    private string pendingPurchaseKey = string.Empty;
     private int displayedGold = -1;
     private int displayedDiamonds = -1;
     private string displayedOwnedCannonsCsv = string.Empty;
+    private string displayedOwnedShipsCsv = string.Empty;
 
     public MarketController(VisualElement attachTarget, Func<Player> localPlayerProvider)
     {
@@ -144,9 +147,9 @@ public sealed class MarketController : IDisposable
         }
 
         Player localPlayer = GetValidLocalPlayer();
-        if (localPlayer == null && !string.IsNullOrWhiteSpace(pendingPurchaseId))
+        if (localPlayer == null && !string.IsNullOrWhiteSpace(pendingPurchaseKey))
         {
-            pendingPurchaseId = string.Empty;
+            pendingPurchaseKey = string.Empty;
         }
 
         TrackObservedPlayer(localPlayer);
@@ -154,6 +157,7 @@ public sealed class MarketController : IDisposable
         int currentGold = localPlayer != null ? Mathf.Max(0, localPlayer.Gold) : 0;
         int currentDiamonds = localPlayer != null ? Mathf.Max(0, localPlayer.Diamonds) : 0;
         string ownedCannonsCsv = localPlayer != null ? localPlayer.OwnedCannonIdsCsv ?? string.Empty : string.Empty;
+        string ownedShipsCsv = localPlayer != null ? localPlayer.OwnedShipIdsCsv ?? string.Empty : string.Empty;
 
         if (goldValueLabel != null && displayedGold != currentGold)
         {
@@ -167,18 +171,21 @@ public sealed class MarketController : IDisposable
 
         bool stateChanged = displayedGold != currentGold ||
                             displayedDiamonds != currentDiamonds ||
-                            !string.Equals(displayedOwnedCannonsCsv, ownedCannonsCsv, StringComparison.Ordinal);
+                            !string.Equals(displayedOwnedCannonsCsv, ownedCannonsCsv, StringComparison.Ordinal) ||
+                            !string.Equals(displayedOwnedShipsCsv, ownedShipsCsv, StringComparison.Ordinal);
 
         displayedGold = currentGold;
         displayedDiamonds = currentDiamonds;
         displayedOwnedCannonsCsv = ownedCannonsCsv;
+        displayedOwnedShipsCsv = ownedShipsCsv;
 
         if (!stateChanged)
         {
             return;
         }
 
-        SyncOwnedCannonSet(ownedCannonsCsv);
+        SyncOwnedSet(ownedCannonsCsv, ownedCannonIds, NormalizeCannonId);
+        SyncOwnedSet(ownedShipsCsv, ownedShipIds, MarketShipCatalogRuntime.NormalizeShipId);
         RefreshListItems();
     }
 
@@ -211,13 +218,15 @@ public sealed class MarketController : IDisposable
         diamondValueLabel = null;
         statusLabel = null;
         itemRowTemplate = null;
-        pendingPurchaseId = string.Empty;
+        pendingPurchaseKey = string.Empty;
         selectedCategoryId = MarketCategoryCannonsId;
         displayedGold = -1;
         displayedDiamonds = -1;
         displayedOwnedCannonsCsv = string.Empty;
+        displayedOwnedShipsCsv = string.Empty;
         ownedCannonIds.Clear();
-        visibleCannons.Clear();
+        ownedShipIds.Clear();
+        visibleItems.Clear();
     }
 
     private void BindUiElements()
@@ -250,7 +259,7 @@ public sealed class MarketController : IDisposable
         itemListView.reorderable = false;
         itemListView.makeItem = MakeMarketItem;
         itemListView.bindItem = BindMarketItem;
-        itemListView.itemsSource = visibleCannons;
+        itemListView.itemsSource = visibleItems;
     }
 
     private VisualElement MakeMarketItem()
@@ -262,19 +271,25 @@ public sealed class MarketController : IDisposable
             row.RemoveFromHierarchy();
         }
 
-        row.userData = new MarketCannonRowController(row, OnBuyClicked);
+        row.userData = new MarketRowController(row, OnBuyClicked);
         return row;
     }
 
     private void BindMarketItem(VisualElement item, int index)
     {
-        if (item == null || index < 0 || index >= visibleCannons.Count)
+        if (item == null || index < 0 || index >= visibleItems.Count)
         {
             return;
         }
 
-        MarketCannonRowController controller = item.userData as MarketCannonRowController;
-        controller?.Bind(visibleCannons[index], displayedGold, displayedDiamonds, ownedCannonIds, pendingPurchaseId);
+        MarketItemViewModel definition = visibleItems[index];
+        MarketRowController controller = item.userData as MarketRowController;
+        controller?.Bind(
+            definition,
+            displayedGold,
+            displayedDiamonds,
+            IsOwned(definition),
+            string.Equals(pendingPurchaseKey, definition.PurchaseKey, StringComparison.OrdinalIgnoreCase));
     }
 
     private void RegisterCallbacks()
@@ -323,6 +338,7 @@ public sealed class MarketController : IDisposable
         displayedGold = -1;
         displayedDiamonds = -1;
         displayedOwnedCannonsCsv = string.Empty;
+        displayedOwnedShipsCsv = string.Empty;
         Refresh();
         SetStatus(DefaultStatusMessage, isSuccess: false, useTone: false, clearPendingPurchase: false);
     }
@@ -353,52 +369,73 @@ public sealed class MarketController : IDisposable
         }
 
         categoryList.Clear();
+        AddCategoryButton(MarketCategoryCannonsId, "Cannons");
+        AddCategoryButton(MarketCategoryShipsId, "Ships");
 
+        if (categoryTitleLabel != null)
+        {
+            categoryTitleLabel.text = GetCategoryTitle(selectedCategoryId);
+        }
+    }
+
+    private void AddCategoryButton(string categoryId, string title)
+    {
         Button categoryButton = new Button(() =>
         {
-            selectedCategoryId = MarketCategoryCannonsId;
+            selectedCategoryId = categoryId;
             BuildCategories();
             RebuildItems();
             Refresh();
         })
         {
-            text = "Cannons"
+            text = title
         };
 
         categoryButton.AddToClassList(CategoryButtonClass);
-        if (string.Equals(selectedCategoryId, MarketCategoryCannonsId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(selectedCategoryId, categoryId, StringComparison.OrdinalIgnoreCase))
         {
             categoryButton.AddToClassList(CategoryButtonSelectedClass);
         }
 
         categoryList.Add(categoryButton);
-
-        if (categoryTitleLabel != null)
-        {
-            categoryTitleLabel.text = "Cannons";
-        }
     }
 
     private void RebuildItems()
     {
-        visibleCannons.Clear();
+        visibleItems.Clear();
 
-        if (!string.Equals(selectedCategoryId, MarketCategoryCannonsId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(selectedCategoryId, MarketCategoryCannonsId, StringComparison.OrdinalIgnoreCase))
         {
-            RefreshListItems(rebuild: true);
-            return;
+            IReadOnlyList<MarketCannonData> catalogCannons = MarketCannonCatalogRuntime.GetCannons();
+            for (int index = 0; index < catalogCannons.Count; index++)
+            {
+                MarketCannonData cannon = catalogCannons[index];
+                if (cannon == null)
+                {
+                    continue;
+                }
+
+                visibleItems.Add(MarketItemViewModel.FromCannon(cannon));
+            }
+        }
+        else if (string.Equals(selectedCategoryId, MarketCategoryShipsId, StringComparison.OrdinalIgnoreCase))
+        {
+            IReadOnlyList<MarketShipData> catalogShips = MarketShipCatalogRuntime.GetShips();
+            for (int index = 0; index < catalogShips.Count; index++)
+            {
+                MarketShipData ship = catalogShips[index];
+                if (ship == null)
+                {
+                    continue;
+                }
+
+                visibleItems.Add(MarketItemViewModel.FromShip(ship));
+            }
         }
 
-        IReadOnlyList<MarketCannonData> catalogCannons = MarketCannonCatalogRuntime.GetCannons();
-        for (int index = 0; index < catalogCannons.Count; index++)
+        if (categoryTitleLabel != null)
         {
-            MarketCannonData cannon = catalogCannons[index];
-            if (cannon == null)
-            {
-                continue;
-            }
-
-            visibleCannons.Add(cannon);
+            categoryTitleLabel.text = GetCategoryTitle(selectedCategoryId);
         }
 
         RefreshListItems(rebuild: true);
@@ -411,7 +448,7 @@ public sealed class MarketController : IDisposable
             return;
         }
 
-        itemListView.itemsSource = visibleCannons;
+        itemListView.itemsSource = visibleItems;
         if (rebuild)
         {
             itemListView.Rebuild();
@@ -419,32 +456,6 @@ public sealed class MarketController : IDisposable
         }
 
         itemListView.RefreshItems();
-    }
-
-    private void SyncOwnedCannonSet(string ownedCannonsCsv)
-    {
-        ownedCannonIds.Clear();
-        if (string.IsNullOrWhiteSpace(ownedCannonsCsv))
-        {
-            return;
-        }
-
-        string[] splitValues = ownedCannonsCsv.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-        for (int index = 0; index < splitValues.Length; index++)
-        {
-            string normalizedId = NormalizeCannonId(splitValues[index]);
-            if (string.IsNullOrWhiteSpace(normalizedId))
-            {
-                continue;
-            }
-
-            ownedCannonIds.Add(normalizedId);
-        }
-
-        if (!string.IsNullOrWhiteSpace(pendingPurchaseId) && ownedCannonIds.Contains(pendingPurchaseId))
-        {
-            pendingPurchaseId = string.Empty;
-        }
     }
 
     private void TrackObservedPlayer(Player localPlayer)
@@ -460,6 +471,7 @@ public sealed class MarketController : IDisposable
         if (observedPlayer != null)
         {
             observedPlayer.OnCannonPurchaseResult += OnObservedPlayerCannonPurchaseResult;
+            observedPlayer.OnShipPurchaseResult += OnObservedPlayerShipPurchaseResult;
         }
     }
 
@@ -468,16 +480,17 @@ public sealed class MarketController : IDisposable
         if (observedPlayer != null)
         {
             observedPlayer.OnCannonPurchaseResult -= OnObservedPlayerCannonPurchaseResult;
+            observedPlayer.OnShipPurchaseResult -= OnObservedPlayerShipPurchaseResult;
             observedPlayer = null;
         }
     }
 
     private void OnObservedPlayerCannonPurchaseResult(string cannonId, bool success, string message)
     {
-        string normalizedCannonId = NormalizeCannonId(cannonId);
-        if (string.Equals(pendingPurchaseId, normalizedCannonId, StringComparison.OrdinalIgnoreCase))
+        string purchaseKey = BuildPurchaseKey(MarketItemCategory.Cannon, NormalizeCannonId(cannonId));
+        if (string.Equals(pendingPurchaseKey, purchaseKey, StringComparison.OrdinalIgnoreCase))
         {
-            pendingPurchaseId = string.Empty;
+            pendingPurchaseKey = string.Empty;
         }
 
         SetStatus(message, success, useTone: true, clearPendingPurchase: success);
@@ -485,7 +498,20 @@ public sealed class MarketController : IDisposable
         Refresh();
     }
 
-    private void OnBuyClicked(MarketCannonData definition)
+    private void OnObservedPlayerShipPurchaseResult(string shipId, bool success, string message)
+    {
+        string purchaseKey = BuildPurchaseKey(MarketItemCategory.Ship, MarketShipCatalogRuntime.NormalizeShipId(shipId));
+        if (string.Equals(pendingPurchaseKey, purchaseKey, StringComparison.OrdinalIgnoreCase))
+        {
+            pendingPurchaseKey = string.Empty;
+        }
+
+        SetStatus(message, success, useTone: true, clearPendingPurchase: success);
+        RefreshListItems();
+        Refresh();
+    }
+
+    private void OnBuyClicked(MarketItemViewModel definition)
     {
         if (definition == null)
         {
@@ -499,7 +525,7 @@ public sealed class MarketController : IDisposable
             return;
         }
 
-        if (localPlayer.OwnsCannon(definition.Id))
+        if (IsOwned(definition))
         {
             SetStatus($"{definition.DisplayName} is already owned.", isSuccess: false, useTone: true);
             return;
@@ -511,22 +537,38 @@ public sealed class MarketController : IDisposable
             return;
         }
 
-        if (!localPlayer.RequestCannonPurchase(definition.Id))
+        bool requestSent = definition.Category == MarketItemCategory.Cannon
+            ? localPlayer.RequestCannonPurchase(definition.Id)
+            : localPlayer.RequestShipPurchase(definition.Id);
+
+        if (!requestSent)
         {
             SetStatus("Could not send the purchase request to the server.", isSuccess: false, useTone: true);
             return;
         }
 
-        pendingPurchaseId = definition.Id;
+        pendingPurchaseKey = definition.PurchaseKey;
         SetStatus($"Purchasing {definition.DisplayName}...", isSuccess: true, useTone: false, clearPendingPurchase: false);
         RefreshListItems();
+    }
+
+    private bool IsOwned(MarketItemViewModel definition)
+    {
+        if (definition == null)
+        {
+            return false;
+        }
+
+        return definition.Category == MarketItemCategory.Cannon
+            ? ownedCannonIds.Contains(definition.Id)
+            : ownedShipIds.Contains(definition.Id);
     }
 
     private void SetStatus(string message, bool isSuccess, bool useTone, bool clearPendingPurchase = true)
     {
         if (clearPendingPurchase && isSuccess)
         {
-            pendingPurchaseId = string.Empty;
+            pendingPurchaseKey = string.Empty;
         }
 
         if (statusLabel == null)
@@ -581,6 +623,27 @@ public sealed class MarketController : IDisposable
         evt.StopPropagation();
     }
 
+    private static void SyncOwnedSet(string ownedCsv, HashSet<string> targetSet, Func<string, string> normalizer)
+    {
+        targetSet.Clear();
+        if (string.IsNullOrWhiteSpace(ownedCsv))
+        {
+            return;
+        }
+
+        string[] splitValues = ownedCsv.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+        for (int index = 0; index < splitValues.Length; index++)
+        {
+            string normalizedId = normalizer != null ? normalizer.Invoke(splitValues[index]) : splitValues[index];
+            if (string.IsNullOrWhiteSpace(normalizedId))
+            {
+                continue;
+            }
+
+            targetSet.Add(normalizedId);
+        }
+    }
+
     private static string NormalizeCannonId(string cannonId)
     {
         return string.IsNullOrWhiteSpace(cannonId)
@@ -588,29 +651,114 @@ public sealed class MarketController : IDisposable
             : cannonId.Trim().ToLowerInvariant();
     }
 
-    private sealed class MarketCannonRowController
+    private static string BuildPurchaseKey(MarketItemCategory category, string itemId)
+    {
+        return $"{(int)category}:{itemId ?? string.Empty}";
+    }
+
+    private static string GetCategoryTitle(string categoryId)
+    {
+        if (string.Equals(categoryId, MarketCategoryShipsId, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Ships";
+        }
+
+        return "Cannons";
+    }
+
+    private enum MarketItemCategory
+    {
+        Cannon = 0,
+        Ship = 1
+    }
+
+    private sealed class MarketItemViewModel
+    {
+        private MarketItemViewModel(
+            MarketItemCategory category,
+            string id,
+            string displayName,
+            string description,
+            Texture2D icon,
+            string statLine1,
+            string statLine2,
+            string statLine3,
+            MarketCost cost)
+        {
+            Category = category;
+            Id = id ?? string.Empty;
+            DisplayName = displayName ?? string.Empty;
+            Description = description ?? string.Empty;
+            Icon = icon;
+            StatLine1 = statLine1 ?? string.Empty;
+            StatLine2 = statLine2 ?? string.Empty;
+            StatLine3 = statLine3 ?? string.Empty;
+            Cost = cost ?? new MarketCost();
+        }
+
+        public MarketItemCategory Category { get; }
+        public string Id { get; }
+        public string DisplayName { get; }
+        public string Description { get; }
+        public Texture2D Icon { get; }
+        public string StatLine1 { get; }
+        public string StatLine2 { get; }
+        public string StatLine3 { get; }
+        public MarketCost Cost { get; }
+        public string PurchaseKey => BuildPurchaseKey(Category, Id);
+
+        public static MarketItemViewModel FromCannon(MarketCannonData cannon)
+        {
+            return new MarketItemViewModel(
+                MarketItemCategory.Cannon,
+                cannon.Id,
+                cannon.DisplayName,
+                cannon.Description,
+                cannon.Icon,
+                $"Hit {cannon.HitProbability}%",
+                $"Range {cannon.CannonRange:0.#}",
+                $"Reload {cannon.ReloadTimeSeconds:0.#}s",
+                cannon.Cost);
+        }
+
+        public static MarketItemViewModel FromShip(MarketShipData ship)
+        {
+            return new MarketItemViewModel(
+                MarketItemCategory.Ship,
+                ship.Id,
+                ship.DisplayName,
+                ship.Description,
+                ship.Icon,
+                ship.PrimaryStatLabel,
+                ship.SecondaryStatLabel,
+                ship.TertiaryStatLabel,
+                ship.Cost);
+        }
+    }
+
+    private sealed class MarketRowController
     {
         private readonly VisualElement imageElement;
         private readonly Label nameLabel;
         private readonly Label descriptionLabel;
-        private readonly Label hitProbabilityLabel;
-        private readonly Label rangeLabel;
-        private readonly Label reloadLabel;
+        private readonly Label statLine1Label;
+        private readonly Label statLine2Label;
+        private readonly Label statLine3Label;
         private readonly Label ownedLabel;
         private readonly VisualElement costListElement;
         private readonly Button buyButton;
-        private readonly Action<MarketCannonData> buyAction;
+        private readonly Action<MarketItemViewModel> buyAction;
 
-        private MarketCannonData boundDefinition;
+        private MarketItemViewModel boundDefinition;
 
-        public MarketCannonRowController(VisualElement root, Action<MarketCannonData> buyAction)
+        public MarketRowController(VisualElement root, Action<MarketItemViewModel> buyAction)
         {
             imageElement = root.Q<VisualElement>("MarketItemThumb");
             nameLabel = root.Q<Label>("MarketItemNameLabel");
             descriptionLabel = root.Q<Label>("MarketItemDescriptionLabel");
-            hitProbabilityLabel = root.Q<Label>("MarketItemHitProbabilityLabel");
-            rangeLabel = root.Q<Label>("MarketItemRangeLabel");
-            reloadLabel = root.Q<Label>("MarketItemReloadLabel");
+            statLine1Label = root.Q<Label>("MarketItemHitProbabilityLabel");
+            statLine2Label = root.Q<Label>("MarketItemRangeLabel");
+            statLine3Label = root.Q<Label>("MarketItemReloadLabel");
             ownedLabel = root.Q<Label>("MarketItemOwnedLabel");
             costListElement = root.Q<VisualElement>("MarketItemCostList");
             buyButton = root.Q<Button>("MarketItemBuyButton");
@@ -622,7 +770,7 @@ public sealed class MarketController : IDisposable
             }
         }
 
-        public void Bind(MarketCannonData definition, int gold, int diamonds, HashSet<string> ownedCannonIds, string pendingPurchaseId)
+        public void Bind(MarketItemViewModel definition, int gold, int diamonds, bool isOwned, bool isPending)
         {
             boundDefinition = definition;
 
@@ -648,27 +796,24 @@ public sealed class MarketController : IDisposable
                 descriptionLabel.text = definition.Description;
             }
 
-            if (hitProbabilityLabel != null)
+            if (statLine1Label != null)
             {
-                hitProbabilityLabel.text = $"Hit {definition.HitProbability}%";
+                statLine1Label.text = definition.StatLine1;
             }
 
-            if (rangeLabel != null)
+            if (statLine2Label != null)
             {
-                rangeLabel.text = $"Range {definition.CannonRange:0.#}";
+                statLine2Label.text = definition.StatLine2;
             }
 
-            if (reloadLabel != null)
+            if (statLine3Label != null)
             {
-                reloadLabel.text = $"Reload {definition.ReloadTimeSeconds:0.#}s";
+                statLine3Label.text = definition.StatLine3;
             }
 
             RebuildCostList(definition.Cost);
 
-            bool isOwned = ownedCannonIds != null && ownedCannonIds.Contains(definition.Id);
-            bool isPending = !isOwned && string.Equals(pendingPurchaseId, definition.Id, StringComparison.OrdinalIgnoreCase);
             bool canAfford = definition.Cost.CanAfford(gold, diamonds);
-
             if (ownedLabel != null)
             {
                 ownedLabel.EnableInClassList(OwnedStateOwnedClass, isOwned);
@@ -699,7 +844,7 @@ public sealed class MarketController : IDisposable
 
             if (cost == null || !cost.HasEntries)
             {
-                AddCostChip(MarketCurrencyType.Gold, 0, "Free");
+                AddCostChip(MarketCurrencyType.Gold, "Owned");
                 return;
             }
 
@@ -712,11 +857,11 @@ public sealed class MarketController : IDisposable
                     continue;
                 }
 
-                AddCostChip(entry.CurrencyType, entry.Amount, entry.Amount.ToString("N0"));
+                AddCostChip(entry.CurrencyType, entry.Amount.ToString("N0"));
             }
         }
 
-        private void AddCostChip(MarketCurrencyType currencyType, int amount, string displayValue)
+        private void AddCostChip(MarketCurrencyType currencyType, string displayValue)
         {
             if (costListElement == null)
             {

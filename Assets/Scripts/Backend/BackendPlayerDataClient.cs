@@ -9,6 +9,7 @@ using UnityEngine.Networking;
 
 public sealed class BackendPlayerDataClient
 {
+    private const string DefaultOwnedShipId = MarketShipCatalogRuntime.DefaultShipId;
     private readonly string _playerDataBaseUrl;
 
     public BackendPlayerDataClient(string playerDataBaseUrl)
@@ -112,6 +113,38 @@ public sealed class BackendPlayerDataClient
 
         await request.SendWebRequestAsync(cancellationToken);
         return ParseOrThrow<CannonPurchaseResponse>(request, url);
+    }
+
+    public async Task<ShipPurchaseResponse> PurchaseShipAsync(
+        string accessToken,
+        string shipId,
+        int gold,
+        int diamond,
+        int? expectedVersion = null,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"{_playerDataBaseUrl}/v1/player/me/ships/purchase";
+        var body = new JObject
+        {
+            ["shipId"] = (shipId ?? string.Empty).Trim(),
+            ["gold"] = Math.Max(0, gold),
+            ["diamond"] = Math.Max(0, diamond),
+        };
+
+        if (expectedVersion.HasValue)
+        {
+            body["expectedVersion"] = expectedVersion.Value;
+        }
+
+        using var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST);
+        var bytes = Encoding.UTF8.GetBytes(body.ToString(Formatting.None));
+        request.uploadHandler = new UploadHandlerRaw(bytes);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.SetRequestHeader("Authorization", $"Bearer {accessToken ?? string.Empty}");
+
+        await request.SendWebRequestAsync(cancellationToken);
+        return ParseOrThrow<ShipPurchaseResponse>(request, url);
     }
 
     private static string NormalizeBaseUrl(string url)
@@ -239,6 +272,7 @@ public sealed class BackendPlayerDataClient
             gold = gold,
             diamond = diamond,
             ownedCannonIds = ReadStringArray(playerState.State, "ownedCannons"),
+            ownedShipIds = EnsureDefaultShipIds(ReadStringArray(playerState.State, "ownedShips")),
             version = playerState.Version,
             updatedAt = playerState.UpdatedAt,
         };
@@ -353,6 +387,31 @@ public sealed class BackendPlayerDataClient
         return values.Count == 0 ? Array.Empty<string>() : values.ToArray();
     }
 
+    private static string[] EnsureDefaultShipIds(string[] ownedShipIds)
+    {
+        if (ownedShipIds == null || ownedShipIds.Length == 0)
+        {
+            return new[] { DefaultOwnedShipId };
+        }
+
+        var normalizedDefaultId = MarketShipCatalogRuntime.NormalizeShipId(DefaultOwnedShipId);
+        for (var index = 0; index < ownedShipIds.Length; index++)
+        {
+            if (string.Equals(
+                    MarketShipCatalogRuntime.NormalizeShipId(ownedShipIds[index]),
+                    normalizedDefaultId,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return ownedShipIds;
+            }
+        }
+
+        var values = new string[ownedShipIds.Length + 1];
+        values[0] = DefaultOwnedShipId;
+        Array.Copy(ownedShipIds, 0, values, 1, ownedShipIds.Length);
+        return values;
+    }
+
     private sealed class PlayerStatePayload
     {
         public PlayerStatePayload(int version, string updatedAt, JObject state)
@@ -384,6 +443,7 @@ public sealed class PlayerMarketStateResponse
     public int gold;
     public int diamond;
     public string[] ownedCannonIds;
+    public string[] ownedShipIds;
     public int version;
     public string updatedAt;
 }
@@ -393,6 +453,17 @@ public sealed class CannonPurchaseResponse
 {
     public string cannonId;
     public string[] ownedCannonIds;
+    public int gold;
+    public int diamond;
+    public int version;
+    public string updatedAt;
+}
+
+[Serializable]
+public sealed class ShipPurchaseResponse
+{
+    public string shipId;
+    public string[] ownedShipIds;
     public int gold;
     public int diamond;
     public int version;

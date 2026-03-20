@@ -416,6 +416,98 @@ app.MapPost("/v1/player/me/cannons/purchase", async (
     .WithTags("Player")
     .RequireAuthorization();
 
+app.MapPost("/v1/player/me/ships/purchase", async (
+    ClaimsPrincipal principal,
+    PurchaseShipRequest request,
+    PlayerDbContext db,
+    IConnectionMultiplexer redisMux,
+    IOptions<JsonOptions> jsonOptionsAccessor) =>
+{
+    var userId = GetUserId(principal);
+    if (userId is null)
+        return Results.Json(new ErrorResponse("unauthorized", "Unauthorized."), statusCode: StatusCodes.Status401Unauthorized);
+
+    var shipId = NormalizeShipId(request.ShipId);
+    if (!TryResolveShipCatalogEntry(shipId, out var shipCatalogEntry))
+        return Results.BadRequest(new ErrorResponse("invalid_ship", $"Unknown ship id '{shipId}'."));
+
+    if (request.Gold < 0)
+        return Results.BadRequest(new ErrorResponse("invalid_gold", "Gold must be zero or greater."));
+
+    if (request.Diamond < 0)
+        return Results.BadRequest(new ErrorResponse("invalid_diamond", "Diamond must be zero or greater."));
+
+    var now = DateTimeOffset.UtcNow;
+    var entity = await db.PlayerStates.FindAsync(userId.Value);
+    if (entity is null)
+    {
+        entity = new PlayerState
+        {
+            UserId = userId.Value,
+            Version = 0,
+            State = "{}",
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.PlayerStates.Add(entity);
+        await db.SaveChangesAsync();
+    }
+
+    if (request.ExpectedVersion is not null)
+        db.Entry(entity).Property(x => x.Version).OriginalValue = request.ExpectedVersion.Value;
+
+    var ownedShipIds = ExtractOwnedShipIds(entity.State);
+    if (ContainsOwnedShipId(ownedShipIds, shipId))
+        return Results.BadRequest(new ErrorResponse("already_owned", $"{shipCatalogEntry.DisplayName} is already owned."));
+
+    if (request.Gold < shipCatalogEntry.GoldCost && request.Diamond < shipCatalogEntry.DiamondCost)
+        return Results.BadRequest(new ErrorResponse("insufficient_funds", $"Not enough gold and diamonds to buy {shipCatalogEntry.DisplayName}."));
+
+    if (request.Gold < shipCatalogEntry.GoldCost)
+        return Results.BadRequest(new ErrorResponse("insufficient_gold", $"Not enough gold to buy {shipCatalogEntry.DisplayName}."));
+
+    if (request.Diamond < shipCatalogEntry.DiamondCost)
+        return Results.BadRequest(new ErrorResponse("insufficient_diamond", $"Not enough diamonds to buy {shipCatalogEntry.DisplayName}."));
+
+    ownedShipIds.Add(shipId);
+    entity.State = UpsertShipPurchaseStateJson(
+        entity.State,
+        request.Gold - shipCatalogEntry.GoldCost,
+        request.Diamond - shipCatalogEntry.DiamondCost,
+        ownedShipIds);
+    entity.Version += 1;
+    entity.UpdatedAt = now;
+
+    try
+    {
+        await db.SaveChangesAsync();
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        var current = await db.PlayerStates.AsNoTracking().SingleAsync(x => x.UserId == userId.Value);
+        return Results.Conflict(new ConflictResponse(current.Version, current.UpdatedAt));
+    }
+
+    var cacheKey = $"player:state:v2:{userId.Value}";
+    using var doc = JsonDocument.Parse(entity.State);
+    var stateResponse = new PlayerStateResponse(entity.Version, doc.RootElement.Clone(), entity.UpdatedAt);
+    var stateJson = System.Text.Json.JsonSerializer.Serialize(stateResponse, jsonOptionsAccessor.Value.SerializerOptions);
+    await redisMux.GetDatabase().StringSetAsync(cacheKey, stateJson, expiry: TimeSpan.FromMinutes(10));
+
+    var wallet = ExtractWallet(entity.State);
+    var response = new ShipPurchaseResponse(
+        shipId,
+        ExtractOwnedShipIds(entity.State).ToArray(),
+        wallet.Gold,
+        wallet.Diamond,
+        entity.Version,
+        entity.UpdatedAt);
+
+    return Results.Ok(response);
+})
+    .WithTags("Player")
+    .RequireAuthorization();
+
 app.MapGet("/v1/world-objects", async (
     HttpRequest request,
     string? objectType,
@@ -587,6 +679,8 @@ app.MapGet("/v1/assets/presign", (ClaimsPrincipal principal, string key, IAmazon
 
 app.Run();
 
+const string DefaultOwnedShipId = "elite27";
+
 static Guid? GetUserId(ClaimsPrincipal principal)
 {
     var sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -660,6 +754,16 @@ static string UpsertCannonPurchaseStateJson(string stateJson, int gold, int diam
     return state.ToJsonString();
 }
 
+static string UpsertShipPurchaseStateJson(string stateJson, int gold, int diamond, IReadOnlyCollection<string> ownedShipIds)
+{
+    var state = ParseStateObject(stateJson);
+    state["gold"] = Math.Max(0, gold);
+    state["diamond"] = Math.Max(0, diamond);
+    state.Remove("pearls");
+    state["ownedShips"] = CreateOwnedShipsJsonArray(ownedShipIds);
+    return state.ToJsonString();
+}
+
 static List<string> ExtractOwnedCannonIds(string stateJson)
 {
     var state = ParseStateObject(stateJson);
@@ -706,6 +810,58 @@ static JsonArray CreateOwnedCannonsJsonArray(IEnumerable<string> ownedCannonIds)
     return array;
 }
 
+static List<string> ExtractOwnedShipIds(string stateJson)
+{
+    var state = ParseStateObject(stateJson);
+    if (!state.TryGetPropertyValue("ownedShips", out var ownedNode) || ownedNode is not JsonArray ownedArray)
+        return new List<string> { DefaultOwnedShipId };
+
+    var orderedIds = new List<string>();
+    var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    for (var index = 0; index < ownedArray.Count; index++)
+    {
+        var rawId = ownedArray[index] is JsonValue ownedValue && ownedValue.TryGetValue<string>(out var parsedId)
+            ? parsedId
+            : string.Empty;
+        var normalizedId = NormalizeShipId(rawId);
+        if (string.IsNullOrWhiteSpace(normalizedId) || !TryResolveShipCatalogEntry(normalizedId, out _) || !seenIds.Add(normalizedId))
+            continue;
+
+        orderedIds.Add(normalizedId);
+    }
+
+    if (!seenIds.Contains(DefaultOwnedShipId))
+        orderedIds.Add(DefaultOwnedShipId);
+
+    orderedIds.Sort(static (left, right) => CompareShipCatalogOrder(left, right));
+    return orderedIds;
+}
+
+static JsonArray CreateOwnedShipsJsonArray(IEnumerable<string> ownedShipIds)
+{
+    var orderedIds = new List<string>();
+    var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var rawId in ownedShipIds)
+    {
+        var normalizedId = NormalizeShipId(rawId);
+        if (string.IsNullOrWhiteSpace(normalizedId) || !TryResolveShipCatalogEntry(normalizedId, out _) || !seenIds.Add(normalizedId))
+            continue;
+
+        orderedIds.Add(normalizedId);
+    }
+
+    if (seenIds.Add(DefaultOwnedShipId))
+        orderedIds.Add(DefaultOwnedShipId);
+
+    orderedIds.Sort(static (left, right) => CompareShipCatalogOrder(left, right));
+
+    var array = new JsonArray();
+    for (var index = 0; index < orderedIds.Count; index++)
+        array.Add(orderedIds[index]);
+
+    return array;
+}
+
 static bool ContainsOwnedCannonId(IReadOnlyList<string> ownedCannonIds, string cannonId)
 {
     var normalizedId = NormalizeCannonId(cannonId);
@@ -721,11 +877,33 @@ static bool ContainsOwnedCannonId(IReadOnlyList<string> ownedCannonIds, string c
     return false;
 }
 
+static bool ContainsOwnedShipId(IReadOnlyList<string> ownedShipIds, string shipId)
+{
+    var normalizedId = NormalizeShipId(shipId);
+    if (string.IsNullOrWhiteSpace(normalizedId))
+        return false;
+
+    for (var index = 0; index < ownedShipIds.Count; index++)
+    {
+        if (string.Equals(ownedShipIds[index], normalizedId, StringComparison.OrdinalIgnoreCase))
+            return true;
+    }
+
+    return false;
+}
+
 static string NormalizeCannonId(string? cannonId)
 {
     return string.IsNullOrWhiteSpace(cannonId)
         ? string.Empty
         : cannonId.Trim().ToLowerInvariant();
+}
+
+static string NormalizeShipId(string? shipId)
+{
+    return string.IsNullOrWhiteSpace(shipId)
+        ? string.Empty
+        : shipId.Trim().ToLowerInvariant();
 }
 
 static bool TryResolveCannonCatalogEntry(string cannonId, out CannonCatalogEntry entry)
@@ -816,10 +994,37 @@ static bool TryResolveCannonCatalogEntry(string cannonId, out CannonCatalogEntry
     }
 }
 
+static bool TryResolveShipCatalogEntry(string shipId, out ShipCatalogEntry entry)
+{
+    switch (NormalizeShipId(shipId))
+    {
+        case "elite27":
+            entry = new ShipCatalogEntry("elite27", "Elite 27", 0, 0, 0);
+            return true;
+        case "elite1":
+            entry = new ShipCatalogEntry("elite1", "Elite 1", 18000, 0, 1);
+            return true;
+        default:
+            entry = default;
+            return false;
+    }
+}
+
 static int CompareCannonCatalogOrder(string? leftId, string? rightId)
 {
     var hasLeft = TryResolveCannonCatalogEntry(leftId ?? string.Empty, out var leftEntry);
     var hasRight = TryResolveCannonCatalogEntry(rightId ?? string.Empty, out var rightEntry);
+
+    if (hasLeft && hasRight)
+        return leftEntry.SortOrder.CompareTo(rightEntry.SortOrder);
+
+    return string.Compare(leftId, rightId, StringComparison.OrdinalIgnoreCase);
+}
+
+static int CompareShipCatalogOrder(string? leftId, string? rightId)
+{
+    var hasLeft = TryResolveShipCatalogEntry(leftId ?? string.Empty, out var leftEntry);
+    var hasRight = TryResolveShipCatalogEntry(rightId ?? string.Empty, out var rightEntry);
 
     if (hasLeft && hasRight)
         return leftEntry.SortOrder.CompareTo(rightEntry.SortOrder);
@@ -902,3 +1107,4 @@ static WorldObjectResponse CreateWorldObjectResponse(WorldObject entity)
 }
 
 readonly record struct CannonCatalogEntry(string Id, string DisplayName, int GoldCost, int DiamondCost, int SortOrder);
+readonly record struct ShipCatalogEntry(string Id, string DisplayName, int GoldCost, int DiamondCost, int SortOrder);

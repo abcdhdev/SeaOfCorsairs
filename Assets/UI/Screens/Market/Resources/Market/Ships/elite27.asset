@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0c8dca71b8e4d1f8f7c0d0b95db5f21, type: 3}
+  m_Name: elite27
+  m_EditorClassIdentifier: Assembly-CSharp::MarketShipData
+  id: elite27
+  displayName: Elite 27
+  description: The battle-tested flagship hull already assigned to every new captain.
+  icon: {fileID: 2800000, guid: b353dfd69b06cf848b7b1d0685b9b8c4, type: 3}
+  primaryStatLabel: Class Flagship
+  secondaryStatLabel: Crew 32
+  tertiaryStatLabel: Broadside 6
+  cost:
+    entries: []
+  sortOrder: 0

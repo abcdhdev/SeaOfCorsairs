@@ -16,6 +16,10 @@ public sealed record PurchaseCannonRequest(string CannonId, int Gold, int Diamon
 
 public sealed record CannonPurchaseResponse(string CannonId, string[] OwnedCannonIds, int Gold, int Diamond, int Version, DateTimeOffset UpdatedAt);
 
+public sealed record PurchaseShipRequest(string ShipId, int Gold, int Diamond, int? ExpectedVersion);
+
+public sealed record ShipPurchaseResponse(string ShipId, string[] OwnedShipIds, int Gold, int Diamond, int Version, DateTimeOffset UpdatedAt);
+
 public sealed record ConflictResponse(int CurrentVersion, DateTimeOffset UpdatedAt);
 
 public sealed record WorldObjectResponse(

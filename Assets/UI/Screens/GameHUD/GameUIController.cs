@@ -250,6 +250,7 @@ public partial class GameUIController : MonoBehaviour
         UpdateCameraZoomControl();
         UpdateFpsAndPing();
         marketController?.Refresh();
+        shipSectionController?.Refresh();
         RefreshIslandEditUi();
         RefreshActionBarVisibility();
         UpdateTopMenuButtonStates();

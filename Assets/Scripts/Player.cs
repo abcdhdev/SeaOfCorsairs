@@ -81,6 +81,16 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         NetworkVariableReadPermission.Owner,
         NetworkVariableWritePermission.Server
     );
+    private NetworkVariable<FixedString512Bytes> m_ownedShipIdsCsv = new NetworkVariable<FixedString512Bytes>(
+        new FixedString512Bytes(MarketShipCatalogRuntime.DefaultShipId),
+        NetworkVariableReadPermission.Owner,
+        NetworkVariableWritePermission.Server
+    );
+    private NetworkVariable<FixedString64Bytes> m_selectedShipId = new NetworkVariable<FixedString64Bytes>(
+        new FixedString64Bytes(MarketShipCatalogRuntime.DefaultShipId),
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
     [Header("Repair Settings")]
     [SerializeField] public float repairRate = 2.0f;
@@ -108,7 +118,10 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     public event Action<float> OnHealthChanged = delegate { };
     public event Action<int, int, int> OnRewardWalletChanged = delegate { };
     public event Action OnOwnedCannonsChanged = delegate { };
+    public event Action OnOwnedShipsChanged = delegate { };
     public event Action<string, bool, string> OnCannonPurchaseResult = delegate { };
+    public event Action<string, bool, string> OnShipPurchaseResult = delegate { };
+    public event Action<string> OnSelectedShipChanged = delegate { };
     public event Action<string, bool> OnIslandActionFeedback = delegate { };
 
     // Public properties
@@ -122,6 +135,8 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     public int Experience => m_networkExperience.Value;
     public string OwnerEntityId => m_ownerEntityId.Value.ToString();
     public string OwnedCannonIdsCsv => m_ownedCannonIdsCsv.Value.ToString();
+    public string OwnedShipIdsCsv => m_ownedShipIdsCsv.Value.ToString();
+    public string SelectedShipId => NormalizeOwnedShipId(m_selectedShipId.Value.ToString());
     public GameObject TargetGameObject => gameObject;
     public bool CanBeTargeted => IsSpawned && isActiveAndEnabled && CurrentHealth > 0;
     public float RespawnTimeRemainingSeconds
@@ -178,6 +193,8 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         m_networkGold.OnValueChanged += OnRewardWalletValueChanged;
         m_networkExperience.OnValueChanged += OnRewardWalletValueChanged;
         m_ownedCannonIdsCsv.OnValueChanged += OnOwnedCannonIdsChanged;
+        m_ownedShipIdsCsv.OnValueChanged += OnOwnedShipIdsChanged;
+        m_selectedShipId.OnValueChanged += OnSelectedShipIdChanged;
     }
 
     public override void OnDestroy()
@@ -190,6 +207,8 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         m_networkGold.OnValueChanged -= OnRewardWalletValueChanged;
         m_networkExperience.OnValueChanged -= OnRewardWalletValueChanged;
         m_ownedCannonIdsCsv.OnValueChanged -= OnOwnedCannonIdsChanged;
+        m_ownedShipIdsCsv.OnValueChanged -= OnOwnedShipIdsChanged;
+        m_selectedShipId.OnValueChanged -= OnSelectedShipIdChanged;
         base.OnDestroy();
     }
 
@@ -241,6 +260,16 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         OnOwnedCannonsChanged?.Invoke();
     }
 
+    private void OnOwnedShipIdsChanged(FixedString512Bytes previousValue, FixedString512Bytes newValue)
+    {
+        OnOwnedShipsChanged?.Invoke();
+    }
+
+    private void OnSelectedShipIdChanged(FixedString64Bytes previousValue, FixedString64Bytes newValue)
+    {
+        OnSelectedShipChanged?.Invoke(NormalizeOwnedShipId(newValue.ToString()));
+    }
+
     public void ApplyPersistedWallet(int gold, int diamond)
     {
         if (!IsServer)
@@ -278,6 +307,18 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         m_ownedCannonIdsCsv.Value = new FixedString512Bytes(BuildOwnedCannonsCsv(ownedCannonIds));
     }
 
+    public void ApplyPersistedOwnedShips(IReadOnlyList<string> ownedShipIds)
+    {
+        if (!IsServer)
+        {
+            Debug.LogWarning($"Player {gameObject.name}: ApplyPersistedOwnedShips is server-only.");
+            return;
+        }
+
+        m_ownedShipIdsCsv.Value = new FixedString512Bytes(BuildOwnedShipsCsv(ownedShipIds));
+        EnsureSelectedShipIsOwned();
+    }
+
     public bool OwnsCannon(string cannonId)
     {
         return ContainsOwnedCannonId(m_ownedCannonIdsCsv.Value.ToString(), cannonId);
@@ -286,6 +327,16 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     public string[] GetOwnedCannonIds()
     {
         return ParseOwnedCannonsCsv(m_ownedCannonIdsCsv.Value.ToString());
+    }
+
+    public bool OwnsShip(string shipId)
+    {
+        return ContainsOwnedShipId(m_ownedShipIdsCsv.Value.ToString(), shipId);
+    }
+
+    public string[] GetOwnedShipIds()
+    {
+        return ParseOwnedShipsCsv(m_ownedShipIdsCsv.Value.ToString());
     }
 
     public bool RequestCannonPurchase(string cannonId)
@@ -305,6 +356,40 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         return true;
     }
 
+    public bool RequestShipPurchase(string shipId)
+    {
+        if (!IsOwner)
+        {
+            return false;
+        }
+
+        string normalizedShipId = NormalizeOwnedShipId(shipId);
+        if (string.IsNullOrWhiteSpace(normalizedShipId))
+        {
+            return false;
+        }
+
+        RequestShipPurchaseServerRpc(normalizedShipId);
+        return true;
+    }
+
+    public bool RequestShipSelection(string shipId)
+    {
+        if (!IsOwner)
+        {
+            return false;
+        }
+
+        string normalizedShipId = NormalizeOwnedShipId(shipId);
+        if (string.IsNullOrWhiteSpace(normalizedShipId))
+        {
+            return false;
+        }
+
+        RequestShipSelectionServerRpc(normalizedShipId);
+        return true;
+    }
+
     public void NotifyCannonPurchaseResult(string cannonId, bool success, string message)
     {
         if (!IsServer)
@@ -314,6 +399,19 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         PushCannonPurchaseResultClientRpc(
             NormalizeOwnedCannonId(cannonId),
+            success,
+            message ?? string.Empty);
+    }
+
+    public void NotifyShipPurchaseResult(string shipId, bool success, string message)
+    {
+        if (!IsServer)
+        {
+            return;
+        }
+
+        PushShipPurchaseResultClientRpc(
+            NormalizeOwnedShipId(shipId),
             success,
             message ?? string.Empty);
     }
@@ -346,11 +444,38 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         MultiplayerController.Instance.RequestCannonPurchase(this, NormalizeOwnedCannonId(cannonId));
     }
 
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void RequestShipPurchaseServerRpc(string shipId)
+    {
+        if (MultiplayerController.Instance == null)
+        {
+            NotifyShipPurchaseResult(shipId, false, "The multiplayer controller is not ready.");
+            return;
+        }
+
+        MultiplayerController.Instance.RequestShipPurchase(this, NormalizeOwnedShipId(shipId));
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void RequestShipSelectionServerRpc(string shipId)
+    {
+        SetSelectedShipServer(shipId);
+    }
+
     [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
     private void PushCannonPurchaseResultClientRpc(string cannonId, bool success, string message)
     {
         OnCannonPurchaseResult?.Invoke(
             NormalizeOwnedCannonId(cannonId),
+            success,
+            string.IsNullOrWhiteSpace(message) ? (success ? "Purchase completed." : "Purchase failed.") : message);
+    }
+
+    [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+    private void PushShipPurchaseResultClientRpc(string shipId, bool success, string message)
+    {
+        OnShipPurchaseResult?.Invoke(
+            NormalizeOwnedShipId(shipId),
             success,
             string.IsNullOrWhiteSpace(message) ? (success ? "Purchase completed." : "Purchase failed.") : message);
     }
@@ -1288,6 +1413,11 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             : cannonId.Trim().ToLowerInvariant();
     }
 
+    private static string NormalizeOwnedShipId(string shipId)
+    {
+        return MarketShipCatalogRuntime.NormalizeShipId(shipId);
+    }
+
     private static string BuildOwnedCannonsCsv(IReadOnlyList<string> ownedCannonIds)
     {
         if (ownedCannonIds == null || ownedCannonIds.Count == 0)
@@ -1309,6 +1439,37 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         }
 
         normalizedOwnedIds.Sort(StringComparer.OrdinalIgnoreCase);
+        return string.Join(",", normalizedOwnedIds);
+    }
+
+    private static string BuildOwnedShipsCsv(IReadOnlyList<string> ownedShipIds)
+    {
+        var uniqueOwnedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var normalizedOwnedIds = new List<string>(ownedShipIds != null ? ownedShipIds.Count + 1 : 1);
+
+        string defaultShipId = NormalizeOwnedShipId(MarketShipCatalogRuntime.DefaultShipId);
+        if (!string.IsNullOrWhiteSpace(defaultShipId) && uniqueOwnedIds.Add(defaultShipId))
+        {
+            normalizedOwnedIds.Add(defaultShipId);
+        }
+
+        if (ownedShipIds != null)
+        {
+            for (int index = 0; index < ownedShipIds.Count; index++)
+            {
+                string normalizedId = NormalizeOwnedShipId(ownedShipIds[index]);
+                if (string.IsNullOrWhiteSpace(normalizedId) ||
+                    !MarketShipCatalogRuntime.TryGetShip(normalizedId, out _) ||
+                    !uniqueOwnedIds.Add(normalizedId))
+                {
+                    continue;
+                }
+
+                normalizedOwnedIds.Add(normalizedId);
+            }
+        }
+
+        normalizedOwnedIds.Sort(CompareOwnedShipIds);
         return string.Join(",", normalizedOwnedIds);
     }
 
@@ -1341,6 +1502,40 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         return normalizedOwnedIds.Count == 0 ? Array.Empty<string>() : normalizedOwnedIds.ToArray();
     }
 
+    private static string[] ParseOwnedShipsCsv(string csv)
+    {
+        if (string.IsNullOrWhiteSpace(csv))
+        {
+            return new[] { NormalizeOwnedShipId(MarketShipCatalogRuntime.DefaultShipId) };
+        }
+
+        string[] splitValues = csv.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+        var uniqueOwnedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var normalizedOwnedIds = new List<string>(splitValues.Length + 1);
+
+        string defaultShipId = NormalizeOwnedShipId(MarketShipCatalogRuntime.DefaultShipId);
+        if (!string.IsNullOrWhiteSpace(defaultShipId) && uniqueOwnedIds.Add(defaultShipId))
+        {
+            normalizedOwnedIds.Add(defaultShipId);
+        }
+
+        for (int index = 0; index < splitValues.Length; index++)
+        {
+            string normalizedId = NormalizeOwnedShipId(splitValues[index]);
+            if (string.IsNullOrWhiteSpace(normalizedId) ||
+                !MarketShipCatalogRuntime.TryGetShip(normalizedId, out _) ||
+                !uniqueOwnedIds.Add(normalizedId))
+            {
+                continue;
+            }
+
+            normalizedOwnedIds.Add(normalizedId);
+        }
+
+        normalizedOwnedIds.Sort(CompareOwnedShipIds);
+        return normalizedOwnedIds.ToArray();
+    }
+
     private static bool ContainsOwnedCannonId(string csv, string cannonId)
     {
         string normalizedId = NormalizeOwnedCannonId(cannonId);
@@ -1359,6 +1554,86 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         }
 
         return false;
+    }
+
+    private static bool ContainsOwnedShipId(string csv, string shipId)
+    {
+        string normalizedId = NormalizeOwnedShipId(shipId);
+        if (string.IsNullOrWhiteSpace(normalizedId))
+        {
+            return false;
+        }
+
+        string[] ownedIds = ParseOwnedShipsCsv(csv);
+        for (int index = 0; index < ownedIds.Length; index++)
+        {
+            if (string.Equals(ownedIds[index], normalizedId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static int CompareOwnedShipIds(string left, string right)
+    {
+        bool hasLeft = MarketShipCatalogRuntime.TryGetShip(left, out MarketShipData leftShip) && leftShip != null;
+        bool hasRight = MarketShipCatalogRuntime.TryGetShip(right, out MarketShipData rightShip) && rightShip != null;
+
+        if (hasLeft && hasRight)
+        {
+            int sortOrderComparison = leftShip.SortOrder.CompareTo(rightShip.SortOrder);
+            if (sortOrderComparison != 0)
+            {
+                return sortOrderComparison;
+            }
+        }
+
+        return string.Compare(left, right, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void EnsureSelectedShipIsOwned()
+    {
+        if (!IsServer)
+        {
+            return;
+        }
+
+        string[] ownedShipIds = ParseOwnedShipsCsv(m_ownedShipIdsCsv.Value.ToString());
+        if (ownedShipIds.Length == 0)
+        {
+            ownedShipIds = new[] { NormalizeOwnedShipId(MarketShipCatalogRuntime.DefaultShipId) };
+            m_ownedShipIdsCsv.Value = new FixedString512Bytes(BuildOwnedShipsCsv(ownedShipIds));
+        }
+
+        string normalizedSelectedShipId = NormalizeOwnedShipId(m_selectedShipId.Value.ToString());
+        if (string.IsNullOrWhiteSpace(normalizedSelectedShipId) ||
+            !ContainsOwnedShipId(m_ownedShipIdsCsv.Value.ToString(), normalizedSelectedShipId))
+        {
+            m_selectedShipId.Value = new FixedString64Bytes(ownedShipIds[0]);
+        }
+    }
+
+    private void SetSelectedShipServer(string shipId)
+    {
+        if (!IsServer)
+        {
+            return;
+        }
+
+        string normalizedShipId = NormalizeOwnedShipId(shipId);
+        if (string.IsNullOrWhiteSpace(normalizedShipId) || !OwnsShip(normalizedShipId))
+        {
+            return;
+        }
+
+        if (string.Equals(SelectedShipId, normalizedShipId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        m_selectedShipId.Value = new FixedString64Bytes(normalizedShipId);
     }
 
     private void EnsureWorldNameplate()
