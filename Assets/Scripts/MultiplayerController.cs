@@ -585,6 +585,7 @@ public class MultiplayerController : MonoBehaviour
 
             session.Player = player;
             player.PlayerName.Value = string.IsNullOrWhiteSpace(session.DisplayName) ? "Unknown Player" : session.DisplayName;
+            player.SetOwnerEntityId(session.UserId);
 
             _ = await TryLoadPlayerStateIntoPlayerAsync(session, player, session.LifetimeCts.Token);
 
@@ -593,7 +594,6 @@ public class MultiplayerController : MonoBehaviour
                 return;
             }
 
-            IslandBuildManager.Instance?.AssignLiveOwnerClientId(session.UserId, clientId);
             SubscribeToWalletChanges(session, player);
         }
         catch (OperationCanceledException)
@@ -980,7 +980,6 @@ public class MultiplayerController : MonoBehaviour
             return;
         }
 
-        IslandBuildManager.Instance?.ClearLiveOwnerClientId(session.UserId, clientId);
         UnsubscribeFromWalletChanges(session);
 
         if (!session.LifetimeCts.IsCancellationRequested)

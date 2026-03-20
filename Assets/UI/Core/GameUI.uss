@@ -717,7 +717,7 @@
     display: none;
 }
 
-.npc-health-box {
+.health-box {
     position: absolute;
     top: 16px;
     left: 16px;
@@ -745,7 +745,7 @@
     border-left-width: 2px;
 }
 
-.npc-portrait {
+.health-portrait {
     width: 72px;
     height: 72px;
     margin-right: 10px;
@@ -766,12 +766,12 @@
     -unity-background-scale-mode: scale-and-crop;
 }
 
-.npc-health-content {
+.health-content {
     flex-grow: 1;
     justify-content: center;
 }
 
-.npc-name-label {
+.health-name-label {
     margin-bottom: 6px;
     color: rgba(214, 205, 186, 0.92);
     font-size: 28px;
@@ -780,7 +780,7 @@
     white-space: nowrap;
 }
 
-.npc-health-label {
+.health-label {
     color: rgba(255, 212, 147, 0.98);
     -unity-font-style: bold;
     font-size: 26px;
@@ -792,7 +792,7 @@
     left: 0;
 }
 
-.npc-health-bar-bg {
+.health-bar-bg {
     position: relative;
     height: 30px;
     border-top-left-radius: 7px;
@@ -811,7 +811,7 @@
     border-left-width: 2px;
 }
 
-.npc-health-bar-fill {
+.health-bar-fill {
     position: absolute;
     top: 0;
     bottom: 0;

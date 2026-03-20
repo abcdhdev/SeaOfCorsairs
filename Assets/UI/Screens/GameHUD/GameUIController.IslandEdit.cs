@@ -113,11 +113,6 @@ public partial class GameUIController
             islandEditBuildCannonButton.clicked += OnIslandEditBuildCannonClicked;
         }
 
-        if (islandEditConfirmDestroyButton != null)
-        {
-            islandEditConfirmDestroyButton.clicked += OnIslandEditConfirmDestroyClicked;
-        }
-
         if (islandEditCancelButton != null)
         {
             islandEditCancelButton.clicked += OnIslandEditCancelClicked;
@@ -154,11 +149,6 @@ public partial class GameUIController
         if (islandEditBuildCannonButton != null)
         {
             islandEditBuildCannonButton.clicked -= OnIslandEditBuildCannonClicked;
-        }
-
-        if (islandEditConfirmDestroyButton != null)
-        {
-            islandEditConfirmDestroyButton.clicked -= OnIslandEditConfirmDestroyClicked;
         }
 
         if (islandEditCancelButton != null)
@@ -329,12 +319,6 @@ public partial class GameUIController
     private void OnIslandEditBuildCannonClicked()
     {
         IslandBuildManager.Instance?.BeginBuildPlacement();
-        RefreshIslandEditUi();
-    }
-
-    private void OnIslandEditConfirmDestroyClicked()
-    {
-        IslandBuildManager.Instance?.DeleteSelectedTurret();
         RefreshIslandEditUi();
     }
 

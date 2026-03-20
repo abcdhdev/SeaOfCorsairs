@@ -1,33 +1,45 @@
+using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 public partial class GameUIController
 {
-    private void EnsureNpcHealthTemplateInstance()
+    private void EnsureHealthTemplateInstance()
     {
         if (combatOverlayLayer == null)
         {
             return;
         }
 
-        if (combatOverlayLayer.Q<VisualElement>("NpcHealthBox") != null)
+        if (combatOverlayLayer.Q<VisualElement>("HealthBox") != null)
         {
             return;
         }
 
-        VisualTreeAsset npcHealthTemplate = Resources.Load<VisualTreeAsset>(NpcHealthTemplateResourcePath);
-        if (npcHealthTemplate == null)
+        VisualTreeAsset healthTemplate = Resources.Load<VisualTreeAsset>(HealthTemplateResourcePath);
+        if (healthTemplate == null)
         {
-            if (!missingNpcHealthTemplateLogged)
+            if (!missingHealthTemplateLogged)
             {
-                Debug.LogWarning($"GameUIController: Missing NPC health template at Resources/{NpcHealthTemplateResourcePath}.uxml.");
-                missingNpcHealthTemplateLogged = true;
+                Debug.LogWarning($"GameUIController: Missing health template at Resources/{HealthTemplateResourcePath}.uxml.");
+                missingHealthTemplateLogged = true;
             }
 
             return;
         }
 
-        combatOverlayLayer.Add(npcHealthTemplate.Instantiate());
+        combatOverlayLayer.Add(healthTemplate.Instantiate());
+    }
+
+    private IHealthSystem GetSelectedHealthTarget()
+    {
+        GameObject selectedTarget = GetSelectedTarget();
+        if (selectedTarget == null)
+        {
+            return null;
+        }
+
+        return selectedTarget.GetComponent<IHealthSystem>() ?? selectedTarget.GetComponentInParent<IHealthSystem>();
     }
 
     private NPC GetSelectedNpc()
@@ -41,79 +53,79 @@ public partial class GameUIController
         return SelectObject.Instance != null ? SelectObject.Instance.SelectedTarget : null;
     }
 
-    private void TrackNpc(NPC npc)
+    private void TrackHealthTarget(IHealthSystem healthTarget)
     {
-        if (trackedNpc == npc)
+        Component healthTargetComponent = healthTarget as Component;
+        if (trackedHealthTargetComponent == healthTargetComponent &&
+            ReferenceEquals(trackedHealthTarget, healthTarget))
         {
-            if (trackedNpc != null)
-            {
-                UpdateNpcHealthDisplay();
-            }
-
             return;
         }
 
-        if (trackedNpc != null)
+        if (trackedHealthTarget != null)
         {
-            trackedNpc.OnHealthChanged -= OnTrackedNpcHealthChanged;
+            trackedHealthTarget.OnHealthChanged -= OnTrackedHealthChanged;
         }
 
-        trackedNpc = npc;
+        trackedHealthTarget = healthTarget;
+        trackedHealthTargetComponent = healthTargetComponent;
 
-        if (trackedNpc == null)
+        if (trackedHealthTarget == null || trackedHealthTargetComponent == null)
         {
-            SetNpcHealthVisible(false);
+            trackedHealthTarget = null;
+            trackedHealthTargetComponent = null;
+            SetHealthVisible(false);
             return;
         }
 
-        trackedNpc.OnHealthChanged += OnTrackedNpcHealthChanged;
-        UpdateNpcHealthDisplay();
-        SetNpcHealthVisible(true);
+        trackedHealthTarget.OnHealthChanged += OnTrackedHealthChanged;
+        UpdateHealthDisplay();
+        SetHealthVisible(true);
     }
 
-    private void OnTrackedNpcHealthChanged(float normalizedHealth)
+    private void OnTrackedHealthChanged(float normalizedHealth)
     {
-        if (trackedNpc == null)
+        if (trackedHealthTarget == null || trackedHealthTargetComponent == null)
         {
-            SetNpcHealthVisible(false);
+            SetHealthVisible(false);
             return;
         }
 
-        UpdateNpcHealthDisplay();
+        UpdateHealthDisplay();
     }
 
-    private void UpdateNpcHealthDisplay()
+    private void UpdateHealthDisplay()
     {
-        if (trackedNpc == null)
+        if (trackedHealthTarget == null || trackedHealthTargetComponent == null)
         {
             return;
         }
 
-        int maxHealth = Mathf.Max(trackedNpc.MaxHealth, 1);
-        int currentHealth = Mathf.Clamp(trackedNpc.CurrentHealth, 0, maxHealth);
+        int maxHealth = Mathf.Max(trackedHealthTarget.MaxHealth, 1);
+        int currentHealth = Mathf.Clamp(trackedHealthTarget.CurrentHealth, 0, maxHealth);
         float healthPercent = currentHealth / (float)maxHealth;
 
-        if (npcNameLabel != null)
+        if (targetNameLabel != null)
         {
-            npcNameLabel.text = GetNpcDisplayName(trackedNpc);
+            targetNameLabel.text = ResolveHealthTargetDisplayName(trackedHealthTarget);
         }
 
-        if (npcHealthLabel != null)
+        if (healthLabel != null)
         {
-            npcHealthLabel.text = $"{currentHealth} / {maxHealth}";
+            healthLabel.text = $"{currentHealth} / {maxHealth}";
         }
 
-        if (npcHealthBarFill != null)
+        if (healthBarFill != null)
         {
-            npcHealthBarFill.style.width = new Length(healthPercent * 100f, LengthUnit.Percent);
+            healthBarFill.style.width = new Length(healthPercent * 100f, LengthUnit.Percent);
         }
     }
 
-    private void SetNpcHealthVisible(bool visible)
+    private void SetHealthVisible(bool visible)
     {
-        if (npcHealthBox != null)
+        if (healthBox != null)
         {
-            npcHealthBox.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+            healthBox.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
         }
     }
 
@@ -159,9 +171,50 @@ public partial class GameUIController
         }
     }
 
-    private static string GetNpcDisplayName(NPC npc)
+    private static string ResolveHealthTargetDisplayName(IHealthSystem healthTarget)
     {
-        return npc == null ? "Unknown Target" : npc.DisplayName;
+        switch (healthTarget)
+        {
+            case NPC npc:
+                return SanitizeDisplayName(npc.DisplayName, "Unknown Target");
+            case Player player:
+            {
+                string playerName = player.PlayerName.Value.ToString();
+                return !string.IsNullOrWhiteSpace(playerName)
+                    ? SanitizeDisplayName(playerName, "Unknown Player")
+                    : ResolveObjectDisplayName(player.gameObject, "Unknown Player");
+            }
+            case IslandTurret turret:
+                return ResolveObjectDisplayName(turret.gameObject, "Turret");
+            case Component component:
+                return ResolveObjectDisplayName(component.gameObject, "Unknown Target");
+            default:
+                return "Unknown Target";
+        }
+    }
+
+    private static string ResolveObjectDisplayName(GameObject targetObject, string fallbackName)
+    {
+        if (targetObject == null)
+        {
+            return fallbackName;
+        }
+
+        string rawName = targetObject.name;
+        const string cloneSuffix = "(Clone)";
+        if (rawName.EndsWith(cloneSuffix, StringComparison.Ordinal))
+        {
+            rawName = rawName.Substring(0, rawName.Length - cloneSuffix.Length).TrimEnd();
+        }
+
+        return SanitizeDisplayName(rawName, fallbackName);
+    }
+
+    private static string SanitizeDisplayName(string value, string fallbackName)
+    {
+        string resolvedValue = string.IsNullOrWhiteSpace(value) ? fallbackName : value.Trim();
+        string sanitizedValue = UiTextSanitizer.SanitizeForLabel(resolvedValue, collapseWhitespace: true);
+        return string.IsNullOrWhiteSpace(sanitizedValue) ? fallbackName : sanitizedValue;
     }
 
     private void UpdatePlayerHealthBar()

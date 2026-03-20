@@ -56,13 +56,15 @@ namespace SeaWars.PlayerDataService.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("CreatorUserId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("ObjectType")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<string>("OwnerEntityId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("State")
                         .IsRequired()
@@ -73,9 +75,9 @@ namespace SeaWars.PlayerDataService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatorUserId");
-
                     b.HasIndex("ObjectType");
+
+                    b.HasIndex("OwnerEntityId");
 
                     b.ToTable("world_objects", (string)null);
                 });

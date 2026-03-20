@@ -453,6 +453,10 @@ app.MapPost("/v1/world-objects", async (
     if (string.IsNullOrWhiteSpace(normalizedObjectType))
         return Results.BadRequest(new ErrorResponse("invalid_object_type", "ObjectType is required."));
 
+    var normalizedOwnerEntityId = NormalizeOwnerEntityId(createRequest.OwnerEntityId);
+    if (string.IsNullOrWhiteSpace(normalizedOwnerEntityId))
+        return Results.BadRequest(new ErrorResponse("invalid_owner_entity_id", "OwnerEntityId is required."));
+
     if (createRequest.State.ValueKind == System.Text.Json.JsonValueKind.Undefined ||
         createRequest.State.ValueKind == System.Text.Json.JsonValueKind.Null)
     {
@@ -464,7 +468,7 @@ app.MapPost("/v1/world-objects", async (
     {
         Id = Guid.NewGuid(),
         ObjectType = normalizedObjectType,
-        CreatorUserId = createRequest.CreatorUserId,
+        OwnerEntityId = normalizedOwnerEntityId,
         State = createRequest.State.GetRawText(),
         CreatedAt = now,
         UpdatedAt = now,
@@ -878,13 +882,20 @@ static string NormalizeWorldObjectType(string? objectType)
         : objectType.Trim().ToLowerInvariant();
 }
 
+static string NormalizeOwnerEntityId(string? ownerEntityId)
+{
+    return string.IsNullOrWhiteSpace(ownerEntityId)
+        ? string.Empty
+        : ownerEntityId.Trim();
+}
+
 static WorldObjectResponse CreateWorldObjectResponse(WorldObject entity)
 {
     using var doc = JsonDocument.Parse(entity.State);
     return new WorldObjectResponse(
         entity.Id,
         entity.ObjectType,
-        entity.CreatorUserId,
+        entity.OwnerEntityId,
         doc.RootElement.Clone(),
         entity.CreatedAt,
         entity.UpdatedAt);

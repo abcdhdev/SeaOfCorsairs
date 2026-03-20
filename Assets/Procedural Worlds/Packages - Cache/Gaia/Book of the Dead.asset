@@ -16,7 +16,7 @@ MonoBehaviour:
   m_displayName: Book of the Dead
   m_category: 1
   m_status: 2
-  m_installedSizeMB: 3256.3542
+  m_installedSizeMB: 3219.6677
   m_packageSizeMB: 2815.4426
   m_unityPackage: {fileID: 102900000, guid: b35d7469f2ab79a4081fa1b2e99d48d3, type: 3}
   m_installFolder: Book of the Dead

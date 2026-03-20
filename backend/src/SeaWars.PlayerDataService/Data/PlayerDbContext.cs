@@ -32,12 +32,13 @@ public sealed class PlayerDbContext : DbContext
             entity.HasKey(x => x.Id);
 
             entity.Property(x => x.ObjectType).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.OwnerEntityId).HasMaxLength(128).IsRequired();
             entity.Property(x => x.State).HasColumnType("jsonb").IsRequired();
             entity.Property(x => x.CreatedAt).IsRequired();
             entity.Property(x => x.UpdatedAt).IsRequired();
 
             entity.HasIndex(x => x.ObjectType);
-            entity.HasIndex(x => x.CreatorUserId);
+            entity.HasIndex(x => x.OwnerEntityId);
         });
     }
 }

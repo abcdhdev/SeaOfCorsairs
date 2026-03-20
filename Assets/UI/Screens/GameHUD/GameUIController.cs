@@ -23,7 +23,7 @@ public partial class GameUIController : MonoBehaviour
 
     private const int SlotCount = 10;
     private const string ActionSlotTemplateAssetPath = "Assets/UI/Components/ActionSlot/ActionSlot.uxml";
-    private const string NpcHealthTemplateResourcePath = "GameHUD/Fragments/NpcHealthBox";
+    private const string HealthTemplateResourcePath = "GameHUD/Fragments/HealthBox";
     private const string ActionSlotRootName = "ActionSlotRoot";
     private const string ActionSlotTopLabelName = "ActionSlotTopLabel";
     private const string ActionSlotMainLabelName = "ActionSlotMainLabel";
@@ -85,10 +85,10 @@ public partial class GameUIController : MonoBehaviour
     private GuildManagementController guildManagementController;
 
     private VisualElement combatOverlayLayer;
-    private VisualElement npcHealthBox;
-    private Label npcHealthLabel;
-    private Label npcNameLabel;
-    private VisualElement npcHealthBarFill;
+    private VisualElement healthBox;
+    private Label healthLabel;
+    private Label targetNameLabel;
+    private VisualElement healthBarFill;
     private VisualElement deadOverlayRoot;
     private Label deadOverlayTimerLabel;
 
@@ -115,7 +115,8 @@ public partial class GameUIController : MonoBehaviour
     private bool isAmmoMenuOpen;
     private ShipSectionController shipSectionController;
 
-    private NPC trackedNpc;
+    private IHealthSystem trackedHealthTarget;
+    private Component trackedHealthTargetComponent;
     private Player cachedLocalPlayer;
     private int displayedPlayerHealth = -1;
     private int displayedPlayerMaxHealth = -1;
@@ -124,7 +125,7 @@ public partial class GameUIController : MonoBehaviour
     private int displayedPlayerExperience = -1;
     private int displayedPlayerExperienceToNext = -1;
     private float displayedCameraZoom = float.NaN;
-    private bool missingNpcHealthTemplateLogged;
+    private bool missingHealthTemplateLogged;
 
     private void OnEnable()
     {
@@ -155,9 +156,9 @@ public partial class GameUIController : MonoBehaviour
         RefreshActionBarVisibility();
         RefreshIslandEditUi();
 
-        SetNpcHealthVisible(false);
+        SetHealthVisible(false);
         SetDeadOverlayVisible(false);
-        TrackNpc(GetSelectedNpc());
+        TrackHealthTarget(GetSelectedHealthTarget());
         UpdatePlayerHealthBar();
         UpdatePlayerExpBar();
 
@@ -187,7 +188,7 @@ public partial class GameUIController : MonoBehaviour
         guildManagementController = null;
         StopSkillDrag();
         ClearPendingSourcePress();
-        TrackNpc(null);
+        TrackHealthTarget(null);
 
         if (centerCameraAction != null && centerCameraAction.action != null)
         {
@@ -235,11 +236,11 @@ public partial class GameUIController : MonoBehaviour
             return;
         }
 
-        TrackNpc(GetSelectedNpc());
+        TrackHealthTarget(GetSelectedHealthTarget());
 
-        if (trackedNpc != null)
+        if (trackedHealthTargetComponent != null)
         {
-            UpdateNpcHealthDisplay();
+            UpdateHealthDisplay();
         }
 
         UpdateDeathOverlay();
@@ -311,11 +312,11 @@ public partial class GameUIController : MonoBehaviour
         cameraZoomThumb = root.Q<VisualElement>("CameraZoomThumb");
 
         combatOverlayLayer = root.Q<VisualElement>("CombatOverlayLayer");
-        EnsureNpcHealthTemplateInstance();
-        npcHealthBox = combatOverlayLayer != null ? combatOverlayLayer.Q<VisualElement>("NpcHealthBox") : null;
-        npcHealthLabel = combatOverlayLayer != null ? combatOverlayLayer.Q<Label>("NpcHealthLabel") : null;
-        npcNameLabel = combatOverlayLayer != null ? combatOverlayLayer.Q<Label>("NpcNameLabel") : null;
-        npcHealthBarFill = combatOverlayLayer != null ? combatOverlayLayer.Q<VisualElement>("NpcHealthBarFill") : null;
+        EnsureHealthTemplateInstance();
+        healthBox = combatOverlayLayer != null ? combatOverlayLayer.Q<VisualElement>("HealthBox") : null;
+        healthLabel = combatOverlayLayer != null ? combatOverlayLayer.Q<Label>("HealthLabel") : null;
+        targetNameLabel = combatOverlayLayer != null ? combatOverlayLayer.Q<Label>("TargetNameLabel") : null;
+        healthBarFill = combatOverlayLayer != null ? combatOverlayLayer.Q<VisualElement>("HealthBarFill") : null;
         deadOverlayRoot = root.Q<VisualElement>("DeadOverlayRoot");
         deadOverlayTimerLabel = root.Q<Label>("DeadOverlayTimerLabel");
 
@@ -364,10 +365,12 @@ public partial class GameUIController : MonoBehaviour
         topActionSlotsRow = null;
         bottomSkillSlotsRow = null;
         combatOverlayLayer = null;
-        npcHealthBox = null;
-        npcHealthLabel = null;
-        npcNameLabel = null;
-        npcHealthBarFill = null;
+        trackedHealthTarget = null;
+        trackedHealthTargetComponent = null;
+        healthBox = null;
+        healthLabel = null;
+        targetNameLabel = null;
+        healthBarFill = null;
         deadOverlayRoot = null;
         deadOverlayTimerLabel = null;
         cameraZoomRoot = null;

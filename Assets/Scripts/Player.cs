@@ -56,6 +56,11 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
+    private NetworkVariable<FixedString128Bytes> m_ownerEntityId = new NetworkVariable<FixedString128Bytes>(
+        new FixedString128Bytes(),
+        NetworkVariableReadPermission.Owner,
+        NetworkVariableWritePermission.Server
+    );
     private NetworkVariable<int> m_networkPearls = new NetworkVariable<int>(
         0,
         NetworkVariableReadPermission.Everyone,
@@ -115,6 +120,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     public int Diamonds => m_networkPearls.Value;
     public int Gold => m_networkGold.Value;
     public int Experience => m_networkExperience.Value;
+    public string OwnerEntityId => m_ownerEntityId.Value.ToString();
     public string OwnedCannonIdsCsv => m_ownedCannonIdsCsv.Value.ToString();
     public GameObject TargetGameObject => gameObject;
     public bool CanBeTargeted => IsSpawned && isActiveAndEnabled && CurrentHealth > 0;
@@ -245,6 +251,20 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         m_networkGold.Value = Mathf.Max(0, gold);
         m_networkPearls.Value = Mathf.Max(0, diamond);
+    }
+
+    public void SetOwnerEntityId(string ownerEntityId)
+    {
+        if (!IsServer)
+        {
+            Debug.LogWarning($"Player {gameObject.name}: SetOwnerEntityId is server-only.");
+            return;
+        }
+
+        string normalizedOwnerEntityId = string.IsNullOrWhiteSpace(ownerEntityId)
+            ? string.Empty
+            : ownerEntityId.Trim();
+        m_ownerEntityId.Value = new FixedString128Bytes(normalizedOwnerEntityId);
     }
 
     public void ApplyPersistedOwnedCannons(IReadOnlyList<string> ownedCannonIds)

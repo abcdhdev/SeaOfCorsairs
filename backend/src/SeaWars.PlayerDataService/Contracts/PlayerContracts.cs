@@ -21,12 +21,12 @@ public sealed record ConflictResponse(int CurrentVersion, DateTimeOffset Updated
 public sealed record WorldObjectResponse(
     Guid Id,
     string ObjectType,
-    Guid CreatorUserId,
+    string OwnerEntityId,
     JsonElement State,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
-public sealed record CreateWorldObjectRequest(string ObjectType, Guid CreatorUserId, JsonElement State);
+public sealed record CreateWorldObjectRequest(string ObjectType, string OwnerEntityId, JsonElement State);
 
 public sealed record UpdateWorldObjectRequest(JsonElement State);
 

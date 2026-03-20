@@ -58,7 +58,10 @@ public sealed class IslandBuildManager : MonoBehaviour
     private string statusMessage = "Manage Defenses enters defense edit mode.";
     private Player observedLocalPlayer;
     private Terrain cachedTerrain;
+    private TerrainCollider cachedTerrainCollider;
     private NavMeshSurface cachedNavMeshSurface;
+    private TerrainData sourceTerrainData;
+    private TerrainData runtimeTerrainData;
     private float[,] baseHeights;
     private bool terrainDirty;
     private float terrainRebuildReadyAt;
@@ -108,20 +111,12 @@ public sealed class IslandBuildManager : MonoBehaviour
 
     private void OnDisable()
     {
-        IslandTurret.RegistryChanged -= HandleTurretRegistryChanged;
-        Player.LocalPlayerSpawned -= HandleLocalPlayerSpawned;
-        UntrackObservedLocalPlayer();
-        RestoreTerrainState();
-
-        if (Instance == this)
-        {
-            Instance = null;
-        }
+        CleanupRuntimeState();
     }
 
     private void OnDestroy()
     {
-        RestoreTerrainState();
+        CleanupRuntimeState();
     }
 
     private void Update()
@@ -135,10 +130,44 @@ public sealed class IslandBuildManager : MonoBehaviour
         RebuildTerrainIfNeeded();
     }
 
+    private void CleanupRuntimeState()
+    {
+        IslandTurret.RegistryChanged -= HandleTurretRegistryChanged;
+        Player.LocalPlayerSpawned -= HandleLocalPlayerSpawned;
+        UntrackObservedLocalPlayer();
+        RestoreTerrainState();
+
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
+
+#if UNITY_EDITOR
+    // Restore the terrain before Play Mode teardown can leave the heightmap dirty in the editor.
+    [UnityEditor.InitializeOnLoadMethod]
+    private static void RegisterEditorPlayModeCleanup()
+    {
+        UnityEditor.EditorApplication.playModeStateChanged -= HandleEditorPlayModeStateChanged;
+        UnityEditor.EditorApplication.playModeStateChanged += HandleEditorPlayModeStateChanged;
+    }
+
+    private static void HandleEditorPlayModeStateChanged(UnityEditor.PlayModeStateChange state)
+    {
+        if (state != UnityEditor.PlayModeStateChange.ExitingPlayMode)
+        {
+            return;
+        }
+
+        Instance?.CleanupRuntimeState();
+    }
+#endif
+
     public int GetLocalOwnedTurretCount()
     {
-        ulong localClientId = GetLocalClientId();
-        return localClientId == ulong.MaxValue ? 0 : IslandTurret.CountOwnedBy(localClientId);
+        return TryGetLocalOwnerEntityId(out string localOwnerEntityId)
+            ? IslandTurret.CountOwnedByOwnerEntity(localOwnerEntityId)
+            : 0;
     }
 
     public IslandTurret GetSelectedTurret()
@@ -159,8 +188,7 @@ public sealed class IslandBuildManager : MonoBehaviour
             return null;
         }
 
-        ulong localClientId = GetLocalClientId();
-        return selectedTurret.IsOwnedBy(localClientId) ? selectedTurret : null;
+        return IsOwnedByLocalPlayer(selectedTurret) ? selectedTurret : null;
     }
 
     public void EnterEditMode()
@@ -302,8 +330,7 @@ public sealed class IslandBuildManager : MonoBehaviour
             return false;
         }
 
-        ulong localClientId = GetLocalClientId();
-        if (!turret.IsOwnedBy(localClientId))
+        if (!IsOwnedByLocalPlayer(turret))
         {
             SetStatus("You can only move your own turrets.");
             return false;
@@ -469,7 +496,7 @@ public sealed class IslandBuildManager : MonoBehaviour
                     continue;
                 }
 
-                if (!TrySpawnPersistentTurret(worldObject.CreatorUserId, worldObject.Id, resolvedPosition, out _, out restoreFailure))
+                if (!TrySpawnPersistentTurret(worldObject.OwnerEntityId, worldObject.Id, resolvedPosition, out _, out restoreFailure))
                 {
                     Debug.LogWarning($"[WorldObjects] Failed to restore turret {worldObject.Id}: {restoreFailure}");
                 }
@@ -488,47 +515,6 @@ public sealed class IslandBuildManager : MonoBehaviour
         }
     }
 
-    public void AssignLiveOwnerClientId(string creatorUserId, ulong clientId)
-    {
-        if (string.IsNullOrWhiteSpace(creatorUserId) || clientId == ulong.MaxValue)
-        {
-            return;
-        }
-
-        foreach (IslandTurret turret in IslandTurret.ActiveTurrets)
-        {
-            if (turret == null || !turret.IsSpawned || !turret.IsOwnedByCreator(creatorUserId))
-            {
-                continue;
-            }
-
-            turret.SetLiveOwnerClientId(clientId);
-        }
-    }
-
-    public void ClearLiveOwnerClientId(string creatorUserId, ulong clientId)
-    {
-        if (string.IsNullOrWhiteSpace(creatorUserId))
-        {
-            return;
-        }
-
-        foreach (IslandTurret turret in IslandTurret.ActiveTurrets)
-        {
-            if (turret == null || !turret.IsSpawned || !turret.IsOwnedByCreator(creatorUserId))
-            {
-                continue;
-            }
-
-            if (clientId != ulong.MaxValue && turret.OwnerClientId != clientId)
-            {
-                continue;
-            }
-
-            turret.SetLiveOwnerClientId(ulong.MaxValue);
-        }
-    }
-
     public void NotifyTurretDestroyed(IslandTurret turret)
     {
         if (turret == null || !turret.HasPersistentWorldObjectId)
@@ -541,12 +527,12 @@ public sealed class IslandBuildManager : MonoBehaviour
 
     public async Task<(bool success, string message)> TryServerBuildTurretAsync(Player owner, Vector3 requestedPosition)
     {
-        if (!TryResolveCreatorUserId(owner, out string creatorUserId, out string resultMessage))
+        if (!TryResolveOwnerEntityId(owner, out string ownerEntityId, out string resultMessage))
         {
             return (false, resultMessage);
         }
 
-        if (!ValidateServerBuildRequest(owner, creatorUserId, requestedPosition, out Vector3 resolvedPosition, out resultMessage))
+        if (!ValidateServerBuildRequest(owner, ownerEntityId, requestedPosition, out Vector3 resolvedPosition, out resultMessage))
         {
             return (false, resultMessage);
         }
@@ -561,7 +547,7 @@ public sealed class IslandBuildManager : MonoBehaviour
         {
             worldObject = await worldObjectClient.CreateWorldObjectAsync(
                 TurretWorldObjectType,
-                creatorUserId,
+                ownerEntityId,
                 PersistentTurretState.FromPosition(resolvedPosition).ToJson());
         }
         catch (Exception ex)
@@ -575,7 +561,7 @@ public sealed class IslandBuildManager : MonoBehaviour
             return (false, $"You need {TurretGoldCost} gold to build a turret.");
         }
 
-        if (!TrySpawnPersistentTurret(creatorUserId, worldObject.Id, resolvedPosition, out _, out resultMessage))
+        if (!TrySpawnPersistentTurret(ownerEntityId, worldObject.Id, resolvedPosition, out _, out resultMessage))
         {
             await DeletePersistentWorldObjectAsync(worldObject.Id);
             owner.ApplyPersistedWallet(owner.Gold + TurretGoldCost, owner.Diamonds);
@@ -926,7 +912,7 @@ public sealed class IslandBuildManager : MonoBehaviour
             }
 
             EditState = IslandEditState.Selecting;
-            SetStatus(turret.IsOwnedBy(GetLocalClientId())
+            SetStatus(IsOwnedByLocalPlayer(turret)
                 ? $"Selected {turret.name}. Choose an action from the defense bar."
                 : $"Selected {turret.name}. You can inspect it, but only your own turrets can be changed.");
             return true;
@@ -1064,18 +1050,7 @@ public sealed class IslandBuildManager : MonoBehaviour
         return false;
     }
 
-    private ulong ResolveLiveOwnerClientId(string creatorUserId)
-    {
-        MultiplayerController controller = MultiplayerController.Instance;
-        if (controller != null && controller.TryGetClientIdForUserId(creatorUserId, out ulong liveOwnerClientId))
-        {
-            return liveOwnerClientId;
-        }
-
-        return ulong.MaxValue;
-    }
-
-    private bool TrySpawnPersistentTurret(string creatorUserId, string worldObjectId, Vector3 resolvedPosition, out IslandTurret turret, out string resultMessage)
+    private bool TrySpawnPersistentTurret(string ownerEntityId, string worldObjectId, Vector3 resolvedPosition, out IslandTurret turret, out string resultMessage)
     {
         turret = null;
         resultMessage = string.Empty;
@@ -1105,28 +1080,40 @@ public sealed class IslandBuildManager : MonoBehaviour
             return false;
         }
 
-        turret.InitializeOwnership(creatorUserId, ResolveLiveOwnerClientId(creatorUserId), worldObjectId);
-        turret.SetPlacementPosition(resolvedPosition);
         networkObject.Spawn(true);
+        turret.InitializeOwnership(ownerEntityId, worldObjectId);
+        turret.SetPlacementPosition(resolvedPosition);
         return true;
     }
 
-    private bool TryResolveCreatorUserId(Player owner, out string creatorUserId, out string resultMessage)
+    private bool TryResolveOwnerEntityId(Player owner, out string ownerEntityId, out string resultMessage)
     {
-        creatorUserId = string.Empty;
+        ownerEntityId = string.Empty;
         resultMessage = string.Empty;
 
-        MultiplayerController controller = MultiplayerController.Instance;
-        if (controller == null || !controller.TryGetAuthenticatedUserId(owner.OwnerClientId, out creatorUserId))
+        if (owner == null)
         {
             resultMessage = "Unable to resolve your account for turret ownership.";
             return false;
         }
 
-        return !string.IsNullOrWhiteSpace(creatorUserId);
+        if (owner != null && !string.IsNullOrWhiteSpace(owner.OwnerEntityId))
+        {
+            ownerEntityId = owner.OwnerEntityId.Trim();
+            return true;
+        }
+
+        MultiplayerController controller = MultiplayerController.Instance;
+        if (controller == null || !controller.TryGetAuthenticatedUserId(owner.OwnerClientId, out ownerEntityId))
+        {
+            resultMessage = "Unable to resolve your account for turret ownership.";
+            return false;
+        }
+
+        return !string.IsNullOrWhiteSpace(ownerEntityId);
     }
 
-    private bool ValidateServerBuildRequest(Player owner, string creatorUserId, Vector3 requestedPosition, out Vector3 resolvedPosition, out string resultMessage)
+    private bool ValidateServerBuildRequest(Player owner, string ownerEntityId, Vector3 requestedPosition, out Vector3 resolvedPosition, out string resultMessage)
     {
         resolvedPosition = default;
         resultMessage = string.Empty;
@@ -1144,7 +1131,7 @@ public sealed class IslandBuildManager : MonoBehaviour
             return false;
         }
 
-        if (IslandTurret.CountOwnedByCreator(creatorUserId) >= MaxOwnedTurrets)
+        if (IslandTurret.CountOwnedByOwnerEntity(ownerEntityId) >= MaxOwnedTurrets)
         {
             resultMessage = $"You can only build {MaxOwnedTurrets} turrets.";
             return false;
@@ -1163,12 +1150,12 @@ public sealed class IslandBuildManager : MonoBehaviour
         turret = null;
         resultMessage = string.Empty;
 
-        if (!TryResolveCreatorUserId(owner, out string creatorUserId, out resultMessage))
+        if (!TryResolveOwnerEntityId(owner, out string ownerEntityId, out resultMessage))
         {
             return false;
         }
 
-        if (!IslandTurret.TryResolveOwnedTurret(turretNetworkObjectId, creatorUserId, out turret) || turret == null)
+        if (!IslandTurret.TryResolveOwnedTurret(turretNetworkObjectId, ownerEntityId, out turret) || turret == null)
         {
             resultMessage = "That turret is no longer available.";
             return false;
@@ -1282,11 +1269,23 @@ public sealed class IslandBuildManager : MonoBehaviour
         return localPlayer != null && localPlayer.IsOwner;
     }
 
-    private ulong GetLocalClientId()
+    private bool TryGetLocalOwnerEntityId(out string ownerEntityId)
     {
-        return NetworkManager.Singleton != null
-            ? NetworkManager.Singleton.LocalClientId
-            : ulong.MaxValue;
+        ownerEntityId = string.Empty;
+        if (!TryGetLocalPlayer(out Player localPlayer))
+        {
+            return false;
+        }
+
+        ownerEntityId = localPlayer.OwnerEntityId;
+        return !string.IsNullOrWhiteSpace(ownerEntityId);
+    }
+
+    private bool IsOwnedByLocalPlayer(IslandTurret turret)
+    {
+        return turret != null &&
+               TryGetLocalOwnerEntityId(out string localOwnerEntityId) &&
+               turret.IsOwnedByOwnerEntity(localOwnerEntityId);
     }
 
     private void SetStatus(string message)
@@ -1356,6 +1355,47 @@ public sealed class IslandBuildManager : MonoBehaviour
         return cachedTerrain;
     }
 
+    private TerrainData EnsureRuntimeTerrainData(Terrain terrain)
+    {
+        if (terrain == null)
+        {
+            return null;
+        }
+
+        TerrainData terrainData = terrain.terrainData;
+        if (terrainData == null)
+        {
+            return null;
+        }
+
+        bool runtimeCloneMatchesTerrain = runtimeTerrainData != null &&
+                                          cachedTerrain == terrain &&
+                                          terrain.terrainData == runtimeTerrainData;
+        if (!runtimeCloneMatchesTerrain)
+        {
+            ReleaseRuntimeTerrainData();
+        }
+        else
+        {
+            return runtimeTerrainData;
+        }
+
+        cachedTerrain = terrain;
+        cachedTerrainCollider = terrain.GetComponent<TerrainCollider>();
+        sourceTerrainData = terrainData;
+        runtimeTerrainData = Instantiate(sourceTerrainData);
+        runtimeTerrainData.name = $"{sourceTerrainData.name} (Runtime Foundations)";
+        runtimeTerrainData.hideFlags = HideFlags.HideAndDontSave;
+
+        terrain.terrainData = runtimeTerrainData;
+        if (cachedTerrainCollider != null)
+        {
+            cachedTerrainCollider.terrainData = runtimeTerrainData;
+        }
+
+        return runtimeTerrainData;
+    }
+
     private NavMeshSurface GetNavMeshSurface()
     {
         if (cachedNavMeshSurface == null)
@@ -1380,23 +1420,29 @@ public sealed class IslandBuildManager : MonoBehaviour
     private void RebuildTerrainNow()
     {
         Terrain terrain = GetTerrain();
-        if (terrain == null || terrain.terrainData == null)
+        if (terrain == null)
         {
             return;
         }
 
-        TerrainData terrainData = terrain.terrainData;
+        TerrainData terrainData = EnsureRuntimeTerrainData(terrain);
+        if (terrainData == null)
+        {
+            return;
+        }
+
         int resolution = terrainData.heightmapResolution;
         if (resolution <= 1)
         {
             return;
         }
 
+        TerrainData sourceData = sourceTerrainData != null ? sourceTerrainData : terrainData;
         if (baseHeights == null ||
             baseHeights.GetLength(0) != resolution ||
             baseHeights.GetLength(1) != resolution)
         {
-            baseHeights = terrainData.GetHeights(0, 0, resolution, resolution);
+            baseHeights = sourceData.GetHeights(0, 0, resolution, resolution);
         }
 
         float[,] updatedHeights = new float[resolution, resolution];
@@ -1425,39 +1471,55 @@ public sealed class IslandBuildManager : MonoBehaviour
         }
     }
 
-    // TerrainData is shared asset data, so restore the original heightmap when the runtime manager shuts down.
+    // Foundation shaping runs against a runtime terrain clone so the imported terrain asset stays untouched.
     private void RestoreTerrainState()
     {
-        if (cachedTerrain == null || cachedTerrain.terrainData == null || baseHeights == null)
-        {
-            baseHeights = null;
-            cachedTerrain = null;
-            cachedNavMeshSurface = null;
-            terrainDirty = false;
-            terrainRebuildReadyAt = 0f;
-            return;
-        }
-
-        TerrainData terrainData = cachedTerrain.terrainData;
-        int resolution = terrainData.heightmapResolution;
-        if (baseHeights.GetLength(0) != resolution || baseHeights.GetLength(1) != resolution)
-        {
-            baseHeights = null;
-            cachedTerrain = null;
-            cachedNavMeshSurface = null;
-            terrainDirty = false;
-            terrainRebuildReadyAt = 0f;
-            return;
-        }
-
-        terrainData.SetHeights(0, 0, baseHeights);
-        cachedTerrain.Flush();
-
-        baseHeights = null;
-        cachedTerrain = null;
-        cachedNavMeshSurface = null;
+        ReleaseRuntimeTerrainData();
         terrainDirty = false;
         terrainRebuildReadyAt = 0f;
+    }
+
+    private void ReleaseRuntimeTerrainData()
+    {
+        if (cachedTerrain != null && sourceTerrainData != null)
+        {
+            cachedTerrain.terrainData = sourceTerrainData;
+
+            TerrainCollider terrainCollider = cachedTerrainCollider != null
+                ? cachedTerrainCollider
+                : cachedTerrain.GetComponent<TerrainCollider>();
+            if (terrainCollider != null)
+            {
+                terrainCollider.terrainData = sourceTerrainData;
+            }
+
+            cachedTerrain.Flush();
+        }
+
+        DestroyTrackedObject(runtimeTerrainData);
+
+        baseHeights = null;
+        sourceTerrainData = null;
+        runtimeTerrainData = null;
+        cachedTerrain = null;
+        cachedTerrainCollider = null;
+        cachedNavMeshSurface = null;
+    }
+
+    private static void DestroyTrackedObject(UnityEngine.Object trackedObject)
+    {
+        if (trackedObject == null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            Destroy(trackedObject);
+            return;
+        }
+
+        DestroyImmediate(trackedObject);
     }
 
     private static void ApplyFoundation(float[,] heights, Terrain terrain, Vector3 centerPosition)

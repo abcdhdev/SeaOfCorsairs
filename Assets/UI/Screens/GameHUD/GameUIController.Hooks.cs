@@ -15,9 +15,9 @@ public partial class GameUIController
             UIToolkitRaycastChecker.RegisterBlockingElement(actionBarBody);
         }
 
-        if (npcHealthBox != null)
+        if (healthBox != null)
         {
-            UIToolkitRaycastChecker.RegisterBlockingElement(npcHealthBox);
+            UIToolkitRaycastChecker.RegisterBlockingElement(healthBox);
         }
 
         if (ammoMenuBackdrop != null)
@@ -68,9 +68,9 @@ public partial class GameUIController
             UIToolkitRaycastChecker.UnregisterBlockingElement(actionBarBody);
         }
 
-        if (npcHealthBox != null)
+        if (healthBox != null)
         {
-            UIToolkitRaycastChecker.UnregisterBlockingElement(npcHealthBox);
+            UIToolkitRaycastChecker.UnregisterBlockingElement(healthBox);
         }
 
         if (ammoMenuBackdrop != null)

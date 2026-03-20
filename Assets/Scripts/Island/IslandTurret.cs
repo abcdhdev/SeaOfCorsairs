@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -9,7 +10,6 @@ using UnityEngine;
 public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 {
     private const string CannonballResourcePath = "Island/Cannonball";
-    private const ulong UnassignedOwnerClientId = ulong.MaxValue;
 
     private static readonly HashSet<IslandTurret> ActiveTurretsInternal = new();
 
@@ -28,8 +28,8 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
-    private readonly NetworkVariable<ulong> ownerClientId = new(
-        UnassignedOwnerClientId,
+    private readonly NetworkVariable<FixedString128Bytes> ownerEntityId = new(
+        new FixedString128Bytes(),
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
@@ -39,7 +39,6 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
     private PlayerAttack cachedAttack;
     private ulong retaliatingAgainstId;
     private Vector3 lastNotifiedPosition;
-    private string creatorUserId = string.Empty;
     private string persistentWorldObjectId = string.Empty;
 
     public static event Action RegistryChanged = delegate { };
@@ -49,8 +48,7 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
 
     public int MaxHealth => maxHealth;
     public int CurrentHealth => networkHealth.Value;
-    public new ulong OwnerClientId => ownerClientId.Value;
-    public string CreatorUserId => creatorUserId;
+    public string OwnerEntityId => ownerEntityId.Value.ToString();
     public string PersistentWorldObjectId => persistentWorldObjectId;
     public bool HasPersistentWorldObjectId => !string.IsNullOrWhiteSpace(persistentWorldObjectId);
     public GameObject TargetGameObject => gameObject;
@@ -135,7 +133,7 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
         IslandBuildManager.Instance?.MarkTerrainDirty();
     }
 
-    public void InitializeOwnership(string creatorUserIdValue, ulong liveOwnerClientId, string worldObjectId)
+    public void InitializeOwnership(string ownerEntityIdValue, string worldObjectId)
     {
         if (!IsServer)
         {
@@ -143,35 +141,19 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
             return;
         }
 
-        creatorUserId = string.IsNullOrWhiteSpace(creatorUserIdValue)
+        string normalizedOwnerEntityId = string.IsNullOrWhiteSpace(ownerEntityIdValue)
             ? string.Empty
-            : creatorUserIdValue.Trim();
+            : ownerEntityIdValue.Trim();
+        ownerEntityId.Value = new FixedString128Bytes(normalizedOwnerEntityId);
         persistentWorldObjectId = string.IsNullOrWhiteSpace(worldObjectId)
             ? string.Empty
             : worldObjectId.Trim();
-        ownerClientId.Value = liveOwnerClientId;
     }
 
-    public void SetLiveOwnerClientId(ulong clientId)
+    public bool IsOwnedByOwnerEntity(string ownerEntityIdValue)
     {
-        if (!IsServer)
-        {
-            Debug.LogWarning($"IslandTurret {name}: SetLiveOwnerClientId is server-only.");
-            return;
-        }
-
-        ownerClientId.Value = clientId;
-    }
-
-    public bool IsOwnedByCreator(string userId)
-    {
-        return !string.IsNullOrWhiteSpace(creatorUserId) &&
-               string.Equals(creatorUserId, userId?.Trim(), StringComparison.OrdinalIgnoreCase);
-    }
-
-    public bool IsOwnedBy(ulong clientId)
-    {
-        return clientId != UnassignedOwnerClientId && ownerClientId.Value == clientId;
+        return !string.IsNullOrWhiteSpace(OwnerEntityId) &&
+               string.Equals(OwnerEntityId, ownerEntityIdValue?.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     public void SetPlacementPosition(Vector3 position)
@@ -286,12 +268,12 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
         }
     }
 
-    public static int CountOwnedBy(ulong clientId)
+    public static int CountOwnedByOwnerEntity(string ownerEntityIdValue)
     {
         int count = 0;
         foreach (IslandTurret turret in ActiveTurretsInternal)
         {
-            if (turret != null && turret.IsSpawned && turret.OwnerClientId == clientId)
+            if (turret != null && turret.IsSpawned && turret.IsOwnedByOwnerEntity(ownerEntityIdValue))
             {
                 count++;
             }
@@ -300,21 +282,7 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
         return count;
     }
 
-    public static int CountOwnedByCreator(string creatorUserId)
-    {
-        int count = 0;
-        foreach (IslandTurret turret in ActiveTurretsInternal)
-        {
-            if (turret != null && turret.IsSpawned && turret.IsOwnedByCreator(creatorUserId))
-            {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
-    public static bool TryResolveOwnedTurret(ulong networkObjectId, ulong clientId, out IslandTurret turret)
+    public static bool TryResolveOwnedTurret(ulong networkObjectId, string ownerEntityIdValue, out IslandTurret turret)
     {
         turret = null;
         foreach (IslandTurret candidate in ActiveTurretsInternal)
@@ -329,34 +297,7 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
                 continue;
             }
 
-            if (!candidate.IsOwnedBy(clientId))
-            {
-                return false;
-            }
-
-            turret = candidate;
-            return true;
-        }
-
-        return false;
-    }
-
-    public static bool TryResolveOwnedTurret(ulong networkObjectId, string creatorUserId, out IslandTurret turret)
-    {
-        turret = null;
-        foreach (IslandTurret candidate in ActiveTurretsInternal)
-        {
-            if (candidate == null || !candidate.IsSpawned || candidate.NetworkObject == null)
-            {
-                continue;
-            }
-
-            if (candidate.NetworkObject.NetworkObjectId != networkObjectId)
-            {
-                continue;
-            }
-
-            if (!candidate.IsOwnedByCreator(creatorUserId))
+            if (!candidate.IsOwnedByOwnerEntity(ownerEntityIdValue))
             {
                 return false;
             }

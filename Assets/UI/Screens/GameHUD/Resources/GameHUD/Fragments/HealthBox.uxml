@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="project://database/Assets/UI/Core/GameUI.uss?fileID=7433441132597879392&amp;guid=a6f6d39c325d3f44495b73776a1f9b3d&amp;type=3#GameUI"/>
+    <ui:VisualElement name="HealthBox" class="health-box" style="right: 16px; left: auto; top: 330px;">
+        <ui:VisualElement name="HealthPortrait" class="health-portrait"/>
+        <ui:VisualElement name="HealthContent" class="health-content">
+            <ui:Label text="Antique Sailor" name="TargetNameLabel" class="health-name-label"/>
+            <ui:VisualElement name="HealthBarBackground" class="health-bar-bg">
+                <ui:VisualElement name="HealthBarFill" class="health-bar-fill"/>
+                <ui:Label text="3310 / 3310" name="HealthLabel" class="health-label"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

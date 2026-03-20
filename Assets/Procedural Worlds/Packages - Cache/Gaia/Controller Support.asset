@@ -16,7 +16,7 @@ MonoBehaviour:
   m_displayName: Controller Support
   m_category: 2
   m_status: 2
-  m_installedSizeMB: 0.12348175
+  m_installedSizeMB: 0.12054539
   m_packageSizeMB: 0.02035904
   m_unityPackage: {fileID: 102900000, guid: 52ffcdfb4b1dfbb41a8293809a157cb4, type: 3}
   m_installFolder: Controller Support

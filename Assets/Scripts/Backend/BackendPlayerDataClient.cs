@@ -438,7 +438,7 @@ public sealed class BackendWorldObjectClient
 
     public async Task<BackendWorldObjectResponse> CreateWorldObjectAsync(
         string objectType,
-        string creatorUserId,
+        string ownerEntityId,
         JObject state,
         CancellationToken cancellationToken = default)
     {
@@ -446,7 +446,7 @@ public sealed class BackendWorldObjectClient
         var body = new JObject
         {
             ["objectType"] = (objectType ?? string.Empty).Trim(),
-            ["creatorUserId"] = (creatorUserId ?? string.Empty).Trim(),
+            ["ownerEntityId"] = (ownerEntityId ?? string.Empty).Trim(),
             ["state"] = state ?? new JObject(),
         };
 
@@ -561,8 +561,8 @@ public sealed class BackendWorldObjectResponse
     [JsonProperty("objectType")]
     public string ObjectType = string.Empty;
 
-    [JsonProperty("creatorUserId")]
-    public string CreatorUserId = string.Empty;
+    [JsonProperty("ownerEntityId")]
+    public string OwnerEntityId = string.Empty;
 
     [JsonProperty("state")]
     public JObject State = new();
