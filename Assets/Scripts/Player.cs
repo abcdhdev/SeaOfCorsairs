@@ -1238,7 +1238,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             }
         }
 
-        // Keep server-side damage in sync
+        // Keep server-side damage in sync. Ammo damage is layered on top of the configured base damage.
         if (TryGetComponent(out PlayerAttack attack))
         {
             attack.ApplyAmmoOverride(ammo.Damage);

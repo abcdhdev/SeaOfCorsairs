@@ -21,29 +21,27 @@ MonoBehaviour:
   navMeshStoppingDistance: 0
   npcRoamRadius: 200
   npcRoamWaitTime: 3
-  cannonballPrefab: {fileID: 7358711587312340462, guid: 4acc5313fe557b242ae29285b1a85bbd,
-    type: 3}
+  npcLeashRadius: 300
+  npcHomeArrivalDistance: 8
+  cannonballPrefab: {fileID: 7358711587312340462, guid: 4acc5313fe557b242ae29285b1a85bbd, type: 3}
   cannonFireSpeed: 20
   cannonArcHeightFactor: 0.2
-  cannonDamage: 20
+  cannonDamage: 250
   cannonMaxHitDistance: 150
   cannonShootingInterval: 2
   cannonAmmoTypes:
   - id: standard
     displayName: Standard
     damage: 20
-    projectileMaterial: {fileID: 2100000, guid: 6253fdeb3d376dc46b5a24d7bc5dd875,
-      type: 2}
+    projectileMaterial: {fileID: 2100000, guid: 6253fdeb3d376dc46b5a24d7bc5dd875, type: 2}
   - id: heavy
     displayName: Heavy
     damage: 30
-    projectileMaterial: {fileID: 2100000, guid: 4449d3a8c3f247998c7cbf2d555b1d84,
-      type: 2}
+    projectileMaterial: {fileID: 2100000, guid: 4449d3a8c3f247998c7cbf2d555b1d84, type: 2}
   - id: chain
     displayName: Chain
     damage: 15
-    projectileMaterial: {fileID: 2100000, guid: a87d330d8ffe410c83b2bff4b69a2f00,
-      type: 2}
+    projectileMaterial: {fileID: 2100000, guid: a87d330d8ffe410c83b2bff4b69a2f00, type: 2}
   healthBarPlaceUnderTarget: 0
   healthBarWorldOffset: {x: 0, y: 0, z: -5.9}
   hideHealthBarWhenEmpty: 1

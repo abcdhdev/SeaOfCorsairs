@@ -5239,7 +5239,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3543951015
+  GlobalObjectIdHash: 1450820942
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -5407,6 +5407,8 @@ MonoBehaviour:
   fireSpeed: 10
   arcHeightFactor: 0.2
   damage: 20
+  baseDamage: 20
+  ammoBonusDamage: 0
   maxHitDistance: 150
   projectileMaterialOverride: {fileID: 0}
 --- !u!114 &6685784690479133911
@@ -5425,6 +5427,8 @@ MonoBehaviour:
   maxHitDistance: 150
   shootingInterval: 2
   damage: 20
+  baseDamage: 20
+  ammoBonusDamage: 0
   hitOcclusionMask:
     serializedVersion: 2
     m_Bits: 4294967295

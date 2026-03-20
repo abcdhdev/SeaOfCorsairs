@@ -11,6 +11,8 @@ public class Cannon : NetworkBehaviour
     [SerializeField, HideInInspector] private float fireSpeed = 10.0f;
     [SerializeField, HideInInspector] private float arcHeightFactor = 0.2f;
     [SerializeField, HideInInspector] private int damage = 20;
+    [SerializeField, HideInInspector] private int baseDamage = 20;
+    [SerializeField, HideInInspector] private int ammoBonusDamage;
     [SerializeField, HideInInspector] private float maxHitDistance = 150f;
     [SerializeField, HideInInspector] private Material projectileMaterialOverride;
 
@@ -31,7 +33,7 @@ public class Cannon : NetworkBehaviour
         GameObject newCannonballPrefab,
         float newFireSpeed,
         float newArcHeightFactor,
-        int newDamage,
+        int newBaseDamage,
         float newMaxHitDistance,
         float newShootingInterval)
     {
@@ -42,14 +44,16 @@ public class Cannon : NetworkBehaviour
 
         fireSpeed = Mathf.Max(0.01f, newFireSpeed);
         arcHeightFactor = Mathf.Max(0f, newArcHeightFactor);
-        damage = Mathf.Max(0, newDamage);
+        baseDamage = Mathf.Max(0, newBaseDamage);
+        RecalculateDamage();
         maxHitDistance = Mathf.Max(0f, newMaxHitDistance);
     }
 
-    public void ApplyAmmoOverride(int newDamage, Material newProjectileMaterial)
+    public void ApplyAmmoOverride(int newAmmoBonusDamage, Material newProjectileMaterial)
     {
-        damage = Mathf.Max(0, newDamage);
+        ammoBonusDamage = Mathf.Max(0, newAmmoBonusDamage);
         projectileMaterialOverride = newProjectileMaterial;
+        RecalculateDamage();
     }
 
     public void FireAt(GameObject target, bool applyImpactDamage = true)
@@ -99,6 +103,11 @@ public class Cannon : NetworkBehaviour
         }
 
         projectileRenderer.sharedMaterial = projectileMaterialOverride;
+    }
+
+    private void RecalculateDamage()
+    {
+        damage = Mathf.Max(0, baseDamage + ammoBonusDamage);
     }
 
     private void OnProjectileImpact(GameObject target)

@@ -25,6 +25,7 @@ public class PrefabGameplayConfig : ScriptableObject
     [SerializeField] private GameObject cannonballPrefab;
     [SerializeField, Min(0.01f)] private float cannonFireSpeed = 100f;
     [SerializeField, Min(0f)] private float cannonArcHeightFactor = 0.2f;
+    // Base damage before ammo bonuses are applied.
     [SerializeField, Min(0)] private int cannonDamage = 20;
     [SerializeField, Min(0f)] private float cannonMaxHitDistance = 150f;
     [SerializeField, Min(0.05f)] private float cannonShootingInterval = 2f;

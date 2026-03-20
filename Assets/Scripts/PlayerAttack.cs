@@ -25,6 +25,8 @@ public class PlayerAttack : NetworkBehaviour
     [SerializeField, HideInInspector] private float maxHitDistance = 150f;
     [SerializeField, HideInInspector] private float shootingInterval = 2f;
     [SerializeField, HideInInspector] private int damage = 20;
+    [SerializeField, HideInInspector] private int baseDamage = 20;
+    [SerializeField, HideInInspector] private int ammoBonusDamage;
     [SerializeField, HideInInspector] private LayerMask hitOcclusionMask = ~0;
 
     private Cannon Cannon
@@ -40,16 +42,18 @@ public class PlayerAttack : NetworkBehaviour
         }
     }
 
-    public void ApplySettings(int newDamage, float newMaxHitDistance, float newShootingInterval)
+    public void ApplySettings(int newBaseDamage, float newMaxHitDistance, float newShootingInterval)
     {
-        damage = Mathf.Max(0, newDamage);
+        baseDamage = Mathf.Max(0, newBaseDamage);
+        RecalculateDamage();
         maxHitDistance = Mathf.Max(0f, newMaxHitDistance);
         shootingInterval = Mathf.Max(0.05f, newShootingInterval);
     }
 
-    public void ApplyAmmoOverride(int newDamage)
+    public void ApplyAmmoOverride(int newAmmoBonusDamage)
     {
-        damage = Mathf.Max(0, newDamage);
+        ammoBonusDamage = Mathf.Max(0, newAmmoBonusDamage);
+        RecalculateDamage();
     }
 
 
@@ -177,6 +181,11 @@ public class PlayerAttack : NetworkBehaviour
 
         _syncedTarget = target;
         OnShootingTargetChanged?.Invoke(_syncedTarget);
+    }
+
+    private void RecalculateDamage()
+    {
+        damage = Mathf.Max(0, baseDamage + ammoBonusDamage);
     }
 
     // ------------------------------------------------------------------
@@ -628,9 +637,9 @@ public class PlayerAttack : NetworkBehaviour
             return;
         }
 
-        if (target.TryGetComponent(out Player player))
+        if (target.TryGetComponent(out IHealthSystem healthSystem))
         {
-            player.TakeDamage(damageAmount);
+            healthSystem.TakeDamage(damageAmount);
         }
     }
 }
