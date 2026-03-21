@@ -297,7 +297,6 @@ public sealed class BackendPlayerDataClient
         currentState.State["gold"] = Math.Max(0, gold);
         currentState.State["diamond"] = Math.Max(0, diamond);
         currentState.State["experience"] = Math.Max(0, experience);
-        currentState.State.Remove("pearls");
 
         var body = new JObject
         {
@@ -327,10 +326,6 @@ public sealed class BackendPlayerDataClient
         var playerState = ParsePlayerStateResponse(responseText, url);
         var gold = ReadNonNegativeInt(playerState.State, "gold");
         var diamond = ReadNonNegativeInt(playerState.State, "diamond");
-        if (diamond == 0)
-        {
-            diamond = ReadNonNegativeInt(playerState.State, "pearls");
-        }
         var experience = ReadNonNegativeInt(playerState.State, "experience");
 
         return new PlayerWalletResponse
@@ -348,10 +343,6 @@ public sealed class BackendPlayerDataClient
         var playerState = ParsePlayerStateResponse(responseText, url);
         var gold = ReadNonNegativeInt(playerState.State, "gold");
         var diamond = ReadNonNegativeInt(playerState.State, "diamond");
-        if (diamond == 0)
-        {
-            diamond = ReadNonNegativeInt(playerState.State, "pearls");
-        }
         var experience = ReadNonNegativeInt(playerState.State, "experience");
 
         return new PlayerMarketStateResponse

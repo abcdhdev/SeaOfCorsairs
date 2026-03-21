@@ -7,7 +7,7 @@ using UnityEngine;
 [RequireComponent(typeof(NetworkObject))]
 [RequireComponent(typeof(Cannon))]
 [RequireComponent(typeof(PlayerAttack))]
-public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
+public sealed class IslandTurret : NetworkBehaviour, ICombatEntity
 {
     private const string CannonballResourcePath = "Island/Cannonball";
 
@@ -51,6 +51,9 @@ public sealed class IslandTurret : NetworkBehaviour, IHealthSystem, ICombat, ITa
     public string OwnerEntityId => ownerEntityId.Value.ToString();
     public string PersistentWorldObjectId => persistentWorldObjectId;
     public bool HasPersistentWorldObjectId => !string.IsNullOrWhiteSpace(persistentWorldObjectId);
+    public SeaEntityType EntityType => SeaEntityType.Turret;
+    public GameObject EntityGameObject => gameObject;
+    public string DisplayName => "Turret";
     public GameObject TargetGameObject => gameObject;
     public bool CanBeTargeted => IsSpawned && isActiveAndEnabled && CurrentHealth > 0;
 

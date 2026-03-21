@@ -57,7 +57,7 @@ public sealed class HudVisibilityGate : MonoBehaviour
             return;
         }
 
-        PlayerManager.OnLocalPlayerSpawned += OnLocalPlayerSpawned;
+        Player.LocalPlayerSpawned += OnLocalPlayerSpawned;
         PlayerManager.OnPlayerRemoved += OnAnyPlayerRemoved;
 
         if (NetworkManager.Singleton != null)
@@ -76,7 +76,7 @@ public sealed class HudVisibilityGate : MonoBehaviour
             return;
         }
 
-        PlayerManager.OnLocalPlayerSpawned -= OnLocalPlayerSpawned;
+        Player.LocalPlayerSpawned -= OnLocalPlayerSpawned;
         PlayerManager.OnPlayerRemoved -= OnAnyPlayerRemoved;
 
         if (NetworkManager.Singleton != null)
@@ -132,11 +132,6 @@ public sealed class HudVisibilityGate : MonoBehaviour
 
         // Local player must exist and be spawned. This is the "in-world" threshold.
         if (Player.LocalPlayer != null && Player.LocalPlayer.IsSpawned)
-        {
-            return true;
-        }
-
-        if (PlayerManager.Instance != null && PlayerManager.Instance.LocalPlayer != null && PlayerManager.Instance.LocalPlayer.IsSpawned)
         {
             return true;
         }

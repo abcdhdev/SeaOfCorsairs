@@ -44,6 +44,7 @@ MonoBehaviour:
     damage: 1
     projectileMaterial: {fileID: 2100000, guid: a87d330d8ffe410c83b2bff4b69a2f00,
       type: 2}
+  harpoonAmmoTypes: []
   healthBarPlaceUnderTarget: 0
   healthBarWorldOffset: {x: 0, y: 0, z: -5.9}
   hideHealthBarWhenEmpty: 1

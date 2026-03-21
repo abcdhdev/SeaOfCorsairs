@@ -873,8 +873,6 @@ static (int Gold, int Diamond, int Experience) ExtractWallet(string stateJson)
     var state = ParseStateObject(stateJson);
     var gold = ReadNonNegativeInt(state, "gold");
     var diamond = ReadNonNegativeInt(state, "diamond");
-    if (diamond == 0)
-        diamond = ReadNonNegativeInt(state, "pearls");
     var experience = ReadNonNegativeInt(state, "experience");
 
     return (gold, diamond, experience);
@@ -886,7 +884,6 @@ static string UpsertWalletStateJson(string stateJson, int gold, int diamond, int
     state["gold"] = Math.Max(0, gold);
     state["diamond"] = Math.Max(0, diamond);
     state["experience"] = Math.Max(0, experience);
-    state.Remove("pearls");
     return state.ToJsonString();
 }
 
@@ -895,7 +892,6 @@ static string UpsertCannonPurchaseStateJson(string stateJson, int gold, int diam
     var state = ParseStateObject(stateJson);
     state["gold"] = Math.Max(0, gold);
     state["diamond"] = Math.Max(0, diamond);
-    state.Remove("pearls");
     state["ownedCannons"] = CreateOwnedCannonsJsonArray(ownedCannonIds);
     return state.ToJsonString();
 }
@@ -905,7 +901,6 @@ static string UpsertShipPurchaseStateJson(string stateJson, int gold, int diamon
     var state = ParseStateObject(stateJson);
     state["gold"] = Math.Max(0, gold);
     state["diamond"] = Math.Max(0, diamond);
-    state.Remove("pearls");
     state["ownedShips"] = CreateOwnedShipsJsonArray(ownedShipIds);
     return state.ToJsonString();
 }

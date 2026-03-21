@@ -18,11 +18,6 @@ public class PlayerManager : MonoBehaviour
     public IReadOnlyDictionary<ulong, Player> Players => players;
 
     /// <summary>
-    /// Reference to the local player, or null if not spawned yet.
-    /// </summary>
-    public Player LocalPlayer { get; private set; }
-
-    /// <summary>
     /// Fired when any player is added to the registry.
     /// </summary>
     public static event Action<Player> OnPlayerAdded;
@@ -31,11 +26,6 @@ public class PlayerManager : MonoBehaviour
     /// Fired when any player is removed from the registry.
     /// </summary>
     public static event Action<Player> OnPlayerRemoved;
-
-    /// <summary>
-    /// Fired when the local player spawns.
-    /// </summary>
-    public static event Action<Player> OnLocalPlayerSpawned;
 
     private void Awake()
     {
@@ -77,13 +67,6 @@ public class PlayerManager : MonoBehaviour
         Debug.Log($"PlayerManager: Player registered - ClientId: {clientId}, Name: {player.gameObject.name}");
 
         OnPlayerAdded?.Invoke(player);
-
-        if (player.IsOwner)
-        {
-            LocalPlayer = player;
-            Debug.Log($"PlayerManager: Local player set - {player.gameObject.name}");
-            OnLocalPlayerSpawned?.Invoke(player);
-        }
     }
 
     /// <summary>
@@ -96,11 +79,6 @@ public class PlayerManager : MonoBehaviour
         {
             players.Remove(clientId);
             Debug.Log($"PlayerManager: Player unregistered - ClientId: {clientId}");
-
-            if (LocalPlayer == player)
-            {
-                LocalPlayer = null;
-            }
 
             OnPlayerRemoved?.Invoke(player);
         }

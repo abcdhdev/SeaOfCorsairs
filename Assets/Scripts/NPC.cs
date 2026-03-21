@@ -10,7 +10,7 @@ using SeaWars.Utility;
 /// NPC component that handles health, combat, and AI behavior.
 /// Uses NetworkVariables for automatic state synchronization.
 /// </summary>
-public class NPC : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
+public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 {
     [Header("Config")]
     [SerializeField] private PrefabGameplayConfig gameplayConfig;
@@ -66,6 +66,8 @@ public class NPC : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     public int MaxHealth => m_maxHealth;
     public int CurrentHealth => m_networkHealth.Value;
     public NpcReward Reward => npcDefinition != null ? npcDefinition.Reward : default;
+    public SeaEntityType EntityType => SeaEntityType.Npc;
+    public GameObject EntityGameObject => gameObject;
     public string DisplayName => ResolveDisplayName();
     public GameObject TargetGameObject => gameObject;
     public bool CanBeTargeted => IsSpawned && isActiveAndEnabled && CurrentHealth > 0;

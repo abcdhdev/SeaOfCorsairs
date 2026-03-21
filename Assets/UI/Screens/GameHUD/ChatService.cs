@@ -410,7 +410,7 @@ public sealed class ChatService : MonoBehaviour
             Player player = PlayerManager.Instance.GetPlayer(clientId);
             if (player != null)
             {
-                string syncName = player.PlayerName.Value.ToString();
+                string syncName = player.DisplayName;
                 if (!string.IsNullOrWhiteSpace(syncName))
                 {
                     return UiTextSanitizer.SanitizeForLabel(syncName, collapseWhitespace: true);

@@ -341,11 +341,6 @@ namespace GameSystem
         private static bool HasLocalGameplayPresence()
         {
             Player localPlayer = Player.LocalPlayer;
-            if (localPlayer == null && PlayerManager.Instance != null)
-            {
-                localPlayer = PlayerManager.Instance.LocalPlayer;
-            }
-
             return localPlayer != null && localPlayer.IsSpawned;
         }
 
@@ -533,11 +528,6 @@ namespace GameSystem
         private static bool IsLocalPlayerInCombat()
         {
             Player localPlayer = Player.LocalPlayer;
-            if (localPlayer == null && PlayerManager.Instance != null)
-            {
-                localPlayer = PlayerManager.Instance.LocalPlayer;
-            }
-
             if (localPlayer == null || !localPlayer.IsSpawned || localPlayer.IsDead)
             {
                 return false;

@@ -13,13 +13,13 @@ using SeaWars.Utility;
 /// Attach to the player prefab alongside ClickToMove.
 /// Uses NetworkVariables for automatic state synchronization.
 /// </summary>
-public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
+public class Player : NetworkBehaviour, ICombatEntity
 {
     /// <summary>
     /// Static event fired when the LOCAL player spawns.
     /// Subscribe from Awake() - static events survive instance creation.
     /// </summary>
-    public static event Action<Transform> LocalPlayerSpawned;
+    public static event Action<Player> LocalPlayerSpawned;
 
     /// <summary>
     /// Reference to the current local player, or null if not spawned yet.
@@ -51,7 +51,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     );
 
     [Header("Identity")]
-    public NetworkVariable<Unity.Collections.FixedString64Bytes> PlayerName = new NetworkVariable<Unity.Collections.FixedString64Bytes>(
+    private NetworkVariable<Unity.Collections.FixedString64Bytes> m_playerName = new NetworkVariable<Unity.Collections.FixedString64Bytes>(
         "Player",
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
@@ -66,7 +66,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         NetworkVariableReadPermission.Owner,
         NetworkVariableWritePermission.Server
     );
-    private NetworkVariable<int> m_networkPearls = new NetworkVariable<int>(
+    private NetworkVariable<int> m_networkDiamonds = new NetworkVariable<int>(
         0,
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
@@ -119,6 +119,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         NetworkVariableWritePermission.Server);
 
     private int selectedCannonAmmoIndex;
+    private int selectedHarpoonAmmoIndex;
 
     public event Action<float> OnHealthChanged = delegate { };
     public event Action<int, int, int> OnRewardWalletChanged = delegate { };
@@ -135,8 +136,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     public int CurrentHealth => m_networkHealth.Value;
     public bool IsDead => m_networkIsDead.Value || CurrentHealth <= 0;
     public bool IsDeadNetworkState => m_networkIsDead.Value;
-    public int Pearls => m_networkPearls.Value;
-    public int Diamonds => m_networkPearls.Value;
+    public int Diamonds => m_networkDiamonds.Value;
     public int Gold => m_networkGold.Value;
     public int Experience => m_networkExperience.Value;
     public string OwnerEntityId => m_ownerEntityId.Value.ToString();
@@ -144,6 +144,18 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     public string OwnedCannonIdsCsv => m_ownedCannonIdsCsv.Value.ToString();
     public string OwnedShipIdsCsv => m_ownedShipIdsCsv.Value.ToString();
     public string SelectedShipId => NormalizeOwnedShipId(m_selectedShipId.Value.ToString());
+    public SeaEntityType EntityType => SeaEntityType.Player;
+    public GameObject EntityGameObject => gameObject;
+    public string DisplayName
+    {
+        get
+        {
+            string resolvedName = m_playerName.Value.ToString();
+            return string.IsNullOrWhiteSpace(resolvedName)
+                ? ResolveObjectDisplayName(gameObject, "Player")
+                : resolvedName.Trim();
+        }
+    }
     public GameObject TargetGameObject => gameObject;
     public bool CanBeTargeted => IsSpawned && isActiveAndEnabled && CurrentHealth > 0;
     public float RespawnTimeRemainingSeconds
@@ -176,11 +188,6 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         }
     }
 
-    /// <summary>
-    /// The network client ID of this player.
-    /// </summary>
-    public ulong ClientId => OwnerClientId;
-
     private void Awake()
     {
         if (TryGetComponent(out NetworkObject networkObject))
@@ -195,16 +202,16 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         // Subscribe to network health changes
         m_networkHealth.OnValueChanged += OnNetworkHealthChanged;
-        PlayerName.OnValueChanged += OnPlayerNameChanged;
+        m_playerName.OnValueChanged += OnPlayerNameChanged;
         m_networkGuildAbbreviation.OnValueChanged += OnGuildAbbreviationChanged;
-        m_networkPearls.OnValueChanged += OnRewardWalletValueChanged;
+        m_networkDiamonds.OnValueChanged += OnRewardWalletValueChanged;
         m_networkGold.OnValueChanged += OnRewardWalletValueChanged;
         m_networkExperience.OnValueChanged += OnRewardWalletValueChanged;
         m_ownedCannonIdsCsv.OnValueChanged += OnOwnedCannonIdsChanged;
         m_ownedShipIdsCsv.OnValueChanged += OnOwnedShipIdsChanged;
         m_selectedShipId.OnValueChanged += OnSelectedShipIdChanged;
 
-        OnPlayerNameChanged(default, PlayerName.Value);
+        OnPlayerNameChanged(default, m_playerName.Value);
         OnGuildAbbreviationChanged(default, m_networkGuildAbbreviation.Value);
     }
 
@@ -213,9 +220,9 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         CombatTargetingUtility.Unregister(this);
 
         m_networkHealth.OnValueChanged -= OnNetworkHealthChanged;
-        PlayerName.OnValueChanged -= OnPlayerNameChanged;
+        m_playerName.OnValueChanged -= OnPlayerNameChanged;
         m_networkGuildAbbreviation.OnValueChanged -= OnGuildAbbreviationChanged;
-        m_networkPearls.OnValueChanged -= OnRewardWalletValueChanged;
+        m_networkDiamonds.OnValueChanged -= OnRewardWalletValueChanged;
         m_networkGold.OnValueChanged -= OnRewardWalletValueChanged;
         m_networkExperience.OnValueChanged -= OnRewardWalletValueChanged;
         m_ownedCannonIdsCsv.OnValueChanged -= OnOwnedCannonIdsChanged;
@@ -262,6 +269,20 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         }
     }
 
+    public void ApplyPlayerName(string playerName)
+    {
+        if (!IsServer)
+        {
+            Debug.LogWarning($"Player {gameObject.name}: ApplyPlayerName is server-only.");
+            return;
+        }
+
+        string normalizedPlayerName = string.IsNullOrWhiteSpace(playerName)
+            ? string.Empty
+            : playerName.Trim();
+        m_playerName.Value = new FixedString64Bytes(normalizedPlayerName);
+    }
+
     private void OnGuildAbbreviationChanged(FixedString32Bytes previousValue, FixedString32Bytes newValue)
     {
         if (TryGetComponent<WorldNameplateUI>(out var ui))
@@ -272,7 +293,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
     private void OnRewardWalletValueChanged(int previousValue, int newValue)
     {
-        OnRewardWalletChanged?.Invoke(Pearls, Gold, Experience);
+        OnRewardWalletChanged?.Invoke(Diamonds, Gold, Experience);
     }
 
     private void OnOwnedCannonIdsChanged(FixedString512Bytes previousValue, FixedString512Bytes newValue)
@@ -299,7 +320,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         }
 
         m_networkGold.Value = Mathf.Max(0, gold);
-        m_networkPearls.Value = Mathf.Max(0, diamond);
+        m_networkDiamonds.Value = Mathf.Max(0, diamond);
         if (experience.HasValue)
         {
             m_networkExperience.Value = Mathf.Max(0, experience.Value);
@@ -731,7 +752,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         if (TryGetComponent<WorldNameplateUI>(out var ui))
         {
-            ui.SetDisplayNameOverride(PlayerName.Value.ToString());
+            ui.SetDisplayNameOverride(m_playerName.Value.ToString());
         }
 
         if (IsServer)
@@ -743,7 +764,9 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             SyncCombatAggressorCount();
         }
         selectedCannonAmmoIndex = 0;
+        selectedHarpoonAmmoIndex = 0;
         ApplyInitialCannonAmmoSelection();
+        ApplyInitialHarpoonSelection();
 
         // Initialize health on server
         if (IsServer)
@@ -766,15 +789,20 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             FogOfWarNetworkVisibilityController.Register(this);
         }
 
-        // Set static reference for local player
-        if (IsOwner)
+        bool isOwner = IsOwner;
+        if (isOwner)
         {
             LocalPlayer = this;
-            Debug.Log($"Player: Local player spawned - {gameObject.name}");
-            LocalPlayerSpawned?.Invoke(transform);
         }
 
-        OnRewardWalletChanged?.Invoke(Pearls, Gold, Experience);
+        // Notify listeners once the local player reference is in place.
+        if (isOwner)
+        {
+            Debug.Log($"Player: Local player spawned - {gameObject.name}");
+            LocalPlayerSpawned?.Invoke(this);
+        }
+
+        OnRewardWalletChanged?.Invoke(Diamonds, Gold, Experience);
     }
 
     public override void OnNetworkDespawn()
@@ -987,17 +1015,17 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
             return;
         }
 
-        AddToWallet(m_networkPearls, reward.Pearls);
+        AddToWallet(m_networkDiamonds, reward.Diamonds);
         AddToWallet(m_networkGold, reward.Gold);
         AddToWallet(m_networkExperience, reward.Experience);
-        PushRewardGrantedClientRpc(reward.Pearls, reward.Gold, reward.Experience);
+        PushRewardGrantedClientRpc(reward.Diamonds, reward.Gold, reward.Experience);
     }
 
     [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
-    private void PushRewardGrantedClientRpc(int pearls, int gold, int experience)
+    private void PushRewardGrantedClientRpc(int diamonds, int gold, int experience)
     {
         OnRewardGranted?.Invoke(
-            Mathf.Max(0, pearls),
+            Mathf.Max(0, diamonds),
             Mathf.Max(0, gold),
             Mathf.Max(0, experience));
     }
@@ -1357,6 +1385,13 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
     public int SelectedCannonAmmoIndex => selectedCannonAmmoIndex;
 
+    public IReadOnlyList<HarpoonAmmoDefinition> GetHarpoonAmmoOptions()
+    {
+        return gameplayConfig != null ? gameplayConfig.HarpoonAmmoTypes : Array.Empty<HarpoonAmmoDefinition>();
+    }
+
+    public int SelectedHarpoonAmmoIndex => selectedHarpoonAmmoIndex;
+
     public bool TrySelectCannonAmmo(int ammoIndex)
     {
         if (!IsServer && !IsOwner)
@@ -1468,6 +1503,105 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         selectedCannonAmmoIndex = clampedIndex;
         ApplyAmmoToCannon(selectedAmmo);
+    }
+
+    public bool TrySelectHarpoonAmmo(int ammoIndex)
+    {
+        if (!IsServer && !IsOwner)
+        {
+            return false;
+        }
+
+        IReadOnlyList<HarpoonAmmoDefinition> options = GetHarpoonAmmoOptions();
+        if (options == null || options.Count == 0)
+        {
+            Debug.LogWarning("Player: No harpoon ammo types configured on gameplayConfig.");
+            return false;
+        }
+
+        ammoIndex = Mathf.Clamp(ammoIndex, 0, options.Count - 1);
+        HarpoonAmmoDefinition ammo = options[ammoIndex];
+        if (ammo == null)
+        {
+            return false;
+        }
+
+        ApplySelectedHarpoon(ammo);
+        selectedHarpoonAmmoIndex = ammoIndex;
+
+        if (!IsServer)
+        {
+            SelectHarpoonAmmoServerRpc(ammoIndex);
+        }
+
+        return true;
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void SelectHarpoonAmmoServerRpc(int ammoIndex)
+    {
+        IReadOnlyList<HarpoonAmmoDefinition> options = GetHarpoonAmmoOptions();
+        if (options == null || options.Count == 0)
+        {
+            return;
+        }
+
+        ammoIndex = Mathf.Clamp(ammoIndex, 0, options.Count - 1);
+        HarpoonAmmoDefinition ammo = options[ammoIndex];
+        if (ammo == null)
+        {
+            return;
+        }
+
+        ApplySelectedHarpoon(ammo);
+        selectedHarpoonAmmoIndex = ammoIndex;
+    }
+
+    private void ApplySelectedHarpoon(HarpoonAmmoDefinition ammo)
+    {
+        if (ammo == null)
+        {
+            return;
+        }
+
+        if (TryGetComponent(out PlayerAttack attack))
+        {
+            attack.ApplyHarpoonOverride(ammo.Damage);
+        }
+    }
+
+    private void ApplyInitialHarpoonSelection()
+    {
+        IReadOnlyList<HarpoonAmmoDefinition> options = GetHarpoonAmmoOptions();
+        if (options == null || options.Count == 0)
+        {
+            return;
+        }
+
+        int clampedIndex = Mathf.Clamp(selectedHarpoonAmmoIndex, 0, options.Count - 1);
+        HarpoonAmmoDefinition selectedAmmo = options[clampedIndex];
+        if (selectedAmmo == null)
+        {
+            for (int i = 0; i < options.Count; i++)
+            {
+                if (options[i] == null)
+                {
+                    continue;
+                }
+
+                clampedIndex = i;
+                selectedAmmo = options[i];
+                break;
+            }
+        }
+
+        if (selectedAmmo == null)
+        {
+            return;
+        }
+
+        selectedHarpoonAmmoIndex = clampedIndex;
+        ApplySelectedHarpoon(selectedAmmo);
     }
 
     #endregion
@@ -1724,6 +1858,23 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         }
 
         return normalized;
+    }
+
+    private static string ResolveObjectDisplayName(GameObject targetObject, string fallbackName)
+    {
+        if (targetObject == null)
+        {
+            return fallbackName;
+        }
+
+        string rawName = targetObject.name;
+        const string cloneSuffix = "(Clone)";
+        if (rawName.EndsWith(cloneSuffix, StringComparison.Ordinal))
+        {
+            rawName = rawName.Substring(0, rawName.Length - cloneSuffix.Length).TrimEnd();
+        }
+
+        return string.IsNullOrWhiteSpace(rawName) ? fallbackName : rawName;
     }
 
     private void EnsureWorldNameplate()

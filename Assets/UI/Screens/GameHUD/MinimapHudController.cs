@@ -914,19 +914,12 @@ public sealed class MinimapHudController : MonoBehaviour
             return;
         }
 
-        if (PlayerManager.Instance != null &&
-            PlayerManager.Instance.LocalPlayer != null &&
-            IsSceneTransformUsable(PlayerManager.Instance.LocalPlayer.transform))
-        {
-            localPlayer = PlayerManager.Instance.LocalPlayer.transform;
-            return;
-        }
-
         localPlayer = null;
     }
 
-    private void OnLocalPlayerSpawned(Transform playerTransform)
+    private void OnLocalPlayerSpawned(Player player)
     {
+        Transform playerTransform = player != null ? player.transform : null;
         localPlayer = IsSceneTransformUsable(playerTransform) ? playerTransform : null;
     }
 

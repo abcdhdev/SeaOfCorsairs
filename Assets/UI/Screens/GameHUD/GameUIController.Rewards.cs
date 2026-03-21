@@ -75,14 +75,14 @@ public partial class GameUIController
         }
     }
 
-    private void OnObservedPlayerRewardGranted(int pearls, int gold, int experience)
+    private void OnObservedPlayerRewardGranted(int diamonds, int gold, int experience)
     {
         if (rewardNotificationContainer == null)
         {
             return;
         }
 
-        string notificationText = BuildRewardNotificationText(pearls, gold, experience);
+        string notificationText = BuildRewardNotificationText(diamonds, gold, experience);
         if (string.IsNullOrWhiteSpace(notificationText))
         {
             return;
@@ -112,12 +112,12 @@ public partial class GameUIController
             .OnComplete(entry, CompleteRewardNotification);
     }
 
-    private static string BuildRewardNotificationText(int pearls, int gold, int experience)
+    private static string BuildRewardNotificationText(int diamonds, int gold, int experience)
     {
-        int clampedPearls = Mathf.Max(0, pearls);
+        int clampedDiamonds = Mathf.Max(0, diamonds);
         int clampedGold = Mathf.Max(0, gold);
         int clampedExperience = Mathf.Max(0, experience);
-        if (clampedPearls <= 0 && clampedGold <= 0 && clampedExperience <= 0)
+        if (clampedDiamonds <= 0 && clampedGold <= 0 && clampedExperience <= 0)
         {
             return string.Empty;
         }
@@ -126,7 +126,7 @@ public partial class GameUIController
         bool hasPreviousSegment = false;
 
         AppendRewardSegment(builder, clampedGold, "Gold", ref hasPreviousSegment);
-        AppendRewardSegment(builder, clampedPearls, "Pearls", ref hasPreviousSegment);
+        AppendRewardSegment(builder, clampedDiamonds, "Diamonds", ref hasPreviousSegment);
         AppendRewardSegment(builder, clampedExperience, "XP", ref hasPreviousSegment);
         return builder.ToString();
     }

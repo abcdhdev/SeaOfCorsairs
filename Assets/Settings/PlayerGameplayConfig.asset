@@ -42,6 +42,16 @@ MonoBehaviour:
     displayName: Chain
     damage: 15
     projectileMaterial: {fileID: 2100000, guid: a87d330d8ffe410c83b2bff4b69a2f00, type: 2}
+  harpoonAmmoTypes:
+  - id: harpoon-25
+    displayName: 25 Damage
+    damage: 25
+  - id: harpoon-50
+    displayName: 50 Damage
+    damage: 50
+  - id: harpoon-250
+    displayName: 250 Damage
+    damage: 250
   healthBarPlaceUnderTarget: 0
   healthBarWorldOffset: {x: 0, y: 0, z: -5.9}
   hideHealthBarWhenEmpty: 1

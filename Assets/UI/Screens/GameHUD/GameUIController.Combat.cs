@@ -173,24 +173,14 @@ public partial class GameUIController
 
     private static string ResolveHealthTargetDisplayName(IHealthSystem healthTarget)
     {
-        switch (healthTarget)
+        if (healthTarget is ISeaEntity seaEntity)
         {
-            case NPC npc:
-                return SanitizeDisplayName(npc.DisplayName, "Unknown Target");
-            case Player player:
-            {
-                string playerName = player.PlayerName.Value.ToString();
-                return !string.IsNullOrWhiteSpace(playerName)
-                    ? SanitizeDisplayName(playerName, "Unknown Player")
-                    : ResolveObjectDisplayName(player.gameObject, "Unknown Player");
-            }
-            case IslandTurret turret:
-                return ResolveObjectDisplayName(turret.gameObject, "Turret");
-            case Component component:
-                return ResolveObjectDisplayName(component.gameObject, "Unknown Target");
-            default:
-                return "Unknown Target";
+            return SanitizeDisplayName(seaEntity.DisplayName, seaEntity.EntityType.ToString());
         }
+
+        return healthTarget is Component component
+            ? ResolveObjectDisplayName(component.gameObject, "Unknown Target")
+            : "Unknown Target";
     }
 
     private static string ResolveObjectDisplayName(GameObject targetObject, string fallbackName)
@@ -324,11 +314,6 @@ public partial class GameUIController
         }
 
         localPlayer = Player.LocalPlayer;
-        if (localPlayer == null && PlayerManager.Instance != null)
-        {
-            localPlayer = PlayerManager.Instance.LocalPlayer;
-        }
-
         if (localPlayer == null)
         {
             Player[] players = FindObjectsByType<Player>(FindObjectsSortMode.None);

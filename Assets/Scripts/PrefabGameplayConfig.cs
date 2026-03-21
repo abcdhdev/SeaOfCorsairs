@@ -32,6 +32,7 @@ public class PrefabGameplayConfig : ScriptableObject
 
     [Header("Cannon Ammo")]
     [SerializeField] private List<CannonAmmoDefinition> cannonAmmoTypes = new();
+    [SerializeField] private List<HarpoonAmmoDefinition> harpoonAmmoTypes = new();
 
     [Header("World Health UI")]
     [SerializeField] private bool healthBarPlaceUnderTarget = false;
@@ -60,6 +61,7 @@ public class PrefabGameplayConfig : ScriptableObject
     public float CannonMaxHitDistance => cannonMaxHitDistance;
     public float CannonShootingInterval => cannonShootingInterval;
     public IReadOnlyList<CannonAmmoDefinition> CannonAmmoTypes => cannonAmmoTypes;
+    public IReadOnlyList<HarpoonAmmoDefinition> HarpoonAmmoTypes => harpoonAmmoTypes;
     public bool HealthBarPlaceUnderTarget => healthBarPlaceUnderTarget;
     public Vector3 HealthBarWorldOffset => healthBarWorldOffset;
     public bool HideHealthBarWhenEmpty => hideHealthBarWhenEmpty;

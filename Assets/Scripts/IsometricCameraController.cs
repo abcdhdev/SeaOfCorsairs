@@ -79,10 +79,14 @@ public class IsometricCameraController : MonoBehaviour
         Player.LocalPlayerSpawned -= OnLocalPlayerSpawned;
     }
 
-    private void OnLocalPlayerSpawned(Transform player)
+    private void OnLocalPlayerSpawned(Player player)
     {
-        target = ResolveValidTarget(player);
-        Debug.Log($"IsometricCameraController: Local player set to {player.name}");
+        target = ResolveValidTarget(player != null ? player.transform : null);
+        if (player != null)
+        {
+            Debug.Log($"IsometricCameraController: Local player set to {player.name}");
+        }
+
         CenterOnTarget();
     }
 
@@ -562,13 +566,6 @@ public class IsometricCameraController : MonoBehaviour
         if (Player.LocalPlayer != null && IsSceneTransformUsable(Player.LocalPlayer.transform))
         {
             return Player.LocalPlayer.transform;
-        }
-
-        if (PlayerManager.Instance != null &&
-            PlayerManager.Instance.LocalPlayer != null &&
-            IsSceneTransformUsable(PlayerManager.Instance.LocalPlayer.transform))
-        {
-            return PlayerManager.Instance.LocalPlayer.transform;
         }
 
         return null;

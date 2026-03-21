@@ -10,8 +10,8 @@ public partial class GameUIController
         sourceSkills.Add(CreateSkill("shoot-start", "Shoot", 1, OnAttackClicked));
         sourceSkills.Add(CreateSkill("shoot-stop", "Stop", 2, OnStopAttackClicked));
         sourceSkills.Add(CreateSkill("board", "Board", 3, OnBoardClicked));
-        sourceSkills.Add(CreateSkill("ammo", "Ammo", 4, OnSelectAmmoClicked));
-        sourceSkills.Add(CreateSkill("empty-5", string.Empty, 5, null));
+        sourceSkills.Add(CreateSkill("ammo", "Cannonball", 4, OnSelectAmmoClicked));
+        sourceSkills.Add(CreateSkill("harpoon", "Harpoon", 5, OnSelectHarpoonClicked));
         sourceSkills.Add(CreateSkill("empty-6", string.Empty, 6, null));
         sourceSkills.Add(CreateSkill("empty-7", string.Empty, 7, null));
         sourceSkills.Add(CreateSkill("empty-8", string.Empty, 8, null));
@@ -522,10 +522,12 @@ public partial class GameUIController
             StopSkillDrag();
             ClearPendingSourcePress();
             CloseAmmoMenu();
+            CloseHarpoonMenu();
         }
         else
         {
             CloseAmmoMenu();
+            CloseHarpoonMenu();
         }
 
         RefreshActionBarVisibility();
@@ -615,6 +617,11 @@ public partial class GameUIController
     private void OnSelectAmmoClicked()
     {
         ToggleAmmoMenu();
+    }
+
+    private void OnSelectHarpoonClicked()
+    {
+        ToggleHarpoonMenu();
     }
 
     private void OnRepairClicked()

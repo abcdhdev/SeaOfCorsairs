@@ -686,7 +686,7 @@ public sealed class LoginOverlayController : MonoBehaviour
         StartConnectTimeout(DefaultConnectTimeoutSeconds);
 
         // If we already have the local player, drop the overlay immediately.
-        if (Player.LocalPlayer != null || (PlayerManager.Instance != null && PlayerManager.Instance.LocalPlayer != null))
+        if (Player.LocalPlayer != null)
         {
             EndAwaitingInWorld();
         }
@@ -704,30 +704,16 @@ public sealed class LoginOverlayController : MonoBehaviour
 
     private void HookInWorldEvents()
     {
-        PlayerManager.OnLocalPlayerSpawned -= OnLocalPlayerSpawned;
-        PlayerManager.OnLocalPlayerSpawned += OnLocalPlayerSpawned;
-
-        Player.LocalPlayerSpawned -= OnLegacyLocalPlayerSpawned;
-        Player.LocalPlayerSpawned += OnLegacyLocalPlayerSpawned;
+        Player.LocalPlayerSpawned -= OnLocalPlayerSpawned;
+        Player.LocalPlayerSpawned += OnLocalPlayerSpawned;
     }
 
     private void UnhookInWorldEvents()
     {
-        PlayerManager.OnLocalPlayerSpawned -= OnLocalPlayerSpawned;
-        Player.LocalPlayerSpawned -= OnLegacyLocalPlayerSpawned;
+        Player.LocalPlayerSpawned -= OnLocalPlayerSpawned;
     }
 
     private void OnLocalPlayerSpawned(Player player)
-    {
-        if (!_isAwaitingInWorld)
-        {
-            return;
-        }
-
-        EndAwaitingInWorld();
-    }
-
-    private void OnLegacyLocalPlayerSpawned(Transform _)
     {
         if (!_isAwaitingInWorld)
         {

@@ -174,6 +174,7 @@ public partial class GameUIController
             return;
         }
 
+        CloseHarpoonMenu();
         RefreshAmmoSkillTooltip(localPlayer);
         OpenAmmoMenu(localPlayer);
     }
@@ -206,7 +207,7 @@ public partial class GameUIController
         int selectedIndex = Mathf.Clamp(localPlayer.SelectedCannonAmmoIndex, 0, ammoOptions.Count - 1);
         CannonAmmoDefinition selectedAmmo = ammoOptions[selectedIndex];
         ammoSlot.Root.tooltip = selectedAmmo != null
-            ? $"Ammo: {selectedAmmo.DisplayName} ({selectedAmmo.Damage})"
+            ? $"Cannonball: {selectedAmmo.DisplayName} ({selectedAmmo.Damage})"
             : "Select ammo";
     }
 }

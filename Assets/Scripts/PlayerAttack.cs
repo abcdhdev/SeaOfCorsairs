@@ -27,6 +27,7 @@ public class PlayerAttack : NetworkBehaviour
     [SerializeField, HideInInspector] private int damage = 20;
     [SerializeField, HideInInspector] private int baseDamage = 20;
     [SerializeField, HideInInspector] private int ammoBonusDamage;
+    [SerializeField, HideInInspector] private int harpoonDamage = 25;
     [SerializeField, HideInInspector] private LayerMask hitOcclusionMask = ~0;
 
     private Cannon Cannon
@@ -54,6 +55,11 @@ public class PlayerAttack : NetworkBehaviour
     {
         ammoBonusDamage = Mathf.Max(0, newAmmoBonusDamage);
         RecalculateDamage();
+    }
+
+    public void ApplyHarpoonOverride(int newHarpoonDamage)
+    {
+        harpoonDamage = Mathf.Max(0, newHarpoonDamage);
     }
 
 
@@ -123,7 +129,13 @@ public class PlayerAttack : NetworkBehaviour
             return;
         }
 
-        ApplyDamageToTarget(target, Mathf.Max(0, damage), gameObject);
+        int resolvedDamage = ResolveDamageAmountForTarget(target);
+        if (resolvedDamage <= 0)
+        {
+            return;
+        }
+
+        ApplyDamageToTarget(target, resolvedDamage, gameObject);
     }
 
     private void Update()
@@ -186,6 +198,18 @@ public class PlayerAttack : NetworkBehaviour
     private void RecalculateDamage()
     {
         damage = Mathf.Max(0, baseDamage + ammoBonusDamage);
+    }
+
+    private int ResolveDamageAmountForTarget(GameObject target)
+    {
+        if (!CombatTargetingUtility.TryGetSeaEntity(target, out ISeaEntity seaEntity))
+        {
+            return 0;
+        }
+
+        return seaEntity.EntityType == SeaEntityType.Monster
+            ? Mathf.Max(0, harpoonDamage)
+            : Mathf.Max(0, damage);
     }
 
     // ------------------------------------------------------------------
@@ -306,7 +330,16 @@ public class PlayerAttack : NetworkBehaviour
             }
 
             BroadcastFireClientRpc(targetNetworkObjectId);
-            QueueImpact(targetNetworkObjectId, Mathf.Max(0, damage), GetProjectileTravelDelay(target));
+
+            int resolvedDamage = ResolveDamageAmountForTarget(target);
+            if (resolvedDamage <= 0)
+            {
+                Debug.LogWarning($"[Combat][Attack:{name}] Attack loop stopping for '{target.name}': no valid damage profile was available.");
+                ServerExitCombat();
+                yield break;
+            }
+
+            QueueImpact(targetNetworkObjectId, resolvedDamage, GetProjectileTravelDelay(target));
 
             float remainingInterval = Mathf.Max(0.05f, shootingInterval);
             while (remainingInterval > 0f && serverTargetNetworkObjectId != 0)
@@ -401,11 +434,21 @@ public class PlayerAttack : NetworkBehaviour
             return false;
         }
 
-        if (!target.TryGetComponent(out NPC _) &&
-            !target.TryGetComponent(out Player _) &&
-            !target.TryGetComponent(out IslandTurret _))
+        if (!CombatTargetingUtility.TryGetCombatEntity(target, out ICombatEntity combatEntity))
         {
-            failureReason = "target was not a player, npc, or turret";
+            failureReason = "target was not a combat entity";
+            return false;
+        }
+
+        if (!CanAttackTargetType(combatEntity.EntityType))
+        {
+            failureReason = $"target type '{combatEntity.EntityType}' is not valid for this weapon";
+            return false;
+        }
+
+        if (!combatEntity.CanBeTargeted)
+        {
+            failureReason = "target cannot be targeted";
             return false;
         }
 
@@ -443,6 +486,18 @@ public class PlayerAttack : NetworkBehaviour
         }
 
         return true;
+    }
+
+    private bool CanAttackTargetType(SeaEntityType entityType)
+    {
+        return entityType switch
+        {
+            SeaEntityType.Player => true,
+            SeaEntityType.Npc => true,
+            SeaEntityType.Turret => true,
+            SeaEntityType.Monster => harpoonDamage > 0,
+            _ => false
+        };
     }
 
     private bool HasFogOfWarVisibility(GameObject target, out string failureReason)
@@ -494,19 +549,9 @@ public class PlayerAttack : NetworkBehaviour
 
     private bool IsAttackerAlive()
     {
-        if (TryGetComponent(out NPC attackerNpc))
+        if (CombatTargetingUtility.TryGetCombatEntity(gameObject, out ICombatEntity combatEntity))
         {
-            return attackerNpc.CurrentHealth > 0;
-        }
-
-        if (TryGetComponent(out Player attackerPlayer))
-        {
-            return !attackerPlayer.IsDead && attackerPlayer.CurrentHealth > 0;
-        }
-
-        if (TryGetComponent(out IslandTurret attackerTurret))
-        {
-            return attackerTurret.CurrentHealth > 0;
+            return combatEntity.CurrentHealth > 0;
         }
 
         return true;
@@ -580,24 +625,9 @@ public class PlayerAttack : NetworkBehaviour
     }
     private static bool IsTargetAlive(GameObject target)
     {
-        if (target == null) return false;
-
-        if (target.TryGetComponent(out NPC npc))
-        {
-            return npc.CurrentHealth > 0;
-        }
-
-        if (target.TryGetComponent(out Player player))
-        {
-            return player.CurrentHealth > 0;
-        }
-
-        if (target.TryGetComponent(out IslandTurret turret))
-        {
-            return turret.CurrentHealth > 0;
-        }
-
-        return true;
+        return target != null &&
+               CombatTargetingUtility.TryGetCombatEntity(target, out ICombatEntity combatEntity) &&
+               combatEntity.CurrentHealth > 0;
     }
 
     // ------------------------------------------------------------------
@@ -631,9 +661,9 @@ public class PlayerAttack : NetworkBehaviour
     {
         if (target == null || damageAmount <= 0) return;
 
-        if (target.TryGetComponent(out NPC npc))
+        if (target.TryGetComponent(out IDamageSourceReceiver damageReceiver))
         {
-            npc.TakeDamage(damageAmount, damageSource);
+            damageReceiver.TakeDamage(damageAmount, damageSource);
             return;
         }
 

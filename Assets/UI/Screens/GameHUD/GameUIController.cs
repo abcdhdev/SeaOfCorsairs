@@ -38,6 +38,7 @@ public partial class GameUIController : MonoBehaviour
     private static readonly string[] SlotHotkeys = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" };
     private const float SourceSlotDragThreshold = 12f;
     private const int AmmoSourceSlotIndex = 3;
+    private const int HarpoonSourceSlotIndex = 4;
 
     private sealed class SkillDefinition
     {
@@ -118,6 +119,9 @@ public partial class GameUIController : MonoBehaviour
     private VisualElement ammoMenuBackdrop;
     private VisualElement ammoMenuPanel;
     private bool isAmmoMenuOpen;
+    private VisualElement harpoonMenuBackdrop;
+    private VisualElement harpoonMenuPanel;
+    private bool isHarpoonMenuOpen;
     private ShipSectionController shipSectionController;
 
     private IHealthSystem trackedHealthTarget;
@@ -188,6 +192,7 @@ public partial class GameUIController : MonoBehaviour
         UnregisterBlockingUiElements();
         UnregisterUiCallbacks();
         CloseAmmoMenu();
+        CloseHarpoonMenu();
         marketController?.Dispose();
         marketController = null;
         guildManagementController?.Dispose();
@@ -255,6 +260,7 @@ public partial class GameUIController : MonoBehaviour
         UpdatePlayerHealthBar();
         UpdatePlayerWalletLabels();
         UpdatePlayerExpBar();
+        RefreshWeaponSelectionTooltips();
         UpdateCameraZoomControl();
         UpdateFpsAndPing();
         marketController?.Refresh();
@@ -364,6 +370,10 @@ public partial class GameUIController : MonoBehaviour
         displayedCameraZoom = float.NaN;
         ammoMenuBackdrop = null;
         ammoMenuPanel = null;
+        harpoonMenuBackdrop = null;
+        harpoonMenuPanel = null;
+        isAmmoMenuOpen = false;
+        isHarpoonMenuOpen = false;
         topMenuBar = null;
         topMenuFpsPingLabel = null;
         resourceGoldLabel = null;
@@ -445,5 +455,16 @@ public partial class GameUIController : MonoBehaviour
         guildManagementController = new GuildManagementController(
             attachTarget);
         guildManagementController.Attach();
+    }
+
+    private void RefreshWeaponSelectionTooltips()
+    {
+        if (!TryGetLocalPlayer(out Player localPlayer) || localPlayer == null)
+        {
+            return;
+        }
+
+        RefreshAmmoSkillTooltip(localPlayer);
+        RefreshHarpoonSkillTooltip(localPlayer);
     }
 }

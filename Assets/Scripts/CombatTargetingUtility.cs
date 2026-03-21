@@ -109,6 +109,48 @@ public static class CombatTargetingUtility
         return false;
     }
 
+    public static bool TryGetSeaEntity(GameObject gameObject, out ISeaEntity seaEntity)
+    {
+        seaEntity = null;
+        if (gameObject == null)
+        {
+            return false;
+        }
+
+        MonoBehaviour[] behaviours = gameObject.GetComponents<MonoBehaviour>();
+        for (int index = 0; index < behaviours.Length; index++)
+        {
+            if (behaviours[index] is ISeaEntity resolvedSeaEntity)
+            {
+                seaEntity = resolvedSeaEntity;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool TryGetCombatEntity(GameObject gameObject, out ICombatEntity combatEntity)
+    {
+        combatEntity = null;
+        if (gameObject == null)
+        {
+            return false;
+        }
+
+        MonoBehaviour[] behaviours = gameObject.GetComponents<MonoBehaviour>();
+        for (int index = 0; index < behaviours.Length; index++)
+        {
+            if (behaviours[index] is ICombatEntity resolvedCombatEntity)
+            {
+                combatEntity = resolvedCombatEntity;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static Vector3 GetAimPoint(GameObject target)
     {
         if (TryGetTargetBounds(target, out Bounds targetBounds))

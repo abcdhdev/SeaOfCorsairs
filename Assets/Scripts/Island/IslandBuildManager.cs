@@ -651,9 +651,8 @@ public sealed class IslandBuildManager : MonoBehaviour
         MarkTerrainDirty();
     }
 
-    private void HandleLocalPlayerSpawned(Transform playerTransform)
+    private void HandleLocalPlayerSpawned(Player player)
     {
-        _ = playerTransform;
         TrackObservedLocalPlayer();
     }
 

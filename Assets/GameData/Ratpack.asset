@@ -19,6 +19,6 @@ MonoBehaviour:
   damage: 2
   attackIntervalSeconds: 2
   reward:
-    pearls: 100
+    diamonds: 100
     gold: 50
     experience: 2
