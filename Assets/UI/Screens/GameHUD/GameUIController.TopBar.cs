@@ -49,7 +49,7 @@ public partial class GameUIController
         marketController?.Hide();
     }
 
-    private void ToggleGuildManagement()
+    private void ToggleIslandBuildingMode()
     {
         IslandBuildManager buildManager = IslandBuildManager.Instance;
         if (buildManager == null)
@@ -67,9 +67,75 @@ public partial class GameUIController
         }
     }
 
-    private void CloseGuildManagement()
+    private void CloseIslandBuilding()
     {
         IslandBuildManager.Instance?.ExitEditMode();
+    }
+
+    private void ShowGuildManagement()
+    {
+        EnsureGuildManagementSection();
+        guildManagementController?.Show();
+    }
+
+    private void CloseGuildManagement()
+    {
+        guildManagementController?.Hide();
+    }
+
+    private void ToggleTopMenuShieldDropdown()
+    {
+        SetTopMenuShieldDropdownVisible(!isTopMenuShieldDropdownOpen);
+    }
+
+    private void SetTopMenuShieldDropdownVisible(bool isVisible)
+    {
+        isTopMenuShieldDropdownOpen = isVisible && topMenuShieldDropdown != null;
+
+        if (topMenuShieldDropdown != null)
+        {
+            topMenuShieldDropdown.style.display = isTopMenuShieldDropdownOpen ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+    }
+
+    private void DismissShieldDropdownIfClickedAway(Vector2 panelPosition)
+    {
+        if (!isTopMenuShieldDropdownOpen)
+        {
+            return;
+        }
+
+        if (IsPanelPositionWithinShieldMenu(panelPosition))
+        {
+            return;
+        }
+
+        SetTopMenuShieldDropdownVisible(false);
+    }
+
+    private bool IsPanelPositionWithinShieldMenu(Vector2 panelPosition)
+    {
+        if (root?.panel == null)
+        {
+            return false;
+        }
+
+        VisualElement picked = root.panel.Pick(panelPosition);
+        while (picked != null)
+        {
+            if (picked == topMenuShieldAnchor ||
+                picked == topMenuShieldButton ||
+                picked == topMenuShieldDropdown ||
+                picked == topMenuIslandBuildingButton ||
+                picked == topMenuGuildsButton)
+            {
+                return true;
+            }
+
+            picked = picked.parent;
+        }
+
+        return false;
     }
 
     private void UpdateTopMenuButtonStates()
@@ -89,12 +155,22 @@ public partial class GameUIController
         if (topMenuShieldButton != null)
         {
             bool islandEditActive = IslandBuildManager.Instance != null && IslandBuildManager.Instance.IsEditModeActive;
-            topMenuShieldButton.EnableInClassList("top-menu-slot-button-active", islandEditActive);
+            bool guildVisible = guildManagementController != null && guildManagementController.IsVisible;
+            topMenuShieldButton.EnableInClassList(
+                "top-menu-slot-button-active",
+                islandEditActive || guildVisible || isTopMenuShieldDropdownOpen);
+        }
+
+        if (topMenuShieldDropdown != null)
+        {
+            topMenuShieldDropdown.style.display = isTopMenuShieldDropdownOpen ? DisplayStyle.Flex : DisplayStyle.None;
         }
     }
 
     private void OnTopMenuChatClicked()
     {
+        SetTopMenuShieldDropdownVisible(false);
+
         if (root == null)
         {
             return;
@@ -115,22 +191,28 @@ public partial class GameUIController
 
     private void OnTopMenuBagClicked()
     {
-        IslandBuildManager.Instance?.ExitEditMode("Defense edit mode closed.");
+        SetTopMenuShieldDropdownVisible(false);
+        CloseGuildManagement();
+        CloseIslandBuilding();
         shipSectionController?.Hide();
         ToggleMarket();
     }
 
     private void OnTopMenuShipClicked()
     {
+        SetTopMenuShieldDropdownVisible(false);
+        CloseGuildManagement();
         CloseMarket();
-        IslandBuildManager.Instance?.ExitEditMode("Defense edit mode closed.");
+        CloseIslandBuilding();
         shipSectionController?.ToggleVisibility();
     }
 
     private void OnTopMenuLogoutClicked()
     {
+        SetTopMenuShieldDropdownVisible(false);
+        CloseGuildManagement();
         CloseMarket();
-        IslandBuildManager.Instance?.ExitEditMode();
+        CloseIslandBuilding();
         NetworkManager.Singleton?.Shutdown();
     }
 
@@ -141,6 +223,30 @@ public partial class GameUIController
         CloseAmmoMenu();
         StopSkillDrag();
         ClearPendingSourcePress();
-        ToggleGuildManagement();
+        ToggleTopMenuShieldDropdown();
+    }
+
+    private void OnTopMenuIslandBuildingClicked()
+    {
+        SetTopMenuShieldDropdownVisible(false);
+        CloseGuildManagement();
+        CloseMarket();
+        shipSectionController?.Hide();
+        CloseAmmoMenu();
+        StopSkillDrag();
+        ClearPendingSourcePress();
+        ToggleIslandBuildingMode();
+    }
+
+    private void OnTopMenuGuildsClicked()
+    {
+        SetTopMenuShieldDropdownVisible(false);
+        CloseMarket();
+        shipSectionController?.Hide();
+        CloseAmmoMenu();
+        StopSkillDrag();
+        ClearPendingSourcePress();
+        CloseIslandBuilding();
+        ShowGuildManagement();
     }
 }

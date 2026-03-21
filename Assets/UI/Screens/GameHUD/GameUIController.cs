@@ -76,10 +76,15 @@ public partial class GameUIController : MonoBehaviour
     private Button topMenuChatButton;
     private Button topMenuBagButton;
     private Button topMenuShieldButton;
+    private VisualElement topMenuShieldAnchor;
+    private VisualElement topMenuShieldDropdown;
+    private Button topMenuIslandBuildingButton;
+    private Button topMenuGuildsButton;
     private Button topMenuShipButton;
     private Button topMenuLogoutButton;
     private float fpsDeltaTime;
     private float fpsPingTimer;
+    private bool isTopMenuShieldDropdownOpen;
 
     private MarketController marketController;
     private GuildManagementController guildManagementController;
@@ -148,6 +153,7 @@ public partial class GameUIController : MonoBehaviour
         SetCombatOverlayVisible(true);
         EnsureAmmoMenu();
         EnsureMarketSection();
+        EnsureGuildManagementSection();
         RegisterBlockingUiElements();
         BuildSourceSkills();
         BuildActionBarSlots();
@@ -189,6 +195,7 @@ public partial class GameUIController : MonoBehaviour
         StopSkillDrag();
         ClearPendingSourcePress();
         TrackHealthTarget(null);
+        DisposeRewardNotifications();
 
         if (centerCameraAction != null && centerCameraAction.action != null)
         {
@@ -244,12 +251,14 @@ public partial class GameUIController : MonoBehaviour
         }
 
         UpdateDeathOverlay();
+        UpdateRewardNotifications();
         UpdatePlayerHealthBar();
         UpdatePlayerWalletLabels();
         UpdatePlayerExpBar();
         UpdateCameraZoomControl();
         UpdateFpsAndPing();
         marketController?.Refresh();
+        guildManagementController?.Refresh();
         shipSectionController?.Refresh();
         RefreshIslandEditUi();
         RefreshActionBarVisibility();
@@ -318,6 +327,7 @@ public partial class GameUIController : MonoBehaviour
         healthLabel = combatOverlayLayer != null ? combatOverlayLayer.Q<Label>("HealthLabel") : null;
         targetNameLabel = combatOverlayLayer != null ? combatOverlayLayer.Q<Label>("TargetNameLabel") : null;
         healthBarFill = combatOverlayLayer != null ? combatOverlayLayer.Q<VisualElement>("HealthBarFill") : null;
+        BindRewardNotificationElements();
         deadOverlayRoot = root.Q<VisualElement>("DeadOverlayRoot");
         deadOverlayTimerLabel = root.Q<Label>("DeadOverlayTimerLabel");
 
@@ -328,8 +338,17 @@ public partial class GameUIController : MonoBehaviour
         topMenuChatButton = root.Q<Button>("TopMenuChatButton");
         topMenuBagButton = root.Q<Button>("TopMenuBagButton");
         topMenuShieldButton = root.Q<Button>("TopMenuShieldButton");
+        topMenuShieldAnchor = root.Q<VisualElement>("TopMenuShieldAnchor");
+        topMenuShieldDropdown = root.Q<VisualElement>("TopMenuShieldDropdown");
+        topMenuIslandBuildingButton = root.Q<Button>("TopMenuIslandBuildingButton");
+        topMenuGuildsButton = root.Q<Button>("TopMenuGuildsButton");
         topMenuShipButton = root.Q<Button>("TopMenuShipButton");
         topMenuLogoutButton = root.Q<Button>("TopMenuLogoutButton");
+        if (topMenuShieldDropdown != null)
+        {
+            topMenuShieldDropdown.pickingMode = PickingMode.Position;
+            topMenuShieldDropdown.style.display = DisplayStyle.None;
+        }
         BindIslandEditElements();
     }
 
@@ -352,12 +371,18 @@ public partial class GameUIController : MonoBehaviour
         topMenuChatButton = null;
         topMenuBagButton = null;
         topMenuShieldButton = null;
+        topMenuShieldAnchor = null;
+        topMenuShieldDropdown = null;
+        topMenuIslandBuildingButton = null;
+        topMenuGuildsButton = null;
         topMenuShipButton = null;
         topMenuLogoutButton = null;
+        isTopMenuShieldDropdownOpen = false;
         marketController = null;
         guildManagementController = null;
         actionBarToggleButton = null;
         actionBarBody = null;
+        ClearRewardNotificationState();
         centerCameraButton = null;
         playerHpBarFill = null;
         playerHpLabel = null;
@@ -418,9 +443,7 @@ public partial class GameUIController : MonoBehaviour
 
         VisualElement attachTarget = root.Q<VisualElement>("MetaRoot") ?? root;
         guildManagementController = new GuildManagementController(
-            attachTarget,
-            GetLocalPlayerForMarket,
-            () => IslandBuildManager.Instance);
+            attachTarget);
         guildManagementController.Attach();
     }
 }

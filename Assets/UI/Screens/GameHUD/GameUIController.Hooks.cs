@@ -35,6 +35,11 @@ public partial class GameUIController
             UIToolkitRaycastChecker.RegisterBlockingElement(guildManagementController.OverlayRoot);
         }
 
+        if (topMenuShieldDropdown != null)
+        {
+            UIToolkitRaycastChecker.RegisterBlockingElement(topMenuShieldDropdown);
+        }
+
         if (topMenuBar != null)
         {
             UIToolkitRaycastChecker.RegisterBlockingElement(topMenuBar);
@@ -86,6 +91,11 @@ public partial class GameUIController
         if (guildManagementController != null && guildManagementController.OverlayRoot != null)
         {
             UIToolkitRaycastChecker.UnregisterBlockingElement(guildManagementController.OverlayRoot);
+        }
+
+        if (topMenuShieldDropdown != null)
+        {
+            UIToolkitRaycastChecker.UnregisterBlockingElement(topMenuShieldDropdown);
         }
 
         if (topMenuBar != null)
@@ -147,6 +157,16 @@ public partial class GameUIController
             topMenuShieldButton.clicked += OnTopMenuShieldClicked;
         }
 
+        if (topMenuIslandBuildingButton != null)
+        {
+            topMenuIslandBuildingButton.clicked += OnTopMenuIslandBuildingClicked;
+        }
+
+        if (topMenuGuildsButton != null)
+        {
+            topMenuGuildsButton.clicked += OnTopMenuGuildsClicked;
+        }
+
         if (topMenuShipButton != null)
         {
             topMenuShipButton.clicked += OnTopMenuShipClicked;
@@ -203,6 +223,16 @@ public partial class GameUIController
         if (topMenuShieldButton != null)
         {
             topMenuShieldButton.clicked -= OnTopMenuShieldClicked;
+        }
+
+        if (topMenuIslandBuildingButton != null)
+        {
+            topMenuIslandBuildingButton.clicked -= OnTopMenuIslandBuildingClicked;
+        }
+
+        if (topMenuGuildsButton != null)
+        {
+            topMenuGuildsButton.clicked -= OnTopMenuGuildsClicked;
         }
 
         if (topMenuShipButton != null)

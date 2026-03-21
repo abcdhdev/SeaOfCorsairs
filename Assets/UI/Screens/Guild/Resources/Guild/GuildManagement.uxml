@@ -4,35 +4,63 @@
             <ui:VisualElement name="GuildManagementHeader" class="window-header guild-header">
                 <ui:VisualElement class="window-title-block">
                     <ui:Label text="Guild Management" class="window-title guild-title"/>
-                    <ui:Label text="Build, move, and delete defensive island turrets." class="window-subtitle guild-subtitle"/>
+                    <ui:Label text="Survey every guild in the world and found a banner with a 3-letter mark for your crew." class="window-subtitle guild-subtitle"/>
                 </ui:VisualElement>
                 <ui:Button name="GuildCloseButton" text="X" class="window-close-button guild-close-button"/>
             </ui:VisualElement>
-            <ui:VisualElement class="guild-summary-row">
-                <ui:VisualElement class="guild-summary-card">
-                    <ui:Label text="Gold" class="guild-summary-label"/>
-                    <ui:Label name="GuildGoldValueLabel" text="0" class="guild-summary-value guild-summary-value-gold"/>
-                </ui:VisualElement>
-                <ui:VisualElement class="guild-summary-card">
-                    <ui:Label text="Built" class="guild-summary-label"/>
-                    <ui:Label name="GuildBuiltCountLabel" text="0 / 6" class="guild-summary-value"/>
-                </ui:VisualElement>
-                <ui:VisualElement class="guild-summary-card guild-summary-card-wide">
-                    <ui:Label text="Rules" class="guild-summary-label"/>
-                    <ui:Label text="Each turret costs 100 gold, tops out at 6, spawns at Y 15, and retaliates automatically." class="guild-summary-copy"/>
+
+            <ui:VisualElement class="window-body guild-body">
+                <ui:ScrollView mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" class="window-category-scroll guild-sidebar-scroll">
+                    <ui:VisualElement class="guild-sidebar-content">
+                        <ui:Label text="Captain's Banner" class="guild-section-title"/>
+                        <ui:VisualElement class="guild-summary-card guild-summary-card-hero">
+                            <ui:Label text="Current Guild" class="guild-summary-label"/>
+                            <ui:Label name="GuildCurrentGuildNameLabel" text="Unaffiliated" class="guild-summary-value"/>
+                            <ui:Label name="GuildCurrentGuildMetaLabel" text="You are free to found a new guild." class="guild-summary-copy"/>
+                        </ui:VisualElement>
+
+                        <ui:VisualElement class="guild-summary-grid">
+                            <ui:VisualElement class="guild-summary-card">
+                                <ui:Label text="Guilds" class="guild-summary-label"/>
+                                <ui:Label name="GuildTotalCountLabel" text="0" class="guild-summary-value guild-summary-value-gold"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement class="guild-summary-card">
+                                <ui:Label text="Creation" class="guild-summary-label"/>
+                                <ui:Label name="GuildCreateAvailabilityLabel" text="Ready to found a guild" class="guild-summary-copy"/>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+
+                        <ui:Label text="Actions" class="guild-section-title guild-section-title-spaced"/>
+                        <ui:VisualElement class="guild-actions-column">
+                            <ui:Button name="GuildRefreshButton" text="Refresh List" class="guild-secondary-button"/>
+                            <ui:Button name="GuildCreateToggleButton" text="Create New Guild" class="guild-primary-button"/>
+                        </ui:VisualElement>
+
+                        <ui:VisualElement name="GuildCreateForm" class="guild-create-card">
+                            <ui:Label text="Found A Guild" class="guild-section-title"/>
+                            <ui:Label text="Every guild needs a name and a 3-letter abbreviation shown on player nameplates as [ABC]." class="guild-create-hint"/>
+                            <ui:TextField name="GuildNameField" label="Guild Name" class="guild-text-field"/>
+                            <ui:TextField name="GuildTagField" label="Abbreviation" class="guild-text-field"/>
+                            <ui:TextField name="GuildDescriptionField" label="Description" multiline="true" class="guild-text-field guild-text-field-multiline"/>
+                            <ui:VisualElement class="guild-actions-row guild-actions-row-tight">
+                                <ui:Button name="GuildSubmitCreateButton" text="Found Guild" class="guild-primary-button"/>
+                                <ui:Button name="GuildCancelCreateButton" text="Cancel" class="guild-secondary-button"/>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:ScrollView>
+
+                <ui:VisualElement class="guild-main-column">
+                    <ui:VisualElement class="guild-content-header">
+                        <ui:VisualElement class="guild-content-title-block">
+                            <ui:Label text="All Guilds" class="guild-content-title"/>
+                            <ui:Label text="Every founded guild across the world, including your current banner if you already sail under one." class="guild-content-copy"/>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:ScrollView name="GuildListScrollView" class="guild-list-scroll"/>
                 </ui:VisualElement>
             </ui:VisualElement>
-            <ui:VisualElement class="guild-actions-row">
-                <ui:Button name="GuildBuildIslandButton" text="Build Island" class="guild-primary-button"/>
-                <ui:Button name="GuildMoveTurretButton" text="Move Selected Turret" class="guild-secondary-button"/>
-                <ui:Button name="GuildDeleteTurretButton" text="Delete Selected Turret" class="guild-danger-button"/>
-            </ui:VisualElement>
-            <ui:VisualElement class="guild-selection-card">
-                <ui:Label text="Selection" class="guild-section-title"/>
-                <ui:Label name="GuildSelectedTurretLabel" text="No turret selected" class="guild-selection-line"/>
-                <ui:Label name="GuildSelectedTurretHealthLabel" text="Health: -" class="guild-selection-line guild-selection-line-muted"/>
-            </ui:VisualElement>
-            <ui:Label name="GuildStatusLabel" text="Shield button opens guild management." class="guild-status-label"/>
+            <ui:Label name="GuildStatusLabel" text="Browse the guild roster or found a new guild with a 3-letter banner for your crew." class="guild-status-label"/>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

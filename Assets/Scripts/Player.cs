@@ -56,6 +56,11 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
+    private NetworkVariable<FixedString32Bytes> m_networkGuildAbbreviation = new NetworkVariable<FixedString32Bytes>(
+        new FixedString32Bytes(),
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
     private NetworkVariable<FixedString128Bytes> m_ownerEntityId = new NetworkVariable<FixedString128Bytes>(
         new FixedString128Bytes(),
         NetworkVariableReadPermission.Owner,
@@ -117,6 +122,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
     public event Action<float> OnHealthChanged = delegate { };
     public event Action<int, int, int> OnRewardWalletChanged = delegate { };
+    public event Action<int, int, int> OnRewardGranted = delegate { };
     public event Action OnOwnedCannonsChanged = delegate { };
     public event Action OnOwnedShipsChanged = delegate { };
     public event Action<string, bool, string> OnCannonPurchaseResult = delegate { };
@@ -134,6 +140,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     public int Gold => m_networkGold.Value;
     public int Experience => m_networkExperience.Value;
     public string OwnerEntityId => m_ownerEntityId.Value.ToString();
+    public string GuildAbbreviation => m_networkGuildAbbreviation.Value.ToString();
     public string OwnedCannonIdsCsv => m_ownedCannonIdsCsv.Value.ToString();
     public string OwnedShipIdsCsv => m_ownedShipIdsCsv.Value.ToString();
     public string SelectedShipId => NormalizeOwnedShipId(m_selectedShipId.Value.ToString());
@@ -189,12 +196,16 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         // Subscribe to network health changes
         m_networkHealth.OnValueChanged += OnNetworkHealthChanged;
         PlayerName.OnValueChanged += OnPlayerNameChanged;
+        m_networkGuildAbbreviation.OnValueChanged += OnGuildAbbreviationChanged;
         m_networkPearls.OnValueChanged += OnRewardWalletValueChanged;
         m_networkGold.OnValueChanged += OnRewardWalletValueChanged;
         m_networkExperience.OnValueChanged += OnRewardWalletValueChanged;
         m_ownedCannonIdsCsv.OnValueChanged += OnOwnedCannonIdsChanged;
         m_ownedShipIdsCsv.OnValueChanged += OnOwnedShipIdsChanged;
         m_selectedShipId.OnValueChanged += OnSelectedShipIdChanged;
+
+        OnPlayerNameChanged(default, PlayerName.Value);
+        OnGuildAbbreviationChanged(default, m_networkGuildAbbreviation.Value);
     }
 
     public override void OnDestroy()
@@ -203,6 +214,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         m_networkHealth.OnValueChanged -= OnNetworkHealthChanged;
         PlayerName.OnValueChanged -= OnPlayerNameChanged;
+        m_networkGuildAbbreviation.OnValueChanged -= OnGuildAbbreviationChanged;
         m_networkPearls.OnValueChanged -= OnRewardWalletValueChanged;
         m_networkGold.OnValueChanged -= OnRewardWalletValueChanged;
         m_networkExperience.OnValueChanged -= OnRewardWalletValueChanged;
@@ -250,6 +262,14 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         }
     }
 
+    private void OnGuildAbbreviationChanged(FixedString32Bytes previousValue, FixedString32Bytes newValue)
+    {
+        if (TryGetComponent<WorldNameplateUI>(out var ui))
+        {
+            ui.SetGuildPrefixOverride(newValue.ToString());
+        }
+    }
+
     private void OnRewardWalletValueChanged(int previousValue, int newValue)
     {
         OnRewardWalletChanged?.Invoke(Pearls, Gold, Experience);
@@ -270,7 +290,7 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         OnSelectedShipChanged?.Invoke(NormalizeOwnedShipId(newValue.ToString()));
     }
 
-    public void ApplyPersistedWallet(int gold, int diamond)
+    public void ApplyPersistedWallet(int gold, int diamond, int? experience = null)
     {
         if (!IsServer)
         {
@@ -280,6 +300,10 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         m_networkGold.Value = Mathf.Max(0, gold);
         m_networkPearls.Value = Mathf.Max(0, diamond);
+        if (experience.HasValue)
+        {
+            m_networkExperience.Value = Mathf.Max(0, experience.Value);
+        }
     }
 
     public void SetOwnerEntityId(string ownerEntityId)
@@ -317,6 +341,27 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
 
         m_ownedShipIdsCsv.Value = new FixedString512Bytes(BuildOwnedShipsCsv(ownedShipIds));
         EnsureSelectedShipIsOwned();
+    }
+
+    public void ApplyGuildAbbreviation(string guildAbbreviation)
+    {
+        if (!IsServer)
+        {
+            Debug.LogWarning($"Player {gameObject.name}: ApplyGuildAbbreviation is server-only.");
+            return;
+        }
+
+        m_networkGuildAbbreviation.Value = new FixedString32Bytes(NormalizeGuildAbbreviation(guildAbbreviation));
+    }
+
+    public void RequestGuildAbbreviationRefresh()
+    {
+        if (!IsOwner || !IsSpawned)
+        {
+            return;
+        }
+
+        RequestGuildAbbreviationRefreshServerRpc();
     }
 
     public bool OwnsCannon(string cannonId)
@@ -460,6 +505,17 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
     private void RequestShipSelectionServerRpc(string shipId)
     {
         SetSelectedShipServer(shipId);
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void RequestGuildAbbreviationRefreshServerRpc()
+    {
+        if (MultiplayerController.Instance == null)
+        {
+            return;
+        }
+
+        MultiplayerController.Instance.RequestGuildAbbreviationRefresh(this);
     }
 
     [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
@@ -934,6 +990,16 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         AddToWallet(m_networkPearls, reward.Pearls);
         AddToWallet(m_networkGold, reward.Gold);
         AddToWallet(m_networkExperience, reward.Experience);
+        PushRewardGrantedClientRpc(reward.Pearls, reward.Gold, reward.Experience);
+    }
+
+    [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+    private void PushRewardGrantedClientRpc(int pearls, int gold, int experience)
+    {
+        OnRewardGranted?.Invoke(
+            Mathf.Max(0, pearls),
+            Mathf.Max(0, gold),
+            Mathf.Max(0, experience));
     }
 
     private static void AddToWallet(NetworkVariable<int> walletValue, int amountToAdd)
@@ -1634,6 +1700,30 @@ public class Player : NetworkBehaviour, IHealthSystem, ICombat, ITargetable
         }
 
         m_selectedShipId.Value = new FixedString64Bytes(normalizedShipId);
+    }
+
+    private static string NormalizeGuildAbbreviation(string guildAbbreviation)
+    {
+        if (string.IsNullOrWhiteSpace(guildAbbreviation))
+        {
+            return string.Empty;
+        }
+
+        string normalized = UiTextSanitizer.SanitizeForLabel(guildAbbreviation.Trim().ToUpperInvariant(), collapseWhitespace: true);
+        if (normalized.Length != 3)
+        {
+            return string.Empty;
+        }
+
+        for (int index = 0; index < normalized.Length; index++)
+        {
+            if (!char.IsLetter(normalized[index]))
+            {
+                return string.Empty;
+            }
+        }
+
+        return normalized;
     }
 
     private void EnsureWorldNameplate()

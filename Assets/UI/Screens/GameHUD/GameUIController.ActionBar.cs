@@ -329,6 +329,8 @@ public partial class GameUIController
 
     private void OnRootPointerUp(PointerUpEvent evt)
     {
+        DismissShieldDropdownIfClickedAway(evt.position);
+
         if (isSourceSlotPressPending && !isDraggingSkill && evt.pointerId == pendingSourcePointerId)
         {
             SkillDefinition clickedSkill = pendingSourceSkill;

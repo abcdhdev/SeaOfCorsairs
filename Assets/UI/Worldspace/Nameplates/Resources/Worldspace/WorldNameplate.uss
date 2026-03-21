@@ -17,29 +17,33 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    row-gap: 16px;
+    row-gap: 0;
     padding-top: 12px;
     padding-right: 20px;
     padding-bottom: 14px;
     padding-left: 20px;
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-    border-bottom-left-radius: 16px;
-    border-bottom-right-radius: 16px;
-    border-top-width: 3px;
-    border-right-width: 3px;
-    border-bottom-width: 3px;
-    border-left-width: 3px;
-    border-top-color: rgba(224, 177, 94, 0.92);
-    border-right-color: rgba(224, 177, 94, 0.92);
-    border-bottom-color: rgba(224, 177, 94, 0.92);
-    border-left-color: rgba(224, 177, 94, 0.92);
-    background-color: rgba(10, 8, 2, 0.92);
+}
+
+.nameplate-name-row {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: center;
+    column-gap: 10px;
+}
+
+.guild-prefix-label {
+    color: rgba(255, 221, 102, 0.99);
+    font-size: 94px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+    -unity-text-outline-color: rgba(0, 0, 0, 0.85);
+    -unity-text-outline-width: 6px;
 }
 
 .entity-name-label {
     color: rgba(255, 236, 184, 0.99);
-    font-size: 192px;
+    font-size: 168px;
     -unity-font-style: bold;
     -unity-text-align: middle-center;
     white-space: nowrap;
@@ -49,17 +53,18 @@
 
 .health-bar-bg {
     position: relative;
-    width: 86%;
-    height: 90px;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
+    width: 93%;
+    height: 58px;
+    margin-top: 18px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
     overflow: hidden;
-    border-top-width: 3px;
-    border-right-width: 3px;
-    border-bottom-width: 3px;
-    border-left-width: 3px;
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
     border-top-color: rgba(34, 128, 36, 0.95);
     border-right-color: rgba(34, 128, 36, 0.95);
     border-bottom-color: rgba(34, 128, 36, 0.95);
@@ -67,13 +72,44 @@
     background-color: rgba(4, 36, 11, 1);
 }
 
+.health-bar-damage-trail,
 .health-bar-fill {
     position: absolute;
     top: 0;
     bottom: 0;
     left: 0;
     width: 100%;
+}
+
+.health-bar-damage-trail {
+    background-color: rgba(181, 72, 44, 0.92);
+}
+
+.health-bar-fill {
     background-color: rgba(3, 141, 33, 1);
+}
+
+.health-bar-slice {
+    position: absolute;
+    top: -10px;
+    bottom: -10px;
+    left: 100%;
+    width: 34px;
+    display: none;
+    opacity: 0;
+    background-color: rgba(255, 241, 199, 0.96);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgba(255, 201, 117, 0.98);
+    border-right-color: rgba(255, 201, 117, 0.98);
+    border-bottom-color: rgba(255, 201, 117, 0.98);
+    border-left-color: rgba(255, 201, 117, 0.98);
 }
 
 .health-bar-label {

@@ -8,9 +8,9 @@ public sealed record PlayerStateResponse(int Version, JsonElement State, DateTim
 
 public sealed record UpdatePlayerStateRequest(JsonElement State, int? ExpectedVersion);
 
-public sealed record PlayerWalletResponse(int Gold, int Diamond, int Version, DateTimeOffset UpdatedAt);
+public sealed record PlayerWalletResponse(int Gold, int Diamond, int Experience, int Version, DateTimeOffset UpdatedAt);
 
-public sealed record UpdatePlayerWalletRequest(int Gold, int Diamond, int? ExpectedVersion);
+public sealed record UpdatePlayerWalletRequest(int Gold, int Diamond, int Experience, int? ExpectedVersion);
 
 public sealed record PurchaseCannonRequest(string CannonId, int Gold, int Diamond, int? ExpectedVersion);
 
@@ -19,6 +19,22 @@ public sealed record CannonPurchaseResponse(string CannonId, string[] OwnedCanno
 public sealed record PurchaseShipRequest(string ShipId, int Gold, int Diamond, int? ExpectedVersion);
 
 public sealed record ShipPurchaseResponse(string ShipId, string[] OwnedShipIds, int Gold, int Diamond, int Version, DateTimeOffset UpdatedAt);
+
+public sealed record CreateGuildRequest(string Name, string? Tag, string? Description);
+
+public sealed record GuildSummaryResponse(
+    string Id,
+    string Name,
+    string Tag,
+    string Description,
+    string LeaderUserId,
+    string LeaderDisplayName,
+    int MemberCount,
+    bool IsCurrentPlayerMember,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+public sealed record GuildListResponse(string CurrentGuildId, GuildSummaryResponse[] Guilds);
 
 public sealed record ConflictResponse(int CurrentVersion, DateTimeOffset UpdatedAt);
 

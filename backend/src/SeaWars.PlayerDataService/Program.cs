@@ -108,6 +108,7 @@ builder.Services.AddSingleton<IAmazonS3>(sp =>
 });
 
 var app = builder.Build();
+const string GuildWorldObjectType = "guild";
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
@@ -257,7 +258,7 @@ app.MapGet("/v1/player/me/wallet", async (
     }
 
     var wallet = ExtractWallet(entity.State);
-    return Results.Ok(new PlayerWalletResponse(wallet.Gold, wallet.Diamond, entity.Version, entity.UpdatedAt));
+    return Results.Ok(new PlayerWalletResponse(wallet.Gold, wallet.Diamond, wallet.Experience, entity.Version, entity.UpdatedAt));
 })
     .WithTags("Player")
     .RequireAuthorization();
@@ -279,6 +280,9 @@ app.MapPut("/v1/player/me/wallet", async (
     if (request.Diamond < 0)
         return Results.BadRequest(new ErrorResponse("invalid_diamond", "Diamond must be zero or greater."));
 
+    if (request.Experience < 0)
+        return Results.BadRequest(new ErrorResponse("invalid_experience", "Experience must be zero or greater."));
+
     var now = DateTimeOffset.UtcNow;
     var entity = await db.PlayerStates.FindAsync(userId.Value);
     if (entity is null)
@@ -298,7 +302,7 @@ app.MapPut("/v1/player/me/wallet", async (
     if (request.ExpectedVersion is not null)
         db.Entry(entity).Property(x => x.Version).OriginalValue = request.ExpectedVersion.Value;
 
-    entity.State = UpsertWalletStateJson(entity.State, request.Gold, request.Diamond);
+    entity.State = UpsertWalletStateJson(entity.State, request.Gold, request.Diamond, request.Experience);
     entity.Version += 1;
     entity.UpdatedAt = now;
 
@@ -319,7 +323,7 @@ app.MapPut("/v1/player/me/wallet", async (
     await redisMux.GetDatabase().StringSetAsync(cacheKey, stateJson, expiry: TimeSpan.FromMinutes(10));
 
     var wallet = ExtractWallet(entity.State);
-    return Results.Ok(new PlayerWalletResponse(wallet.Gold, wallet.Diamond, entity.Version, entity.UpdatedAt));
+    return Results.Ok(new PlayerWalletResponse(wallet.Gold, wallet.Diamond, wallet.Experience, entity.Version, entity.UpdatedAt));
 })
     .WithTags("Player")
     .RequireAuthorization();
@@ -506,6 +510,146 @@ app.MapPost("/v1/player/me/ships/purchase", async (
     return Results.Ok(response);
 })
     .WithTags("Player")
+    .RequireAuthorization();
+
+app.MapGet("/v1/guilds", async (
+    ClaimsPrincipal principal,
+    PlayerDbContext db) =>
+{
+    var userId = GetUserId(principal);
+    if (userId is null)
+        return Results.Json(new ErrorResponse("unauthorized", "Unauthorized."), statusCode: StatusCodes.Status401Unauthorized);
+
+    var guildEntities = await db.WorldObjects
+        .AsNoTracking()
+        .Where(x => x.ObjectType == GuildWorldObjectType)
+        .OrderBy(x => x.CreatedAt)
+        .ToListAsync();
+
+    var guilds = new List<GuildSummaryResponse>(guildEntities.Count);
+    var currentGuildId = string.Empty;
+    for (var index = 0; index < guildEntities.Count; index++)
+    {
+        if (!TryCreateGuildSummary(guildEntities[index], userId.Value, out var guildSummary))
+            continue;
+
+        guilds.Add(guildSummary);
+        if (guildSummary.IsCurrentPlayerMember && string.IsNullOrWhiteSpace(currentGuildId))
+            currentGuildId = guildSummary.Id;
+    }
+
+    guilds.Sort(static (left, right) =>
+    {
+        var memberComparison = right.IsCurrentPlayerMember.CompareTo(left.IsCurrentPlayerMember);
+        if (memberComparison != 0)
+            return memberComparison;
+
+        var countComparison = right.MemberCount.CompareTo(left.MemberCount);
+        if (countComparison != 0)
+            return countComparison;
+
+        return string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+    });
+
+    return Results.Ok(new GuildListResponse(currentGuildId, guilds.ToArray()));
+})
+    .WithTags("Guilds")
+    .RequireAuthorization();
+
+app.MapPost("/v1/guilds", async (
+    ClaimsPrincipal principal,
+    CreateGuildRequest request,
+    PlayerDbContext db) =>
+{
+    var userId = GetUserId(principal);
+    if (userId is null)
+        return Results.Json(new ErrorResponse("unauthorized", "Unauthorized."), statusCode: StatusCodes.Status401Unauthorized);
+
+    var normalizedName = CollapseWhitespace(request.Name);
+    if (normalizedName.Length < 3 || normalizedName.Length > 32)
+        return Results.BadRequest(new ErrorResponse("invalid_guild_name", "Guild name must be between 3 and 32 characters."));
+
+    var normalizedTag = NormalizeGuildTag(request.Tag);
+    if (string.IsNullOrWhiteSpace(normalizedTag))
+        return Results.BadRequest(new ErrorResponse("invalid_guild_tag", "Guild abbreviation must be exactly 3 letters."));
+
+    if (normalizedTag.Length != 3)
+        return Results.BadRequest(new ErrorResponse("invalid_guild_tag", "Guild abbreviation must be exactly 3 letters."));
+
+    var normalizedDescription = CollapseWhitespace(request.Description);
+    if (normalizedDescription.Length > 180)
+        return Results.BadRequest(new ErrorResponse("invalid_guild_description", "Guild description must be 180 characters or fewer."));
+
+    var requestedNameKey = NormalizeGuildLookupKey(normalizedName);
+    var requestedTagKey = NormalizeGuildLookupKey(normalizedTag);
+    var creatorUserId = userId.Value.ToString("D");
+
+    var existingGuildEntities = await db.WorldObjects
+        .AsNoTracking()
+        .Where(x => x.ObjectType == GuildWorldObjectType)
+        .OrderBy(x => x.CreatedAt)
+        .ToListAsync();
+
+    for (var index = 0; index < existingGuildEntities.Count; index++)
+    {
+        if (!TryReadGuildState(existingGuildEntities[index].State, out var existingGuildState))
+            continue;
+
+        if (existingGuildState.MemberUserIds.Contains(creatorUserId, StringComparer.OrdinalIgnoreCase))
+        {
+            return Results.Conflict(new ErrorResponse(
+                "already_in_guild",
+                $"You are already in the guild '{existingGuildState.Name}'. Leave it before creating a new one."));
+        }
+
+        if (string.Equals(NormalizeGuildLookupKey(existingGuildState.Name), requestedNameKey, StringComparison.Ordinal))
+        {
+            return Results.Conflict(new ErrorResponse(
+                "guild_name_taken",
+                $"A guild named '{normalizedName}' already exists."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestedTagKey) &&
+            !string.IsNullOrWhiteSpace(existingGuildState.Tag) &&
+            string.Equals(NormalizeGuildLookupKey(existingGuildState.Tag), requestedTagKey, StringComparison.Ordinal))
+        {
+            return Results.Conflict(new ErrorResponse(
+                "guild_tag_taken",
+                $"The guild tag '{normalizedTag}' is already in use."));
+        }
+    }
+
+    var creatorDisplayName = ResolveGuildDisplayName(principal);
+    var now = DateTimeOffset.UtcNow;
+    var guildState = new JsonObject
+    {
+        ["name"] = normalizedName,
+        ["tag"] = normalizedTag,
+        ["description"] = normalizedDescription,
+        ["leaderUserId"] = creatorUserId,
+        ["leaderDisplayName"] = creatorDisplayName,
+        ["memberUserIds"] = CreateStringJsonArray(new[] { creatorUserId }),
+    };
+
+    var entity = new WorldObject
+    {
+        Id = Guid.NewGuid(),
+        ObjectType = GuildWorldObjectType,
+        OwnerEntityId = creatorUserId,
+        State = guildState.ToJsonString(),
+        CreatedAt = now,
+        UpdatedAt = now,
+    };
+
+    db.WorldObjects.Add(entity);
+    await db.SaveChangesAsync();
+
+    if (!TryCreateGuildSummary(entity, userId.Value, out var guildSummary))
+        return Results.BadRequest(new ErrorResponse("guild_create_failed", "Guild was created, but its data could not be loaded."));
+
+    return Results.Ok(guildSummary);
+})
+    .WithTags("Guilds")
     .RequireAuthorization();
 
 app.MapGet("/v1/world-objects", async (
@@ -724,22 +868,24 @@ static Protocol GetPresignProtocol(string serviceUrl)
         : Protocol.HTTPS;
 }
 
-static (int Gold, int Diamond) ExtractWallet(string stateJson)
+static (int Gold, int Diamond, int Experience) ExtractWallet(string stateJson)
 {
     var state = ParseStateObject(stateJson);
     var gold = ReadNonNegativeInt(state, "gold");
     var diamond = ReadNonNegativeInt(state, "diamond");
     if (diamond == 0)
         diamond = ReadNonNegativeInt(state, "pearls");
+    var experience = ReadNonNegativeInt(state, "experience");
 
-    return (gold, diamond);
+    return (gold, diamond, experience);
 }
 
-static string UpsertWalletStateJson(string stateJson, int gold, int diamond)
+static string UpsertWalletStateJson(string stateJson, int gold, int diamond, int experience)
 {
     var state = ParseStateObject(stateJson);
     state["gold"] = Math.Max(0, gold);
     state["diamond"] = Math.Max(0, diamond);
+    state["experience"] = Math.Max(0, experience);
     state.Remove("pearls");
     return state.ToJsonString();
 }
@@ -875,6 +1021,12 @@ static bool ContainsOwnedCannonId(IReadOnlyList<string> ownedCannonIds, string c
     }
 
     return false;
+}
+
+static string ResolveGuildDisplayName(ClaimsPrincipal principal)
+{
+    var displayName = CollapseWhitespace(principal.FindFirstValue("displayName"));
+    return string.IsNullOrWhiteSpace(displayName) ? "Unnamed Captain" : displayName;
 }
 
 static bool ContainsOwnedShipId(IReadOnlyList<string> ownedShipIds, string shipId)
@@ -1047,6 +1199,136 @@ static JsonObject ParseStateObject(string stateJson)
     }
 }
 
+static bool TryReadGuildState(string stateJson, out GuildStateSnapshot guildState)
+{
+    var state = ParseStateObject(stateJson);
+    var name = CollapseWhitespace(ReadStringValue(state, "name"));
+    var tag = NormalizeGuildTag(ReadStringValue(state, "tag"));
+    var description = CollapseWhitespace(ReadStringValue(state, "description"));
+    var leaderUserId = ReadStringValue(state, "leaderUserId");
+    var leaderDisplayName = CollapseWhitespace(ReadStringValue(state, "leaderDisplayName"));
+    var memberUserIds = ReadNormalizedStringArray(state, "memberUserIds");
+
+    if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(leaderUserId))
+    {
+        guildState = default;
+        return false;
+    }
+
+    if (memberUserIds.Length == 0)
+        memberUserIds = new[] { leaderUserId };
+
+    guildState = new GuildStateSnapshot(
+        name,
+        tag,
+        description,
+        leaderUserId,
+        string.IsNullOrWhiteSpace(leaderDisplayName) ? "Unnamed Captain" : leaderDisplayName,
+        memberUserIds);
+    return true;
+}
+
+static bool TryCreateGuildSummary(WorldObject entity, Guid currentUserId, out GuildSummaryResponse guildSummary)
+{
+    if (!TryReadGuildState(entity.State, out var guildState))
+    {
+        guildSummary = default!;
+        return false;
+    }
+
+    var currentUserIdValue = currentUserId.ToString("D");
+    var isCurrentPlayerMember = guildState.MemberUserIds.Contains(currentUserIdValue, StringComparer.OrdinalIgnoreCase);
+
+    guildSummary = new GuildSummaryResponse(
+        entity.Id.ToString("D"),
+        guildState.Name,
+        guildState.Tag,
+        guildState.Description,
+        guildState.LeaderUserId,
+        guildState.LeaderDisplayName,
+        guildState.MemberUserIds.Length,
+        isCurrentPlayerMember,
+        entity.CreatedAt,
+        entity.UpdatedAt);
+    return true;
+}
+
+static string CollapseWhitespace(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+        return string.Empty;
+
+    return string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+}
+
+static string NormalizeGuildLookupKey(string? value)
+{
+    return CollapseWhitespace(value).ToUpperInvariant();
+}
+
+static string NormalizeGuildTag(string? value)
+{
+    var collapsed = CollapseWhitespace(value).Replace(" ", string.Empty, StringComparison.Ordinal);
+    if (string.IsNullOrWhiteSpace(collapsed))
+        return string.Empty;
+
+    for (var index = 0; index < collapsed.Length; index++)
+    {
+        if (!char.IsLetter(collapsed[index]))
+            return string.Empty;
+    }
+
+    return collapsed.ToUpperInvariant();
+}
+
+static string ReadStringValue(JsonObject state, string propertyName)
+{
+    if (!state.TryGetPropertyValue(propertyName, out var node) || node is not JsonValue value)
+        return string.Empty;
+
+    if (value.TryGetValue<string>(out var stringValue))
+        return stringValue?.Trim() ?? string.Empty;
+
+    return node.ToJsonString().Trim('"').Trim();
+}
+
+static string[] ReadNormalizedStringArray(JsonObject state, string propertyName)
+{
+    if (!state.TryGetPropertyValue(propertyName, out var node) || node is not JsonArray array)
+        return Array.Empty<string>();
+
+    var values = new List<string>(array.Count);
+    var seenValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    for (var index = 0; index < array.Count; index++)
+    {
+        if (array[index] is not JsonValue value || !value.TryGetValue<string>(out var stringValue))
+            continue;
+
+        var normalizedValue = CollapseWhitespace(stringValue);
+        if (string.IsNullOrWhiteSpace(normalizedValue) || !seenValues.Add(normalizedValue))
+            continue;
+
+        values.Add(normalizedValue);
+    }
+
+    return values.Count == 0 ? Array.Empty<string>() : values.ToArray();
+}
+
+static JsonArray CreateStringJsonArray(IEnumerable<string> values)
+{
+    var array = new JsonArray();
+    foreach (var value in values)
+    {
+        var normalizedValue = CollapseWhitespace(value);
+        if (string.IsNullOrWhiteSpace(normalizedValue))
+            continue;
+
+        array.Add(normalizedValue);
+    }
+
+    return array;
+}
+
 static int ReadNonNegativeInt(JsonObject state, string propertyName)
 {
     if (!state.TryGetPropertyValue(propertyName, out var node) || node is null)
@@ -1108,3 +1390,10 @@ static WorldObjectResponse CreateWorldObjectResponse(WorldObject entity)
 
 readonly record struct CannonCatalogEntry(string Id, string DisplayName, int GoldCost, int DiamondCost, int SortOrder);
 readonly record struct ShipCatalogEntry(string Id, string DisplayName, int GoldCost, int DiamondCost, int SortOrder);
+readonly record struct GuildStateSnapshot(
+    string Name,
+    string Tag,
+    string Description,
+    string LeaderUserId,
+    string LeaderDisplayName,
+    string[] MemberUserIds);

@@ -52,12 +52,12 @@ public sealed class BackendPlayerDataClient
         }
     }
 
-    public async Task<PlayerWalletResponse> UpdateWalletAsync(string accessToken, int gold, int diamond, int? expectedVersion = null, CancellationToken cancellationToken = default)
+    public async Task<PlayerWalletResponse> UpdateWalletAsync(string accessToken, int gold, int diamond, int experience, int? expectedVersion = null, CancellationToken cancellationToken = default)
     {
         var url = $"{_playerDataBaseUrl}/v1/player/me/wallet";
         var bodyJson = expectedVersion.HasValue
-            ? $"{{\"gold\":{Math.Max(0, gold)},\"diamond\":{Math.Max(0, diamond)},\"expectedVersion\":{expectedVersion.Value}}}"
-            : $"{{\"gold\":{Math.Max(0, gold)},\"diamond\":{Math.Max(0, diamond)}}}";
+            ? $"{{\"gold\":{Math.Max(0, gold)},\"diamond\":{Math.Max(0, diamond)},\"experience\":{Math.Max(0, experience)},\"expectedVersion\":{expectedVersion.Value}}}"
+            : $"{{\"gold\":{Math.Max(0, gold)},\"diamond\":{Math.Max(0, diamond)},\"experience\":{Math.Max(0, experience)}}}";
 
         using var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPUT);
         var bytes = Encoding.UTF8.GetBytes(bodyJson);
@@ -73,7 +73,7 @@ public sealed class BackendPlayerDataClient
         }
         catch (BackendApiException ex) when (ex.StatusCode == 404)
         {
-            return await UpdateWalletViaPlayerStateAsync(accessToken, gold, diamond, expectedVersion, cancellationToken);
+            return await UpdateWalletViaPlayerStateAsync(accessToken, gold, diamond, experience, expectedVersion, cancellationToken);
         }
     }
 
@@ -147,6 +147,43 @@ public sealed class BackendPlayerDataClient
         return ParseOrThrow<ShipPurchaseResponse>(request, url);
     }
 
+    public async Task<GuildListResponse> GetGuildsAsync(string accessToken, CancellationToken cancellationToken = default)
+    {
+        var url = $"{_playerDataBaseUrl}/v1/guilds";
+        using var request = UnityWebRequest.Get(url);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Authorization", $"Bearer {accessToken ?? string.Empty}");
+
+        await request.SendWebRequestAsync(cancellationToken);
+        return ParseJsonOrThrow<GuildListResponse>(request, url);
+    }
+
+    public async Task<GuildSummaryResponse> CreateGuildAsync(
+        string accessToken,
+        string name,
+        string tag,
+        string description,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"{_playerDataBaseUrl}/v1/guilds";
+        var body = new JObject
+        {
+            ["name"] = (name ?? string.Empty).Trim(),
+            ["tag"] = string.IsNullOrWhiteSpace(tag) ? string.Empty : tag.Trim(),
+            ["description"] = string.IsNullOrWhiteSpace(description) ? string.Empty : description.Trim(),
+        };
+
+        using var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST);
+        var bytes = Encoding.UTF8.GetBytes(body.ToString(Formatting.None));
+        request.uploadHandler = new UploadHandlerRaw(bytes);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.SetRequestHeader("Authorization", $"Bearer {accessToken ?? string.Empty}");
+
+        await request.SendWebRequestAsync(cancellationToken);
+        return ParseJsonOrThrow<GuildSummaryResponse>(request, url);
+    }
+
     private static string NormalizeBaseUrl(string url)
     {
         url ??= string.Empty;
@@ -199,13 +236,59 @@ public sealed class BackendPlayerDataClient
         }
     }
 
+    private static T ParseJsonOrThrow<T>(UnityWebRequest request, string url)
+    {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        var statusCode = request.responseCode;
+        var text = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
+
+        if (request.result != UnityWebRequest.Result.Success)
+        {
+            throw BackendApiException.FromResponse(url, statusCode, request.error, text);
+        }
+
+        if (statusCode < 200 || statusCode >= 300)
+        {
+            throw BackendApiException.FromResponse(url, statusCode, request.error, text);
+        }
+
+        if (typeof(T) == typeof(object))
+        {
+            return default;
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw BackendApiException.FromResponse(url, statusCode, "Empty response", text);
+        }
+
+        try
+        {
+            T parsed = JsonConvert.DeserializeObject<T>(text);
+            if (parsed == null)
+            {
+                throw new InvalidOperationException("Response payload was null.");
+            }
+
+            return parsed;
+        }
+        catch (Exception ex)
+        {
+            throw BackendApiException.FromResponse(url, statusCode, $"Failed to parse JSON: {ex.Message}", text);
+        }
+    }
+
     private static string ReadResponseTextOrThrow(UnityWebRequest request, string url)
     {
         ParseOrThrow<object>(request, url);
         return request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
     }
 
-    private async Task<PlayerWalletResponse> UpdateWalletViaPlayerStateAsync(string accessToken, int gold, int diamond, int? expectedVersion, CancellationToken cancellationToken)
+    private async Task<PlayerWalletResponse> UpdateWalletViaPlayerStateAsync(string accessToken, int gold, int diamond, int experience, int? expectedVersion, CancellationToken cancellationToken)
     {
         var currentState = ParsePlayerStateResponse(
             await GetPlayerMeRawAsync(accessToken, cancellationToken),
@@ -213,6 +296,7 @@ public sealed class BackendPlayerDataClient
 
         currentState.State["gold"] = Math.Max(0, gold);
         currentState.State["diamond"] = Math.Max(0, diamond);
+        currentState.State["experience"] = Math.Max(0, experience);
         currentState.State.Remove("pearls");
 
         var body = new JObject
@@ -247,11 +331,13 @@ public sealed class BackendPlayerDataClient
         {
             diamond = ReadNonNegativeInt(playerState.State, "pearls");
         }
+        var experience = ReadNonNegativeInt(playerState.State, "experience");
 
         return new PlayerWalletResponse
         {
             gold = gold,
             diamond = diamond,
+            experience = experience,
             version = playerState.Version,
             updatedAt = playerState.UpdatedAt,
         };
@@ -266,11 +352,13 @@ public sealed class BackendPlayerDataClient
         {
             diamond = ReadNonNegativeInt(playerState.State, "pearls");
         }
+        var experience = ReadNonNegativeInt(playerState.State, "experience");
 
         return new PlayerMarketStateResponse
         {
             gold = gold,
             diamond = diamond,
+            experience = experience,
             ownedCannonIds = ReadStringArray(playerState.State, "ownedCannons"),
             ownedShipIds = EnsureDefaultShipIds(ReadStringArray(playerState.State, "ownedShips")),
             version = playerState.Version,
@@ -433,6 +521,7 @@ public sealed class PlayerWalletResponse
 {
     public int gold;
     public int diamond;
+    public int experience;
     public int version;
     public string updatedAt;
 }
@@ -442,6 +531,7 @@ public sealed class PlayerMarketStateResponse
 {
     public int gold;
     public int diamond;
+    public int experience;
     public string[] ownedCannonIds;
     public string[] ownedShipIds;
     public int version;
@@ -467,6 +557,28 @@ public sealed class ShipPurchaseResponse
     public int gold;
     public int diamond;
     public int version;
+    public string updatedAt;
+}
+
+[Serializable]
+public sealed class GuildListResponse
+{
+    public string currentGuildId;
+    public GuildSummaryResponse[] guilds = Array.Empty<GuildSummaryResponse>();
+}
+
+[Serializable]
+public sealed class GuildSummaryResponse
+{
+    public string id;
+    public string name;
+    public string tag;
+    public string description;
+    public string leaderUserId;
+    public string leaderDisplayName;
+    public int memberCount;
+    public bool isCurrentPlayerMember;
+    public string createdAt;
     public string updatedAt;
 }
 

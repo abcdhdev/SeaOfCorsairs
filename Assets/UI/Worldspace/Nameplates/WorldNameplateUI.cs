@@ -10,10 +10,17 @@ public class WorldNameplateUI : MonoBehaviour
     private const string DefaultStyleSheetResourcePath = "Worldspace/WorldNameplate";
     private const float NameplateScreenVerticalOffset = -0.2f;
     private const float HealthBarAnchorVerticalOffset = 0.75f;
+    private const string NameRowElementName = "NameRow";
+    private const string GuildPrefixLabelElementName = "GuildPrefixLabel";
     private const string LabelElementName = "EntityNameLabel";
+    private const string HealthBarDamageTrailElementName = "HealthBarDamageTrail";
     private const string HealthBarFillElementName = "HealthBarFill";
-    private const string HealthBarLabelElementName = "HealthBarLabel";
+    private const string HealthBarSliceElementName = "HealthBarSlice";
     private const string CloneSuffix = "(Clone)";
+    private const float HealthFillAnimationSpeed = 6.5f;
+    private const float DamageTrailShrinkDelay = 0.08f;
+    private const float DamageTrailShrinkSpeed = 1.8f;
+    private const float SliceAnimationDuration = 0.24f;
 
     [Header("Assets")]
     [SerializeField] private PanelSettings panelSettings;
@@ -26,6 +33,7 @@ public class WorldNameplateUI : MonoBehaviour
     [SerializeField] private bool hideWhenOffscreen = true;
     [SerializeField, Min(0f)] private float offscreenPadding = 0.08f;
     [SerializeField] private string displayNameOverride;
+    [SerializeField] private string guildAbbreviationOverride;
 
     [Header("Health Bar Anchor")]
     [SerializeField] private bool placeUnderTarget = false;
@@ -45,11 +53,23 @@ public class WorldNameplateUI : MonoBehaviour
 
     private Camera cachedCamera;
     private UIDocument worldSpaceDocument;
+    private VisualElement nameRow;
+    private Label guildPrefixLabel;
     private Label nameLabel;
+    private VisualElement healthBarDamageTrail;
     private VisualElement healthBarFill;
+    private VisualElement healthBarSlice;
     private int displayedHealth = -1;
     private int displayedMaxHealth = -1;
     private float displayedHealthPercent = -1f;
+    private float targetHealthPercent = 1f;
+    private float animatedHealthPercent = 1f;
+    private float damageTrailPercent = 1f;
+    private float damageTrailDelayRemaining;
+    private float sliceAnimationElapsed = SliceAnimationDuration;
+    private float sliceAnimationStartPercent = 1f;
+    private float sliceAnimationEndPercent = 1f;
+    private bool hasAnimatedHealthState;
     private bool styleAttached;
     private bool missingAssetsLogged;
     private bool isVisible;
@@ -109,6 +129,12 @@ public class WorldNameplateUI : MonoBehaviour
     public void SetDisplayNameOverride(string value)
     {
         displayNameOverride = value;
+        RefreshDisplayName();
+    }
+
+    public void SetGuildPrefixOverride(string value)
+    {
+        guildAbbreviationOverride = NormalizeGuildAbbreviation(value);
         RefreshDisplayName();
     }
 
@@ -242,7 +268,7 @@ public class WorldNameplateUI : MonoBehaviour
             RefreshDisplayName();
         }
 
-        UpdateHealthDisplay(currentHealth, maxHealth, healthPercent);
+        UpdateHealthDisplay(currentHealth, maxHealth, healthPercent, Time.unscaledDeltaTime);
         SetVisible(true);
     }
 
@@ -317,7 +343,8 @@ public class WorldNameplateUI : MonoBehaviour
 
         CacheUiElements();
         RefreshDisplayName();
-        UpdateHealthDisplay(0, 1, 1f);
+        hasAnimatedHealthState = false;
+        UpdateHealthDisplay(0, 1, 1f, 0f);
         SetVisible(showNameplate);
         return true;
     }
@@ -344,6 +371,8 @@ public class WorldNameplateUI : MonoBehaviour
         }
 
         nameLabel = root.Q<Label>(LabelElementName);
+        guildPrefixLabel = root.Q<Label>(GuildPrefixLabelElementName);
+        nameRow = root.Q<VisualElement>(NameRowElementName);
         if (nameLabel != null)
         {
             nameLabel.pickingMode = PickingMode.Ignore;
@@ -357,13 +386,54 @@ public class WorldNameplateUI : MonoBehaviour
                 pickingMode = PickingMode.Ignore
             };
             nameLabel.enableRichText = false;
-            root.Add(nameLabel);
+            if (nameRow == null)
+            {
+                nameRow = new VisualElement
+                {
+                    name = NameRowElementName,
+                    pickingMode = PickingMode.Ignore
+                };
+                nameRow.AddToClassList("nameplate-name-row");
+                root.Add(nameRow);
+            }
+
+            nameRow.Add(nameLabel);
+        }
+
+        if (guildPrefixLabel != null)
+        {
+            guildPrefixLabel.pickingMode = PickingMode.Ignore;
+            guildPrefixLabel.enableRichText = false;
+        }
+        else if (nameRow != null)
+        {
+            guildPrefixLabel = new Label
+            {
+                name = GuildPrefixLabelElementName,
+                pickingMode = PickingMode.Ignore
+            };
+            guildPrefixLabel.enableRichText = false;
+            nameRow.Insert(0, guildPrefixLabel);
+        }
+
+        healthBarDamageTrail = root.Q<VisualElement>(HealthBarDamageTrailElementName);
+        if (healthBarDamageTrail != null)
+        {
+            healthBarDamageTrail.pickingMode = PickingMode.Ignore;
         }
 
         healthBarFill = root.Q<VisualElement>(HealthBarFillElementName);
         if (healthBarFill != null)
         {
             healthBarFill.pickingMode = PickingMode.Ignore;
+        }
+
+        healthBarSlice = root.Q<VisualElement>(HealthBarSliceElementName);
+        if (healthBarSlice != null)
+        {
+            healthBarSlice.pickingMode = PickingMode.Ignore;
+            healthBarSlice.style.display = DisplayStyle.None;
+            healthBarSlice.style.opacity = 0f;
         }
     }
 
@@ -372,6 +442,15 @@ public class WorldNameplateUI : MonoBehaviour
         if (nameLabel == null)
         {
             return;
+        }
+
+        if (guildPrefixLabel != null)
+        {
+            string guildPrefix = NormalizeGuildAbbreviation(guildAbbreviationOverride);
+            guildPrefixLabel.text = string.IsNullOrWhiteSpace(guildPrefix) ? string.Empty : $"[{guildPrefix}]";
+            guildPrefixLabel.style.display = string.IsNullOrWhiteSpace(guildPrefix)
+                ? DisplayStyle.None
+                : DisplayStyle.Flex;
         }
 
         nameLabel.text = UiTextSanitizer.SanitizeForLabel(ResolveDisplayName(), collapseWhitespace: true);
@@ -391,6 +470,30 @@ public class WorldNameplateUI : MonoBehaviour
         }
 
         return string.IsNullOrWhiteSpace(rawName) ? "Unknown" : rawName;
+    }
+
+    private static string NormalizeGuildAbbreviation(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        string normalized = UiTextSanitizer.SanitizeForLabel(value.Trim().ToUpperInvariant(), collapseWhitespace: true);
+        if (normalized.Length != 3)
+        {
+            return string.Empty;
+        }
+
+        for (int index = 0; index < normalized.Length; index++)
+        {
+            if (!char.IsLetter(normalized[index]))
+            {
+                return string.Empty;
+            }
+        }
+
+        return normalized;
     }
 
     private bool TryGetCamera(out Camera renderCamera)
@@ -489,20 +592,106 @@ public class WorldNameplateUI : MonoBehaviour
                viewport.y > 1f + padding;
     }
 
-    private void UpdateHealthDisplay(int currentHealth, int maxHealth, float healthPercent)
+    private void UpdateHealthDisplay(int currentHealth, int maxHealth, float healthPercent, float deltaTime)
     {
-        if (displayedHealth == currentHealth && displayedMaxHealth == maxHealth && Mathf.Approximately(displayedHealthPercent, healthPercent))
+        healthPercent = Mathf.Clamp01(healthPercent);
+
+        if (!hasAnimatedHealthState)
         {
-            return;
+            targetHealthPercent = healthPercent;
+            animatedHealthPercent = healthPercent;
+            damageTrailPercent = healthPercent;
+            displayedHealthPercent = healthPercent;
+            damageTrailDelayRemaining = 0f;
+            sliceAnimationElapsed = SliceAnimationDuration;
+            hasAnimatedHealthState = true;
+        }
+        else if (displayedHealth != currentHealth ||
+                 displayedMaxHealth != maxHealth ||
+                 !Mathf.Approximately(displayedHealthPercent, healthPercent))
+        {
+            if (healthPercent < targetHealthPercent)
+            {
+                sliceAnimationStartPercent = Mathf.Max(animatedHealthPercent, damageTrailPercent);
+                sliceAnimationEndPercent = healthPercent;
+                sliceAnimationElapsed = 0f;
+                damageTrailDelayRemaining = DamageTrailShrinkDelay;
+            }
+            else if (healthPercent > targetHealthPercent)
+            {
+                animatedHealthPercent = healthPercent;
+                damageTrailPercent = healthPercent;
+                damageTrailDelayRemaining = 0f;
+                sliceAnimationElapsed = SliceAnimationDuration;
+            }
+
+            targetHealthPercent = healthPercent;
+            displayedHealthPercent = healthPercent;
         }
 
         displayedHealth = currentHealth;
         displayedMaxHealth = maxHealth;
-        displayedHealthPercent = healthPercent;
+        AnimateHealthBar(deltaTime);
+    }
 
+    private void AnimateHealthBar(float deltaTime)
+    {
         if (healthBarFill != null)
         {
-            healthBarFill.style.width = new Length(healthPercent * 100f, LengthUnit.Percent);
+            animatedHealthPercent = Mathf.MoveTowards(
+                animatedHealthPercent,
+                targetHealthPercent,
+                deltaTime * HealthFillAnimationSpeed);
+            healthBarFill.style.width = new Length(animatedHealthPercent * 100f, LengthUnit.Percent);
+        }
+
+        if (healthBarDamageTrail != null)
+        {
+            if (damageTrailPercent < targetHealthPercent)
+            {
+                damageTrailPercent = Mathf.MoveTowards(
+                    damageTrailPercent,
+                    targetHealthPercent,
+                    deltaTime * (HealthFillAnimationSpeed + 1f));
+            }
+            else if (damageTrailPercent > targetHealthPercent)
+            {
+                if (damageTrailDelayRemaining > 0f)
+                {
+                    damageTrailDelayRemaining = Mathf.Max(0f, damageTrailDelayRemaining - deltaTime);
+                }
+                else
+                {
+                    damageTrailPercent = Mathf.MoveTowards(
+                        damageTrailPercent,
+                        targetHealthPercent,
+                        deltaTime * DamageTrailShrinkSpeed);
+                }
+            }
+
+            healthBarDamageTrail.style.width = new Length(damageTrailPercent * 100f, LengthUnit.Percent);
+        }
+
+        if (healthBarSlice == null)
+        {
+            return;
+        }
+
+        if (sliceAnimationElapsed < SliceAnimationDuration)
+        {
+            sliceAnimationElapsed = Mathf.Min(SliceAnimationDuration, sliceAnimationElapsed + deltaTime);
+            float progress = Mathf.Clamp01(sliceAnimationElapsed / SliceAnimationDuration);
+            float easedProgress = 1f - Mathf.Pow(1f - progress, 3f);
+            float slicePercent = Mathf.Lerp(sliceAnimationStartPercent, sliceAnimationEndPercent, easedProgress);
+
+            healthBarSlice.style.display = DisplayStyle.Flex;
+            healthBarSlice.style.left = new Length(slicePercent * 100f, LengthUnit.Percent);
+            healthBarSlice.style.opacity = 1f - progress;
+        }
+        else
+        {
+            healthBarSlice.style.display = DisplayStyle.None;
+            healthBarSlice.style.opacity = 0f;
         }
     }
 

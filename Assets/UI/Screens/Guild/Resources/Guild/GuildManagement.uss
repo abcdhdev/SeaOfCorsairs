@@ -1,23 +1,24 @@
 :root {
-    --guild-panel-width: 820px;
+    --guild-panel-width: 1180px;
+    --guild-panel-height: 660px;
 }
 
 .guild-overlay-root {
-    background-color: rgba(2, 11, 20, 0.52);
+    background-color: rgba(2, 11, 20, 0.56);
 }
 
 .guild-panel {
-    left: 72px;
-    top: 96px;
+    left: 64px;
+    top: 84px;
     width: var(--guild-panel-width);
-    max-width: 92%;
-    height: auto;
-    max-height: 78%;
+    max-width: 94%;
+    height: var(--guild-panel-height);
+    max-height: 82%;
     padding-top: 0;
 }
 
 .guild-header {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 .guild-title {
@@ -28,16 +29,59 @@
     font-size: 12px;
 }
 
-.guild-summary-row {
-    flex-direction: row;
-    flex-wrap: wrap;
+.guild-body {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.guild-sidebar-scroll {
+    width: 320px;
+    min-width: 320px;
+}
+
+.guild-sidebar-content {
+    flex-direction: column;
     gap: 12px;
-    margin-bottom: 16px;
+}
+
+.guild-main-column {
+    flex-grow: 1;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.guild-content-header {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.guild-content-title-block {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.guild-content-title {
+    color: var(--window-text);
+    -unity-font-style: bold;
+    font-size: 18px;
+}
+
+.guild-content-copy {
+    margin-top: 4px;
+    color: var(--window-muted);
+    font-size: 12px;
+    white-space: normal;
+}
+
+.guild-summary-grid {
+    flex-direction: column;
+    gap: 10px;
 }
 
 .guild-summary-card {
-    min-width: 160px;
-    flex-grow: 1;
+    min-width: 0;
     padding-top: 12px;
     padding-right: 14px;
     padding-bottom: 12px;
@@ -53,9 +97,16 @@
     background-color: rgba(10, 15, 23, 0.94);
 }
 
-.guild-summary-card-wide {
-    min-width: 280px;
-    flex-grow: 2;
+.guild-summary-card-hero {
+    padding-top: 14px;
+    padding-right: 16px;
+    padding-bottom: 14px;
+    padding-left: 16px;
+    background-color: rgba(11, 18, 28, 0.95);
+    border-top-color: rgba(131, 99, 52, 0.95);
+    border-right-color: rgba(131, 99, 52, 0.95);
+    border-bottom-color: rgba(131, 99, 52, 0.95);
+    border-left-color: rgba(131, 99, 52, 0.95);
 }
 
 .guild-summary-label {
@@ -82,18 +133,30 @@
     white-space: normal;
 }
 
+.guild-section-title-spaced {
+    margin-top: 4px;
+}
+
+.guild-actions-column {
+    flex-direction: column;
+    gap: 10px;
+}
+
 .guild-actions-row {
     flex-direction: row;
     flex-wrap: wrap;
     gap: 10px;
-    margin-bottom: 16px;
+}
+
+.guild-actions-row-tight {
+    margin-top: 12px;
+    margin-bottom: 0;
 }
 
 .guild-primary-button,
-.guild-secondary-button,
-.guild-danger-button {
+.guild-secondary-button {
     height: 38px;
-    min-width: 190px;
+    min-width: 0;
     padding-right: 16px;
     padding-left: 16px;
     border-top-width: 1px;
@@ -129,33 +192,28 @@
     background-color: rgba(26, 40, 58, 0.98);
 }
 
-.guild-danger-button {
-    border-top-color: rgba(147, 68, 68, 0.92);
-    border-right-color: rgba(147, 68, 68, 0.92);
-    border-bottom-color: rgba(147, 68, 68, 0.92);
-    border-left-color: rgba(147, 68, 68, 0.92);
-    background-color: rgba(71, 21, 24, 0.96);
-}
-
-.guild-danger-button:hover {
-    background-color: rgba(92, 28, 32, 0.98);
-}
-
-.guild-selection-card {
-    margin-bottom: 12px;
-    padding-top: 12px;
-    padding-right: 14px;
-    padding-bottom: 12px;
-    padding-left: 14px;
+.guild-create-card {
+    display: none;
+    padding-top: 14px;
+    padding-right: 16px;
+    padding-bottom: 16px;
+    padding-left: 16px;
     border-top-width: 1px;
     border-right-width: 1px;
     border-bottom-width: 1px;
     border-left-width: 1px;
-    border-top-color: rgba(79, 100, 126, 0.45);
-    border-right-color: rgba(79, 100, 126, 0.45);
-    border-bottom-color: rgba(79, 100, 126, 0.45);
-    border-left-color: rgba(79, 100, 126, 0.45);
-    background-color: rgba(10, 13, 20, 0.92);
+    border-top-color: rgba(71, 145, 104, 0.62);
+    border-right-color: rgba(71, 145, 104, 0.62);
+    border-bottom-color: rgba(71, 145, 104, 0.62);
+    border-left-color: rgba(71, 145, 104, 0.62);
+    background-color: rgba(8, 16, 22, 0.94);
+}
+
+.guild-create-hint {
+    margin-bottom: 10px;
+    color: rgba(190, 205, 216, 0.88);
+    font-size: 12px;
+    white-space: normal;
 }
 
 .guild-section-title {
@@ -165,19 +223,156 @@
     font-size: 14px;
 }
 
-.guild-selection-line {
-    color: var(--window-text);
+.guild-text-field {
+    margin-bottom: 10px;
+}
+
+.guild-text-field > .unity-base-field__label {
+    min-width: 110px;
+    color: rgba(224, 212, 194, 0.94);
+    font-size: 12px;
+}
+
+.guild-text-field > .unity-base-field__input {
+    margin-left: 0;
+}
+
+.guild-text-field .unity-base-text-field__input {
+    min-height: 34px;
+    padding-top: 8px;
+    padding-right: 10px;
+    padding-bottom: 8px;
+    padding-left: 10px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(118, 92, 56, 0.86);
+    border-right-color: rgba(118, 92, 56, 0.86);
+    border-bottom-color: rgba(118, 92, 56, 0.86);
+    border-left-color: rgba(118, 92, 56, 0.86);
+    background-color: rgba(5, 10, 16, 0.98);
+    color: rgba(231, 221, 203, 0.98);
     font-size: 13px;
 }
 
-.guild-selection-line-muted {
+.guild-text-field-multiline .unity-base-text-field__input {
+    min-height: 88px;
+    white-space: normal;
+}
+
+.guild-list-scroll {
+    flex-grow: 1;
+    min-height: 0;
+    padding-top: 6px;
+    padding-right: 8px;
+    padding-bottom: 6px;
+    padding-left: 8px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(79, 100, 126, 0.45);
+    border-right-color: rgba(79, 100, 126, 0.45);
+    border-bottom-color: rgba(79, 100, 126, 0.45);
+    border-left-color: rgba(79, 100, 126, 0.45);
+    background-color: rgba(6, 9, 15, 0.9);
+}
+
+.guild-list-scroll .unity-scroll-view__content-container {
+    flex-direction: column;
+    row-gap: 10px;
+}
+
+.guild-list-card {
+    position: relative;
+    padding-top: 12px;
+    padding-right: 14px;
+    padding-bottom: 12px;
+    padding-left: 14px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(103, 84, 52, 0.7);
+    border-right-color: rgba(103, 84, 52, 0.7);
+    border-bottom-color: rgba(103, 84, 52, 0.7);
+    border-left-color: rgba(103, 84, 52, 0.7);
+    background-color: rgba(10, 14, 20, 0.96);
+}
+
+.guild-list-card-current {
+    border-top-color: rgba(82, 165, 120, 0.86);
+    border-right-color: rgba(82, 165, 120, 0.86);
+    border-bottom-color: rgba(82, 165, 120, 0.86);
+    border-left-color: rgba(82, 165, 120, 0.86);
+    background-color: rgba(11, 22, 19, 0.98);
+}
+
+.guild-list-title {
+    color: rgba(245, 221, 182, 0.98);
+    -unity-font-style: bold;
+    font-size: 18px;
+}
+
+.guild-list-meta {
     margin-top: 4px;
-    color: var(--window-muted);
+    color: rgba(170, 182, 196, 0.92);
+    font-size: 12px;
+}
+
+.guild-list-description {
+    margin-top: 8px;
+    color: rgba(225, 231, 236, 0.96);
+    font-size: 13px;
+    white-space: normal;
+}
+
+.guild-list-badge {
+    align-self: flex-start;
+    margin-bottom: 8px;
+    padding-top: 3px;
+    padding-right: 10px;
+    padding-bottom: 3px;
+    padding-left: 10px;
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-left-radius: 999px;
+    border-bottom-right-radius: 999px;
+    background-color: rgba(28, 86, 50, 0.95);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(126, 220, 169, 0.85);
+    border-right-color: rgba(126, 220, 169, 0.85);
+    border-bottom-color: rgba(126, 220, 169, 0.85);
+    border-left-color: rgba(126, 220, 169, 0.85);
+    color: rgba(224, 255, 231, 0.99);
+    -unity-font-style: bold;
+    font-size: 11px;
+}
+
+.guild-empty-label {
+    padding-top: 18px;
+    padding-bottom: 18px;
+    color: rgba(191, 201, 214, 0.92);
+    font-size: 13px;
+    -unity-text-align: middle-center;
 }
 
 .guild-status-label {
+    margin-top: 2px;
     margin-bottom: 4px;
     color: rgba(207, 219, 232, 0.92);
     font-size: 12px;
     white-space: normal;
+}
+
+.guild-status-success {
+    color: rgba(171, 238, 182, 0.98);
+}
+
+.guild-status-error {
+    color: rgba(255, 179, 179, 0.98);
 }

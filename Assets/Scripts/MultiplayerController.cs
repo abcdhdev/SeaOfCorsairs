@@ -45,6 +45,7 @@ public class MultiplayerController : MonoBehaviour
         public bool IsApplyingWallet;
         public int PendingGold;
         public int PendingDiamond;
+        public int PendingExperience;
         public bool WalletDirty;
         public bool WalletSaveLoopRunning;
     }
@@ -588,6 +589,7 @@ public class MultiplayerController : MonoBehaviour
             player.SetOwnerEntityId(session.UserId);
 
             _ = await TryLoadPlayerStateIntoPlayerAsync(session, player, session.LifetimeCts.Token);
+            _ = await TryLoadGuildAbbreviationIntoPlayerAsync(session, player, session.LifetimeCts.Token);
 
             if (session.LifetimeCts.IsCancellationRequested)
             {
@@ -641,10 +643,9 @@ public class MultiplayerController : MonoBehaviour
                 return;
             }
 
-            _ = experience;
-
             session.PendingGold = Mathf.Max(0, gold);
             session.PendingDiamond = Mathf.Max(0, diamonds);
+            session.PendingExperience = Mathf.Max(0, experience);
             session.WalletDirty = true;
 
             if (!session.WalletSaveLoopRunning)
@@ -686,7 +687,12 @@ public class MultiplayerController : MonoBehaviour
                 try
                 {
                     session.WalletDirty = false;
-                    saved = await TrySaveWalletAsync(session, session.PendingGold, session.PendingDiamond, session.LifetimeCts.Token);
+                    saved = await TrySaveWalletAsync(
+                        session,
+                        session.PendingGold,
+                        session.PendingDiamond,
+                        session.PendingExperience,
+                        session.LifetimeCts.Token);
                 }
                 finally
                 {
@@ -769,6 +775,7 @@ public class MultiplayerController : MonoBehaviour
                     session.HasWalletVersion = true;
                     session.PendingGold = Mathf.Max(0, purchase.gold);
                     session.PendingDiamond = Mathf.Max(0, purchase.diamond);
+                    session.PendingExperience = Mathf.Max(0, player.Experience);
                     session.WalletDirty = false;
 
                     session.IsApplyingWallet = true;
@@ -883,6 +890,7 @@ public class MultiplayerController : MonoBehaviour
                     session.HasWalletVersion = true;
                     session.PendingGold = Mathf.Max(0, purchase.gold);
                     session.PendingDiamond = Mathf.Max(0, purchase.diamond);
+                    session.PendingExperience = Mathf.Max(0, player.Experience);
                     session.WalletDirty = false;
 
                     session.IsApplyingWallet = true;
@@ -956,12 +964,13 @@ public class MultiplayerController : MonoBehaviour
                 session.HasWalletVersion = true;
                 session.PendingGold = Mathf.Max(0, playerState.gold);
                 session.PendingDiamond = Mathf.Max(0, playerState.diamond);
+                session.PendingExperience = Mathf.Max(0, playerState.experience);
                 session.WalletDirty = false;
 
                 session.IsApplyingWallet = true;
                 try
                 {
-                    player.ApplyPersistedWallet(playerState.gold, playerState.diamond);
+                    player.ApplyPersistedWallet(playerState.gold, playerState.diamond, playerState.experience);
                     player.ApplyPersistedOwnedCannons(playerState.ownedCannonIds);
                     player.ApplyPersistedOwnedShips(playerState.ownedShipIds);
                 }
@@ -994,7 +1003,92 @@ public class MultiplayerController : MonoBehaviour
         return false;
     }
 
-    private static async Task<bool> TrySaveWalletAsync(AuthenticatedClientSession session, int gold, int diamond, CancellationToken cancellationToken)
+    private static async Task<bool> TryLoadGuildAbbreviationIntoPlayerAsync(AuthenticatedClientSession session, Player player, CancellationToken cancellationToken)
+    {
+        if (session == null || player == null)
+        {
+            return false;
+        }
+
+        var playerDataClient = new BackendPlayerDataClient(ResolvePlayerDataBaseUrl());
+
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                var guildState = await playerDataClient.GetGuildsAsync(session.AccessToken, cancellationToken);
+                string guildAbbreviation = string.Empty;
+
+                if (guildState?.guilds != null)
+                {
+                    for (int index = 0; index < guildState.guilds.Length; index++)
+                    {
+                        GuildSummaryResponse guild = guildState.guilds[index];
+                        if (guild == null)
+                        {
+                            continue;
+                        }
+
+                        bool matchesCurrentGuildId = !string.IsNullOrWhiteSpace(guildState.currentGuildId) &&
+                                                     string.Equals(guild.id, guildState.currentGuildId, StringComparison.OrdinalIgnoreCase);
+                        if (matchesCurrentGuildId || guild.isCurrentPlayerMember)
+                        {
+                            guildAbbreviation = guild.tag ?? string.Empty;
+                            break;
+                        }
+                    }
+                }
+
+                player.ApplyGuildAbbreviation(guildAbbreviation);
+                return true;
+            }
+            catch (BackendApiException ex) when (ex.StatusCode == 401 && attempt == 0)
+            {
+                if (!await TryRefreshSessionTokensAsync(session, cancellationToken))
+                {
+                    break;
+                }
+            }
+            catch (BackendApiException ex)
+            {
+                Debug.LogWarning($"[Guilds] Failed to load guild data for user {session.UserId} via {ex.Url}: {ex.Message}");
+                break;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Guilds] Failed to load guild data for user {session.UserId}: {ex.Message}");
+                break;
+            }
+        }
+
+        player.ApplyGuildAbbreviation(string.Empty);
+        return false;
+    }
+
+    private async Task RefreshPlayerGuildAbbreviationAsync(Player player)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        if (!_clientSessions.TryGetValue(player.OwnerClientId, out var session))
+        {
+            return;
+        }
+
+        try
+        {
+            await TryLoadGuildAbbreviationIntoPlayerAsync(session, player, session.LifetimeCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private static async Task<bool> TrySaveWalletAsync(AuthenticatedClientSession session, int gold, int diamond, int experience, CancellationToken cancellationToken)
     {
         var playerDataClient = new BackendPlayerDataClient(ResolvePlayerDataBaseUrl());
 
@@ -1008,11 +1102,15 @@ public class MultiplayerController : MonoBehaviour
                     session.AccessToken,
                     gold,
                     diamond,
+                    experience,
                     session.HasWalletVersion ? session.WalletVersion : (int?)null,
                     cancellationToken);
 
                 session.WalletVersion = wallet.version;
                 session.HasWalletVersion = true;
+                session.PendingGold = Mathf.Max(0, wallet.gold);
+                session.PendingDiamond = Mathf.Max(0, wallet.diamond);
+                session.PendingExperience = Mathf.Max(0, wallet.experience);
                 return true;
             }
             catch (BackendApiException ex) when (ex.StatusCode == 401 && attempt < 2)
@@ -1052,6 +1150,9 @@ public class MultiplayerController : MonoBehaviour
         var wallet = await playerDataClient.GetWalletAsync(session.AccessToken, cancellationToken);
         session.WalletVersion = wallet.version;
         session.HasWalletVersion = true;
+        session.PendingGold = Mathf.Max(0, wallet.gold);
+        session.PendingDiamond = Mathf.Max(0, wallet.diamond);
+        session.PendingExperience = Mathf.Max(0, wallet.experience);
         return true;
     }
 
@@ -1105,6 +1206,7 @@ public class MultiplayerController : MonoBehaviour
         session.LifetimeCts.Dispose();
         session.Player = null;
         session.WalletDirty = false;
+        session.PendingExperience = 0;
         session.WalletSaveLoopRunning = false;
 
         if (!string.IsNullOrWhiteSpace(session.UserId) &&
@@ -1248,6 +1350,23 @@ public class MultiplayerController : MonoBehaviour
         _ = ProcessShipPurchaseAsync(player, shipId);
 #else
         player.NotifyShipPurchaseResult(shipId, false, "Ship purchases are only available on the game server.");
+#endif
+    }
+
+    public void RequestGuildAbbreviationRefresh(Player player)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+#if UNITY_SERVER || UNITY_EDITOR
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
+        {
+            return;
+        }
+
+        _ = RefreshPlayerGuildAbbreviationAsync(player);
 #endif
     }
 
