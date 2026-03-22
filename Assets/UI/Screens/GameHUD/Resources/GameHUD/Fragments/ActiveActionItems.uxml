@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="ActiveActionItemsRoot" picking-mode="Ignore" class="active-action-item-hud">
+        <ui:VisualElement
+            name="ActiveActionItemHudBlackGunpowder"
+            picking-mode="Ignore"
+            class="active-action-item-hud-icon active-action-item-hud-icon-black-gunpowder"/>
+        <ui:VisualElement
+            name="ActiveActionItemHudAgwesArmorPlating"
+            picking-mode="Ignore"
+            class="active-action-item-hud-icon active-action-item-hud-icon-agwes-armor-plating"/>
+    </ui:VisualElement>
+</ui:UXML>

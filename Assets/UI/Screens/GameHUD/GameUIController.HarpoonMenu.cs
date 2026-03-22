@@ -175,6 +175,7 @@ public partial class GameUIController
         }
 
         CloseAmmoMenu();
+        CloseActionItemMenu();
         RefreshHarpoonSkillTooltip(localPlayer);
         OpenHarpoonMenu(localPlayer);
     }

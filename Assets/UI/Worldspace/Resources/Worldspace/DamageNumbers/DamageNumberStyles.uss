@@ -1,0 +1,14 @@
+.damage-number-content {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+.damage-number-icon {
+    width: 56px;
+    height: 56px;
+    margin-right: 8px;
+    background-repeat: no-repeat;
+    background-position: center;
+    -unity-background-scale-mode: scale-to-fit;
+}

@@ -38,6 +38,8 @@ public class MultiplayerController : MonoBehaviour
         public string RefreshToken = string.Empty;
         public Player Player;
         public Action<int, int, int> WalletChangedHandler;
+        public Action<string> SelectedShipChangedHandler;
+        public Action<PlayerActionItemType> ActiveActionItemsChangedHandler;
         public CancellationTokenSource LifetimeCts = new();
         public SemaphoreSlim PlayerStateSyncLock = new(1, 1);
         public int WalletVersion;
@@ -46,8 +48,12 @@ public class MultiplayerController : MonoBehaviour
         public int PendingGold;
         public int PendingDiamond;
         public int PendingExperience;
+        public string PendingSelectedShipId = string.Empty;
+        public PlayerActionItemType PendingActiveActionItems = PlayerActionItemType.None;
         public bool WalletDirty;
         public bool WalletSaveLoopRunning;
+        public bool PlayerStatusDirty;
+        public bool PlayerStatusSaveLoopRunning;
     }
 
     // Single-session tracking (server-only).
@@ -596,6 +602,7 @@ public class MultiplayerController : MonoBehaviour
                 return;
             }
 
+            SubscribeToPlayerStatusChanges(session, player);
             SubscribeToWalletChanges(session, player);
         }
         catch (OperationCanceledException)
@@ -667,6 +674,115 @@ public class MultiplayerController : MonoBehaviour
 
         session.Player.OnRewardWalletChanged -= session.WalletChangedHandler;
         session.WalletChangedHandler = null;
+    }
+
+    private void SubscribeToPlayerStatusChanges(AuthenticatedClientSession session, Player player)
+    {
+        if (session == null || player == null)
+        {
+            return;
+        }
+
+        UnsubscribeFromPlayerStatusChanges(session);
+
+        session.SelectedShipChangedHandler = _ =>
+        {
+            session.PendingSelectedShipId = player.SelectedShipId ?? string.Empty;
+            session.PendingActiveActionItems = player.ActiveActionItems;
+            QueuePlayerStatusSave(session);
+        };
+        session.ActiveActionItemsChangedHandler = _ =>
+        {
+            session.PendingSelectedShipId = player.SelectedShipId ?? string.Empty;
+            session.PendingActiveActionItems = player.ActiveActionItems;
+            QueuePlayerStatusSave(session);
+        };
+
+        player.OnSelectedShipChanged += session.SelectedShipChangedHandler;
+        player.OnActiveActionItemsChanged += session.ActiveActionItemsChangedHandler;
+    }
+
+    private static void UnsubscribeFromPlayerStatusChanges(AuthenticatedClientSession session)
+    {
+        if (session?.Player == null)
+        {
+            return;
+        }
+
+        if (session.SelectedShipChangedHandler != null)
+        {
+            session.Player.OnSelectedShipChanged -= session.SelectedShipChangedHandler;
+            session.SelectedShipChangedHandler = null;
+        }
+
+        if (session.ActiveActionItemsChangedHandler != null)
+        {
+            session.Player.OnActiveActionItemsChanged -= session.ActiveActionItemsChangedHandler;
+            session.ActiveActionItemsChangedHandler = null;
+        }
+    }
+
+    private void QueuePlayerStatusSave(AuthenticatedClientSession session)
+    {
+        if (session == null || session.LifetimeCts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        session.PlayerStatusDirty = true;
+        if (!session.PlayerStatusSaveLoopRunning)
+        {
+            session.PlayerStatusSaveLoopRunning = true;
+            _ = RunPlayerStatusSaveLoopAsync(session);
+        }
+    }
+
+    private async Task RunPlayerStatusSaveLoopAsync(AuthenticatedClientSession session)
+    {
+        try
+        {
+            while (!session.LifetimeCts.IsCancellationRequested)
+            {
+                if (!session.PlayerStatusDirty)
+                {
+                    break;
+                }
+
+                await session.PlayerStateSyncLock.WaitAsync(session.LifetimeCts.Token);
+                bool saved = false;
+                try
+                {
+                    session.PlayerStatusDirty = false;
+
+                    saved = await TrySavePlayerStatusAsync(
+                        session,
+                        session.PendingSelectedShipId,
+                        session.PendingActiveActionItems,
+                        session.LifetimeCts.Token);
+                }
+                finally
+                {
+                    session.PlayerStateSyncLock.Release();
+                }
+
+                if (!saved)
+                {
+                    break;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            session.PlayerStatusSaveLoopRunning = false;
+            if (session.PlayerStatusDirty && !session.LifetimeCts.IsCancellationRequested)
+            {
+                session.PlayerStatusSaveLoopRunning = true;
+                _ = RunPlayerStatusSaveLoopAsync(session);
+            }
+        }
     }
 
     private async Task RunWalletSaveLoopAsync(AuthenticatedClientSession session)
@@ -973,11 +1089,16 @@ public class MultiplayerController : MonoBehaviour
                     player.ApplyPersistedWallet(playerState.gold, playerState.diamond, playerState.experience);
                     player.ApplyPersistedOwnedCannons(playerState.ownedCannonIds);
                     player.ApplyPersistedOwnedShips(playerState.ownedShipIds);
+                    player.ApplyPersistedSelectedShip(playerState.selectedShipId);
+                    player.ApplyPersistedActiveActionItems((PlayerActionItemType)playerState.activeActionItems);
                 }
                 finally
                 {
                     session.IsApplyingWallet = false;
                 }
+
+                session.PendingSelectedShipId = player.SelectedShipId ?? string.Empty;
+                session.PendingActiveActionItems = player.ActiveActionItems;
 
                 return true;
             }
@@ -1156,6 +1277,61 @@ public class MultiplayerController : MonoBehaviour
         return true;
     }
 
+    private static async Task<bool> TrySavePlayerStatusAsync(
+        AuthenticatedClientSession session,
+        string selectedShipId,
+        PlayerActionItemType activeActionItems,
+        CancellationToken cancellationToken)
+    {
+        var playerDataClient = new BackendPlayerDataClient(ResolvePlayerDataBaseUrl());
+
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                var status = await playerDataClient.UpdatePlayerStatusAsync(
+                    session.AccessToken,
+                    selectedShipId,
+                    activeActionItems,
+                    cancellationToken);
+
+                session.WalletVersion = status.version;
+                session.HasWalletVersion = true;
+                return true;
+            }
+            catch (BackendApiException ex) when (ex.StatusCode == 401 && attempt < 2)
+            {
+                if (!await TryRefreshSessionTokensAsync(session, cancellationToken))
+                {
+                    Debug.LogWarning($"[PlayerStatus] Access token refresh failed for user {session.UserId}: {ex.Message}");
+                    return false;
+                }
+            }
+            catch (BackendApiException ex) when (ex.StatusCode == 409 && attempt < 2)
+            {
+                if (!await TryReloadWalletVersionAsync(session, cancellationToken))
+                {
+                    Debug.LogWarning($"[PlayerStatus] Player state version refresh failed for user {session.UserId}: {ex.Message}");
+                    return false;
+                }
+            }
+            catch (BackendApiException ex)
+            {
+                Debug.LogWarning($"[PlayerStatus] Failed to save status for user {session.UserId} via {ex.Url}: {ex.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[PlayerStatus] Failed to save status for user {session.UserId}: {ex.Message}");
+                return false;
+            }
+        }
+
+        return false;
+    }
+
     private static async Task<bool> TryRefreshSessionTokensAsync(AuthenticatedClientSession session, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(session.RefreshToken))
@@ -1196,6 +1372,7 @@ public class MultiplayerController : MonoBehaviour
             return;
         }
 
+        UnsubscribeFromPlayerStatusChanges(session);
         UnsubscribeFromWalletChanges(session);
 
         if (!session.LifetimeCts.IsCancellationRequested)
@@ -1207,7 +1384,11 @@ public class MultiplayerController : MonoBehaviour
         session.Player = null;
         session.WalletDirty = false;
         session.PendingExperience = 0;
+        session.PendingSelectedShipId = string.Empty;
+        session.PendingActiveActionItems = PlayerActionItemType.None;
         session.WalletSaveLoopRunning = false;
+        session.PlayerStatusDirty = false;
+        session.PlayerStatusSaveLoopRunning = false;
 
         if (!string.IsNullOrWhiteSpace(session.UserId) &&
             _userIdToClientId.TryGetValue(session.UserId, out ulong mappedClientId) &&

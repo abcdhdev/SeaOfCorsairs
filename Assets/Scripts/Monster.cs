@@ -96,8 +96,20 @@ public sealed class Monster : NetworkBehaviour, ICombatEntity, IDamageSourceRece
             return;
         }
 
-        int newHealth = Mathf.Max(networkHealth.Value - damage, 0);
+        int resolvedDamage = CombatActionItemUtility.ApplyIncomingDamageModifiers(
+            gameObject,
+            damage,
+            damageSource,
+            out DamageNumberEffectStyle effectStyle);
+
+        if (resolvedDamage <= 0)
+        {
+            return;
+        }
+
+        int newHealth = Mathf.Max(networkHealth.Value - resolvedDamage, 0);
         networkHealth.Value = newHealth;
+        ShowDamageNumberClientRpc(resolvedDamage, (int)effectStyle);
 
         if (newHealth <= 0)
         {
@@ -160,14 +172,20 @@ public sealed class Monster : NetworkBehaviour, ICombatEntity, IDamageSourceRece
         OnHealthChanged?.Invoke(Mathf.Clamp01(newValue / (float)resolvedMaxHealth));
 
         int delta = previousValue - newValue;
-        if (delta > 0)
-        {
-            DamageNumberService.Show(transform.position, delta, false);
-        }
-        else if (delta < 0)
+        if (delta < 0)
         {
             DamageNumberService.Show(transform.position, -delta, true);
         }
+    }
+
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    private void ShowDamageNumberClientRpc(int amount, int effectStyle)
+    {
+        DamageNumberService.Show(
+            transform.position,
+            amount,
+            false,
+            CombatActionItemUtility.NormalizeDamageNumberEffectStyle(effectStyle));
     }
 
     private void EnsureWorldNameplate()

@@ -4,6 +4,7 @@ using UnityEngine.UIElements;
 public partial class GameUIController
 {
     private const string TopBarMountName = "TopBarMount";
+    private const string ActiveActionItemsMountName = "ActiveActionItemsMount";
     private const string MinimapMountName = "MinimapMount";
     private const string CoordinateRulerMountName = "CoordinateRulerMount";
     private const string ChatMountName = "ChatMount";
@@ -12,6 +13,7 @@ public partial class GameUIController
     private const string DeadOverlayMountName = "DeadOverlayMount";
 
     private const string TopBarFragmentPath = "GameHUD/Fragments/TopBar";
+    private const string ActiveActionItemsFragmentPath = "GameHUD/Fragments/ActiveActionItems";
     private const string MinimapFragmentPath = "GameHUD/Fragments/Minimap";
     private const string CoordinateRulerFragmentPath = "GameHUD/Fragments/CoordinateRuler";
     private const string ChatFragmentPath = "GameHUD/Fragments/ChatPanel";
@@ -27,6 +29,7 @@ public partial class GameUIController
         }
 
         EnsureFragmentMounted(TopBarMountName, "TopMenuBar", TopBarFragmentPath);
+        EnsureFragmentMounted(ActiveActionItemsMountName, "ActiveActionItemsRoot", ActiveActionItemsFragmentPath);
         EnsureFragmentMounted(MinimapMountName, "MinimapRoot", MinimapFragmentPath);
         EnsureFragmentMounted(CoordinateRulerMountName, "CoordinateRulerRoot", CoordinateRulerFragmentPath);
         EnsureFragmentMounted(ChatMountName, "MmoChatRoot", ChatFragmentPath);

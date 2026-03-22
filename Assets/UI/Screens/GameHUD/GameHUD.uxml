@@ -2,6 +2,7 @@
     <Style src="project://database/Assets/UI/Core/GameUI.uss?fileID=7433441132597879392&amp;guid=a6f6d39c325d3f44495b73776a1f9b3d&amp;type=3#GameUI"/>
     <ui:VisualElement name="HudRoot" picking-mode="Ignore" class="hud-root">
         <ui:VisualElement name="TopBarMount" picking-mode="Ignore"/>
+        <ui:VisualElement name="ActiveActionItemsMount" picking-mode="Ignore"/>
         <ui:VisualElement name="MinimapMount" picking-mode="Ignore"/>
         <ui:VisualElement name="CoordinateRulerMount" picking-mode="Ignore"/>
         <ui:VisualElement name="CombatOverlayLayer" picking-mode="Ignore" class="combat-overlay-layer"/>

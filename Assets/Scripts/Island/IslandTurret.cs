@@ -7,7 +7,7 @@ using UnityEngine;
 [RequireComponent(typeof(NetworkObject))]
 [RequireComponent(typeof(WeaponFireController))]
 [RequireComponent(typeof(PlayerAttack))]
-public sealed class IslandTurret : NetworkBehaviour, ICombatEntity
+public sealed class IslandTurret : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 {
     private const string CannonballResourcePath = "Island/Cannonball";
 
@@ -179,6 +179,11 @@ public sealed class IslandTurret : NetworkBehaviour, ICombatEntity
 
     public void TakeDamage(int damage)
     {
+        TakeDamage(damage, null);
+    }
+
+    public void TakeDamage(int damage, GameObject damageSource)
+    {
         if (damage <= 0)
         {
             return;
@@ -195,7 +200,19 @@ public sealed class IslandTurret : NetworkBehaviour, ICombatEntity
             return;
         }
 
-        networkHealth.Value = Mathf.Max(0, networkHealth.Value - damage);
+        int resolvedDamage = CombatActionItemUtility.ApplyIncomingDamageModifiers(
+            gameObject,
+            damage,
+            damageSource,
+            out DamageNumberEffectStyle effectStyle);
+
+        if (resolvedDamage <= 0)
+        {
+            return;
+        }
+
+        networkHealth.Value = Mathf.Max(0, networkHealth.Value - resolvedDamage);
+        ShowDamageNumberClientRpc(resolvedDamage, (int)effectStyle);
         if (networkHealth.Value <= 0)
         {
             HandleDestroyed();
@@ -339,14 +356,20 @@ public sealed class IslandTurret : NetworkBehaviour, ICombatEntity
         OnHealthChanged?.Invoke(Mathf.Clamp01(newValue / (float)resolvedMaxHealth));
 
         int delta = previousValue - newValue;
-        if (delta > 0)
-        {
-            DamageNumberService.Show(transform.position, delta, false);
-        }
-        else if (delta < 0)
+        if (delta < 0)
         {
             DamageNumberService.Show(transform.position, -delta, true);
         }
+    }
+
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    private void ShowDamageNumberClientRpc(int amount, int effectStyle)
+    {
+        DamageNumberService.Show(
+            transform.position,
+            amount,
+            false,
+            CombatActionItemUtility.NormalizeDamageNumberEffectStyle(effectStyle));
     }
 
     private void HandleDestroyed()

@@ -13,7 +13,7 @@ public partial class GameUIController
         sourceSkills.Add(CreateSkill("ammo", "Cannonball", 4, OnSelectAmmoClicked));
         sourceSkills.Add(CreateSkill("harpoon", "Harpoon", 5, OnSelectHarpoonClicked));
         sourceSkills.Add(CreateSkill("empty-6", string.Empty, 6, null));
-        sourceSkills.Add(CreateSkill("empty-7", string.Empty, 7, null));
+        sourceSkills.Add(CreateSkill("action-item", "Action Items", 7, OnSelectActionItemClicked));
         sourceSkills.Add(CreateSkill("empty-8", string.Empty, 8, null));
         sourceSkills.Add(CreateSkill("empty-9", string.Empty, 9, null));
         sourceSkills.Add(CreateSkill("repair-toggle", "Repair", 10, OnRepairClicked));
@@ -523,11 +523,13 @@ public partial class GameUIController
             ClearPendingSourcePress();
             CloseAmmoMenu();
             CloseHarpoonMenu();
+            CloseActionItemMenu();
         }
         else
         {
             CloseAmmoMenu();
             CloseHarpoonMenu();
+            CloseActionItemMenu();
         }
 
         RefreshActionBarVisibility();
@@ -633,6 +635,11 @@ public partial class GameUIController
         }
 
         localPlayer.ToggleRepairing();
+    }
+
+    private void OnSelectActionItemClicked()
+    {
+        ToggleActionItemMenu();
     }
 
     private static void LogSkillNotImplemented(string skillName)

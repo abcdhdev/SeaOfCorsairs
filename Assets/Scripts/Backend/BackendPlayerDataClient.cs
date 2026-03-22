@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,6 +33,17 @@ public sealed class BackendPlayerDataClient
         return ReadResponseTextOrThrow(request, url);
     }
 
+    public async Task<PlayerStateResponse> GetPlayerStateAsync(string accessToken, CancellationToken cancellationToken = default)
+    {
+        var url = $"{_playerDataBaseUrl}/v1/player/me";
+        using var request = UnityWebRequest.Get(url);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Authorization", $"Bearer {accessToken ?? string.Empty}");
+
+        await request.SendWebRequestAsync(cancellationToken);
+        return ParseJsonOrThrow<PlayerStateResponse>(request, url);
+    }
+
     public async Task<PlayerWalletResponse> GetWalletAsync(string accessToken, CancellationToken cancellationToken = default)
     {
         var url = $"{_playerDataBaseUrl}/v1/player/me/wallet";
@@ -47,9 +59,53 @@ public sealed class BackendPlayerDataClient
         catch (BackendApiException ex) when (ex.StatusCode == 404)
         {
             // Older player-data-service builds expose only the generic player-state endpoint.
-            var rawState = await GetPlayerMeRawAsync(accessToken, cancellationToken);
-            return ParseWalletFromPlayerStateResponse(rawState, $"{_playerDataBaseUrl}/v1/player/me");
+            var playerState = await GetPlayerStateAsync(accessToken, cancellationToken);
+            return ParseWalletFromPlayerStateResponse(playerState);
         }
+    }
+
+    public async Task<PlayerStateResponse> UpdatePlayerStateAsync(
+        string accessToken,
+        JObject state,
+        int? expectedVersion = null,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"{_playerDataBaseUrl}/v1/player/me/state";
+        var body = new JObject
+        {
+            ["state"] = state ?? new JObject(),
+        };
+
+        if (expectedVersion.HasValue)
+        {
+            body["expectedVersion"] = expectedVersion.Value;
+        }
+
+        using var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPUT);
+        var bytes = Encoding.UTF8.GetBytes(body.ToString(Formatting.None));
+        request.uploadHandler = new UploadHandlerRaw(bytes);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.SetRequestHeader("Authorization", $"Bearer {accessToken ?? string.Empty}");
+
+        await request.SendWebRequestAsync(cancellationToken);
+        return ParseJsonOrThrow<PlayerStateResponse>(request, url);
+    }
+
+    public async Task<PlayerStateResponse> UpdatePlayerStatusAsync(
+        string accessToken,
+        string selectedShipId,
+        PlayerActionItemType activeActionItems,
+        CancellationToken cancellationToken = default)
+    {
+        var currentState = await GetPlayerStateAsync(accessToken, cancellationToken);
+        var state = currentState.state ?? new JObject();
+        var ownedShipIds = EnsureDefaultShipIds(ReadStringArray(state, "ownedShips"));
+
+        state["selectedShipId"] = ResolveSelectedShipId(selectedShipId, ownedShipIds);
+        state["activeActionItems"] = NormalizeActionItemMask(activeActionItems);
+
+        return await UpdatePlayerStateAsync(accessToken, state, currentState.version, cancellationToken);
     }
 
     public async Task<PlayerWalletResponse> UpdateWalletAsync(string accessToken, int gold, int diamond, int experience, int? expectedVersion = null, CancellationToken cancellationToken = default)
@@ -79,8 +135,8 @@ public sealed class BackendPlayerDataClient
 
     public async Task<PlayerMarketStateResponse> GetMarketStateAsync(string accessToken, CancellationToken cancellationToken = default)
     {
-        var rawState = await GetPlayerMeRawAsync(accessToken, cancellationToken);
-        return ParseMarketStateFromPlayerStateResponse(rawState, $"{_playerDataBaseUrl}/v1/player/me");
+        var playerState = await GetPlayerStateAsync(accessToken, cancellationToken);
+        return ParseMarketStateFromPlayerStateResponse(playerState);
     }
 
     public async Task<CannonPurchaseResponse> PurchaseCannonAsync(
@@ -290,97 +346,54 @@ public sealed class BackendPlayerDataClient
 
     private async Task<PlayerWalletResponse> UpdateWalletViaPlayerStateAsync(string accessToken, int gold, int diamond, int experience, int? expectedVersion, CancellationToken cancellationToken)
     {
-        var currentState = ParsePlayerStateResponse(
-            await GetPlayerMeRawAsync(accessToken, cancellationToken),
-            $"{_playerDataBaseUrl}/v1/player/me");
+        var currentState = await GetPlayerStateAsync(accessToken, cancellationToken);
 
-        currentState.State["gold"] = Math.Max(0, gold);
-        currentState.State["diamond"] = Math.Max(0, diamond);
-        currentState.State["experience"] = Math.Max(0, experience);
+        var state = currentState.state ?? new JObject();
+        state["gold"] = Math.Max(0, gold);
+        state["diamond"] = Math.Max(0, diamond);
+        state["experience"] = Math.Max(0, experience);
 
-        var body = new JObject
-        {
-            ["state"] = currentState.State
-        };
-
-        if (expectedVersion.HasValue)
-        {
-            body["expectedVersion"] = expectedVersion.Value;
-        }
-
-        var url = $"{_playerDataBaseUrl}/v1/player/me/state";
-        using var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPUT);
-        var bytes = Encoding.UTF8.GetBytes(body.ToString(Formatting.None));
-        request.uploadHandler = new UploadHandlerRaw(bytes);
-        request.downloadHandler = new DownloadHandlerBuffer();
-        request.SetRequestHeader("Content-Type", "application/json");
-        request.SetRequestHeader("Authorization", $"Bearer {accessToken ?? string.Empty}");
-
-        await request.SendWebRequestAsync(cancellationToken);
-        var responseText = ReadResponseTextOrThrow(request, url);
-        return ParseWalletFromPlayerStateResponse(responseText, url);
+        var updatedState = await UpdatePlayerStateAsync(accessToken, state, expectedVersion ?? currentState.version, cancellationToken);
+        return ParseWalletFromPlayerStateResponse(updatedState);
     }
 
-    private static PlayerWalletResponse ParseWalletFromPlayerStateResponse(string responseText, string url)
+    private static PlayerWalletResponse ParseWalletFromPlayerStateResponse(PlayerStateResponse playerState)
     {
-        var playerState = ParsePlayerStateResponse(responseText, url);
-        var gold = ReadNonNegativeInt(playerState.State, "gold");
-        var diamond = ReadNonNegativeInt(playerState.State, "diamond");
-        var experience = ReadNonNegativeInt(playerState.State, "experience");
+        var state = playerState?.state ?? new JObject();
+        var gold = ReadNonNegativeInt(state, "gold");
+        var diamond = ReadNonNegativeInt(state, "diamond");
+        var experience = ReadNonNegativeInt(state, "experience");
 
         return new PlayerWalletResponse
         {
             gold = gold,
             diamond = diamond,
             experience = experience,
-            version = playerState.Version,
-            updatedAt = playerState.UpdatedAt,
+            version = playerState?.version ?? 0,
+            updatedAt = playerState?.updatedAt ?? string.Empty,
         };
     }
 
-    private static PlayerMarketStateResponse ParseMarketStateFromPlayerStateResponse(string responseText, string url)
+    private static PlayerMarketStateResponse ParseMarketStateFromPlayerStateResponse(PlayerStateResponse playerState)
     {
-        var playerState = ParsePlayerStateResponse(responseText, url);
-        var gold = ReadNonNegativeInt(playerState.State, "gold");
-        var diamond = ReadNonNegativeInt(playerState.State, "diamond");
-        var experience = ReadNonNegativeInt(playerState.State, "experience");
+        var state = playerState?.state ?? new JObject();
+        var gold = ReadNonNegativeInt(state, "gold");
+        var diamond = ReadNonNegativeInt(state, "diamond");
+        var experience = ReadNonNegativeInt(state, "experience");
+        var ownedShipIds = EnsureDefaultShipIds(ReadStringArray(state, "ownedShips"));
 
         return new PlayerMarketStateResponse
         {
             gold = gold,
             diamond = diamond,
             experience = experience,
-            ownedCannonIds = ReadStringArray(playerState.State, "ownedCannons"),
-            ownedShipIds = EnsureDefaultShipIds(ReadStringArray(playerState.State, "ownedShips")),
-            version = playerState.Version,
-            updatedAt = playerState.UpdatedAt,
+            ownedCannonIds = ReadStringArray(state, "ownedCannons"),
+            ownedShipIds = ownedShipIds,
+            selectedShipId = ResolveSelectedShipId(ReadStringValue(state, "selectedShipId"), ownedShipIds),
+            activeActionItems = ReadActiveActionItemsMask(state),
+            version = playerState?.version ?? 0,
+            updatedAt = playerState?.updatedAt ?? string.Empty,
         };
-    }
-
-    private static PlayerStatePayload ParsePlayerStateResponse(string responseText, string url)
-    {
-        if (string.IsNullOrWhiteSpace(responseText))
-        {
-            throw new InvalidOperationException($"Empty response from {url}.");
-        }
-
-        try
-        {
-            var payload = JsonConvert.DeserializeObject<JObject>(responseText);
-            if (payload == null)
-            {
-                throw new InvalidOperationException("Response payload was null.");
-            }
-
-            var state = payload["state"] as JObject ?? new JObject();
-            var version = ReadNonNegativeIntValue(payload["version"]);
-            var updatedAt = payload["updatedAt"]?.Value<string>() ?? string.Empty;
-            return new PlayerStatePayload(version, updatedAt, state);
-        }
-        catch (Exception ex) when (ex is JsonException || ex is InvalidOperationException)
-        {
-            throw new InvalidOperationException($"Failed to parse player-state response from {url}: {ex.Message}", ex);
-        }
     }
 
     private static int ReadNonNegativeInt(JObject state, string propertyName)
@@ -466,6 +479,81 @@ public sealed class BackendPlayerDataClient
         return values.Count == 0 ? Array.Empty<string>() : values.ToArray();
     }
 
+    private static string ReadStringValue(JObject state, string propertyName)
+    {
+        if (state == null || !state.TryGetValue(propertyName, out var token) || token == null)
+        {
+            return string.Empty;
+        }
+
+        if (token.Type == JTokenType.String)
+        {
+            return token.Value<string>()?.Trim() ?? string.Empty;
+        }
+
+        return token.ToString().Trim();
+    }
+
+    private static string ResolveSelectedShipId(string selectedShipId, IReadOnlyList<string> ownedShipIds)
+    {
+        var normalizedSelectedShipId = MarketShipCatalogRuntime.NormalizeShipId(selectedShipId);
+        if (ownedShipIds != null &&
+            !string.IsNullOrWhiteSpace(normalizedSelectedShipId) &&
+            ContainsOwnedShipId(ownedShipIds, normalizedSelectedShipId) &&
+            MarketShipCatalogRuntime.TryGetShip(normalizedSelectedShipId, out _))
+        {
+            return normalizedSelectedShipId;
+        }
+
+        if (ownedShipIds != null && ownedShipIds.Count > 0)
+        {
+            return MarketShipCatalogRuntime.NormalizeShipId(ownedShipIds[0]);
+        }
+
+        return DefaultOwnedShipId;
+    }
+
+    private static bool ContainsOwnedShipId(IReadOnlyList<string> ownedShipIds, string shipId)
+    {
+        if (ownedShipIds == null)
+        {
+            return false;
+        }
+
+        var normalizedShipId = MarketShipCatalogRuntime.NormalizeShipId(shipId);
+        if (string.IsNullOrWhiteSpace(normalizedShipId))
+        {
+            return false;
+        }
+
+        for (var index = 0; index < ownedShipIds.Count; index++)
+        {
+            if (string.Equals(ownedShipIds[index], normalizedShipId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static int ReadActiveActionItemsMask(JObject state)
+    {
+        if (state == null || !state.TryGetValue("activeActionItems", out var token))
+        {
+            return 0;
+        }
+
+        const int allowedMask = (int)(PlayerActionItemType.BlackGunpowder | PlayerActionItemType.AgwesArmorPlating);
+        return ReadNonNegativeIntValue(token) & allowedMask;
+    }
+
+    private static int NormalizeActionItemMask(PlayerActionItemType activeActionItems)
+    {
+        const int allowedMask = (int)(PlayerActionItemType.BlackGunpowder | PlayerActionItemType.AgwesArmorPlating);
+        return ((int)activeActionItems) & allowedMask;
+    }
+
     private static string[] EnsureDefaultShipIds(string[] ownedShipIds)
     {
         if (ownedShipIds == null || ownedShipIds.Length == 0)
@@ -491,20 +579,6 @@ public sealed class BackendPlayerDataClient
         return values;
     }
 
-    private sealed class PlayerStatePayload
-    {
-        public PlayerStatePayload(int version, string updatedAt, JObject state)
-        {
-            Version = version;
-            UpdatedAt = updatedAt ?? string.Empty;
-            State = state ?? new JObject();
-        }
-
-        public int Version { get; }
-        public string UpdatedAt { get; }
-        public JObject State { get; }
-    }
-
 }
 
 [Serializable]
@@ -525,7 +599,17 @@ public sealed class PlayerMarketStateResponse
     public int experience;
     public string[] ownedCannonIds;
     public string[] ownedShipIds;
+    public string selectedShipId;
+    public int activeActionItems;
     public int version;
+    public string updatedAt;
+}
+
+[Serializable]
+public sealed class PlayerStateResponse
+{
+    public int version;
+    public JObject state = new JObject();
     public string updatedAt;
 }
 

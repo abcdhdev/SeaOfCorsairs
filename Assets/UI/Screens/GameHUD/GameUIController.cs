@@ -39,6 +39,7 @@ public partial class GameUIController : MonoBehaviour
     private const float SourceSlotDragThreshold = 12f;
     private const int AmmoSourceSlotIndex = 3;
     private const int HarpoonSourceSlotIndex = 4;
+    private const int ActionItemSourceSlotIndex = 6;
 
     private sealed class SkillDefinition
     {
@@ -83,6 +84,9 @@ public partial class GameUIController : MonoBehaviour
     private Button topMenuGuildsButton;
     private Button topMenuShipButton;
     private Button topMenuLogoutButton;
+    private VisualElement activeActionItemHudRoot;
+    private VisualElement activeActionItemHudBlackGunpowder;
+    private VisualElement activeActionItemHudAgwesArmorPlating;
     private float fpsDeltaTime;
     private float fpsPingTimer;
     private bool isTopMenuShieldDropdownOpen;
@@ -122,6 +126,9 @@ public partial class GameUIController : MonoBehaviour
     private VisualElement harpoonMenuBackdrop;
     private VisualElement harpoonMenuPanel;
     private bool isHarpoonMenuOpen;
+    private VisualElement actionItemMenuBackdrop;
+    private VisualElement actionItemMenuPanel;
+    private bool isActionItemMenuOpen;
     private ShipSectionController shipSectionController;
 
     private IHealthSystem trackedHealthTarget;
@@ -135,6 +142,8 @@ public partial class GameUIController : MonoBehaviour
     private int displayedPlayerDiamonds = -1;
     private int displayedPlayerExperience = -1;
     private int displayedPlayerExperienceToNext = -1;
+    private int displayedActionItemMask = -1;
+    private int renderedActionItemMenuMask = -1;
     private float displayedCameraZoom = float.NaN;
     private bool missingHealthTemplateLogged;
 
@@ -161,6 +170,7 @@ public partial class GameUIController : MonoBehaviour
         EnsureShipSection();
         SetCombatOverlayVisible(true);
         EnsureAmmoMenu();
+        EnsureActionItemMenu();
         EnsureMarketSection();
         EnsureGuildManagementSection();
         RegisterBlockingUiElements();
@@ -200,6 +210,7 @@ public partial class GameUIController : MonoBehaviour
         UnbindLocalPlayerDeathEvents();
         CloseAmmoMenu();
         CloseHarpoonMenu();
+        CloseActionItemMenu();
         marketController?.Dispose();
         marketController = null;
         guildManagementController?.Dispose();
@@ -361,6 +372,9 @@ public partial class GameUIController : MonoBehaviour
         topMenuGuildsButton = root.Q<Button>("TopMenuGuildsButton");
         topMenuShipButton = root.Q<Button>("TopMenuShipButton");
         topMenuLogoutButton = root.Q<Button>("TopMenuLogoutButton");
+        activeActionItemHudRoot = root.Q<VisualElement>("ActiveActionItemsRoot");
+        activeActionItemHudBlackGunpowder = root.Q<VisualElement>("ActiveActionItemHudBlackGunpowder");
+        activeActionItemHudAgwesArmorPlating = root.Q<VisualElement>("ActiveActionItemHudAgwesArmorPlating");
         BindCoordinateRulerElements();
         if (topMenuShieldDropdown != null)
         {
@@ -381,6 +395,8 @@ public partial class GameUIController : MonoBehaviour
         displayedPlayerDiamonds = -1;
         displayedPlayerExperience = -1;
         displayedPlayerExperienceToNext = -1;
+        displayedActionItemMask = -1;
+        renderedActionItemMenuMask = -1;
         displayedCameraZoom = float.NaN;
         ammoMenuBackdrop = null;
         ammoMenuPanel = null;
@@ -401,6 +417,9 @@ public partial class GameUIController : MonoBehaviour
         topMenuGuildsButton = null;
         topMenuShipButton = null;
         topMenuLogoutButton = null;
+        activeActionItemHudRoot = null;
+        activeActionItemHudBlackGunpowder = null;
+        activeActionItemHudAgwesArmorPlating = null;
         isTopMenuShieldDropdownOpen = false;
         marketController = null;
         guildManagementController = null;
@@ -474,12 +493,21 @@ public partial class GameUIController : MonoBehaviour
 
     private void RefreshWeaponSelectionTooltips()
     {
-        if (!TryGetLocalPlayer(out Player localPlayer) || localPlayer == null)
+        Player localPlayer = TryGetLocalPlayer(out Player resolvedLocalPlayer) ? resolvedLocalPlayer : null;
+        RefreshActiveActionItemHud(localPlayer);
+
+        if (localPlayer == null)
         {
             return;
         }
 
+        if (isActionItemMenuOpen && renderedActionItemMenuMask != (int)localPlayer.ActiveActionItems)
+        {
+            OpenActionItemMenu(localPlayer);
+        }
+
         RefreshAmmoSkillTooltip(localPlayer);
         RefreshHarpoonSkillTooltip(localPlayer);
+        RefreshActionItemSkillTooltip(localPlayer);
     }
 }

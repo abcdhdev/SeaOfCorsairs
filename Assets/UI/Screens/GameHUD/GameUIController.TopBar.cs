@@ -221,6 +221,7 @@ public partial class GameUIController
         CloseMarket();
         shipSectionController?.Hide();
         CloseAmmoMenu();
+        CloseActionItemMenu();
         StopSkillDrag();
         ClearPendingSourcePress();
         ToggleTopMenuShieldDropdown();
@@ -233,6 +234,7 @@ public partial class GameUIController
         CloseMarket();
         shipSectionController?.Hide();
         CloseAmmoMenu();
+        CloseActionItemMenu();
         StopSkillDrag();
         ClearPendingSourcePress();
         ToggleIslandBuildingMode();
@@ -244,6 +246,7 @@ public partial class GameUIController
         CloseMarket();
         shipSectionController?.Hide();
         CloseAmmoMenu();
+        CloseActionItemMenu();
         StopSkillDrag();
         ClearPendingSourcePress();
         CloseIslandBuilding();

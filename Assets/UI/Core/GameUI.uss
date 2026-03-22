@@ -14,6 +14,8 @@
     --coordinate-ruler-offset-top: 56px;
     --coordinate-ruler-top-height: 22px;
     --coordinate-ruler-left-width: 40px;
+    --active-action-item-hud-top: 84px;
+    --active-action-item-hud-icon-gap: 3px;
 }
 
 .hud-root {
@@ -756,24 +758,25 @@
     right: 0;
     bottom: 0;
     left: 0;
-    background-color: rgba(0, 0, 0, 0.25);
+    background-color: rgba(0, 0, 0, 0.35);
 }
 
 .ammo-menu-panel {
     flex-direction: column;
-    padding-top: 10px;
-    padding-right: 10px;
-    padding-bottom: 10px;
-    padding-left: 10px;
-    background-color: var(--hud-panel-bg);
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
-    border-bottom-left-radius: 10px;
-    border-bottom-right-radius: 10px;
-    border-top-color: var(--hud-panel-border);
-    border-right-color: var(--hud-panel-border);
-    border-bottom-color: var(--hud-panel-border);
-    border-left-color: var(--hud-panel-border);
+    min-width: 280px;
+    padding-top: 6px;
+    padding-right: 6px;
+    padding-bottom: 6px;
+    padding-left: 6px;
+    background-color: rgba(12, 7, 2, 0.97);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-top-color: rgba(203, 125, 8, 0.95);
+    border-right-color: rgba(168, 99, 6, 0.82);
+    border-bottom-color: rgba(138, 78, 4, 0.72);
+    border-left-color: rgba(168, 99, 6, 0.82);
     border-top-width: 2px;
     border-right-width: 2px;
     border-bottom-width: 2px;
@@ -782,30 +785,34 @@
 
 .ammo-menu-button {
     height: 44px;
-    margin-bottom: 8px;
+    margin-bottom: 0;
     padding-left: 10px;
     padding-right: 10px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
-    border-top-width: 2px;
-    border-right-width: 2px;
-    border-bottom-width: 2px;
-    border-left-width: 2px;
-    border-top-color: var(--hud-panel-border);
-    border-right-color: var(--hud-panel-border);
-    border-bottom-color: var(--hud-panel-border);
-    border-left-color: var(--hud-panel-border);
-    background-color: rgba(20, 12, 2, 0.98);
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(96, 62, 16, 0.55);
+    border-right-color: rgba(96, 62, 16, 0.55);
+    border-bottom-color: rgba(96, 62, 16, 0.55);
+    border-left-color: rgba(96, 62, 16, 0.55);
+    background-color: rgba(18, 10, 2, 0.96);
     color: var(--hud-slot-text);
     -unity-font-style: bold;
-    font-size: 22px;
+    font-size: 14px;
     -unity-text-align: middle-left;
 }
 
 .ammo-menu-button:hover {
-    background-color: rgba(49, 24, 3, 0.99);
+    background-color: rgba(42, 24, 5, 0.98);
+    border-top-color: rgba(203, 125, 8, 0.85);
+    border-right-color: rgba(203, 125, 8, 0.85);
+    border-bottom-color: rgba(203, 125, 8, 0.85);
+    border-left-color: rgba(203, 125, 8, 0.85);
 }
 
 .ammo-menu-button.ammo-menu-button-selected {
@@ -813,7 +820,60 @@
     border-right-color: rgba(64, 188, 65, 0.95);
     border-bottom-color: rgba(64, 188, 65, 0.95);
     border-left-color: rgba(64, 188, 65, 0.95);
-    background-color: rgba(16, 56, 18, 0.94);
+    background-color: rgba(10, 38, 14, 0.96);
+}
+
+.ammo-menu-button.ammo-menu-button-selected:hover {
+    background-color: rgba(16, 56, 18, 0.98);
+}
+
+.action-item-menu-button > .unity-button__text {
+    display: none;
+}
+
+.action-item-menu-button {
+    height: 52px;
+    min-height: 52px;
+    margin-bottom: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.action-item-menu-button:last-child {
+    margin-bottom: 0;
+}
+
+.action-item-menu-button-content {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    flex-grow: 1;
+    height: 100%;
+}
+
+.action-item-menu-icon {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    margin-right: 10px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    background-repeat: no-repeat;
+    background-position: center;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.action-item-menu-label {
+    flex-grow: 1;
+    min-width: 0;
+    color: rgba(232, 198, 150, 0.98);
+    font-size: 14px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+    white-space: nowrap;
 }
 
 .combat-overlay-layer {
@@ -1583,6 +1643,53 @@
     font-size: 10px;
     -unity-font-style: bold;
     -unity-text-align: upper-left;
+}
+
+.active-action-item-hud {
+    position: absolute;
+    left: 88px;
+    top: var(--active-action-item-hud-top);
+    height: 62px;
+    display: none;
+    flex-direction: row;
+    align-items: center;
+    padding-top: 7px;
+    padding-right: 8px;
+    padding-bottom: 7px;
+    padding-left: 8px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(196, 145, 75, 0.88);
+    border-right-color: rgba(196, 145, 75, 0.88);
+    border-bottom-color: rgba(196, 145, 75, 0.88);
+    border-left-color: rgba(196, 145, 75, 0.88);
+    background-color: rgba(20, 9, 11, 0.92);
+}
+
+.active-action-item-hud-icon {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    min-height: 48px;
+    display: none;
+    background-repeat: no-repeat;
+    background-position: center;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.active-action-item-hud-icon-black-gunpowder {
+    background-image: url("project://database/Assets/UI/Art/Icons/Skills/Icon_BlackGunpowder.jpg");
+    margin-right: 3px;
+}
+
+.active-action-item-hud-icon-agwes-armor-plating {
+    background-image: url("project://database/Assets/UI/Art/Icons/Skills/Icon_AgwesArmorPlate.jpg");
 }
 
 .top-menu-center-wrap {

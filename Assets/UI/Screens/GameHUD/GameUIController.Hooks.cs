@@ -25,6 +25,11 @@ public partial class GameUIController
             UIToolkitRaycastChecker.RegisterBlockingElement(ammoMenuBackdrop);
         }
 
+        if (actionItemMenuBackdrop != null)
+        {
+            UIToolkitRaycastChecker.RegisterBlockingElement(actionItemMenuBackdrop);
+        }
+
         if (marketController != null && marketController.OverlayRoot != null)
         {
             UIToolkitRaycastChecker.RegisterBlockingElement(marketController.OverlayRoot);
@@ -81,6 +86,11 @@ public partial class GameUIController
         if (ammoMenuBackdrop != null)
         {
             UIToolkitRaycastChecker.UnregisterBlockingElement(ammoMenuBackdrop);
+        }
+
+        if (actionItemMenuBackdrop != null)
+        {
+            UIToolkitRaycastChecker.UnregisterBlockingElement(actionItemMenuBackdrop);
         }
 
         if (marketController != null && marketController.OverlayRoot != null)

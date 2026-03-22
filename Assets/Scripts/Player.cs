@@ -13,7 +13,7 @@ using SeaWars.Utility;
 /// Attach to the player prefab alongside ClickToMove.
 /// Uses NetworkVariables for automatic state synchronization.
 /// </summary>
-public class Player : NetworkBehaviour, ICombatEntity
+public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 {
     /// <summary>
     /// Static event fired when the LOCAL player spawns.
@@ -124,6 +124,11 @@ public class Player : NetworkBehaviour, ICombatEntity
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
+    private NetworkVariable<int> m_networkActionItem = new NetworkVariable<int>(
+        (int)PlayerActionItemType.None,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
     public event Action<float> OnHealthChanged = delegate { };
     public event Action<int, int, int> OnRewardWalletChanged = delegate { };
@@ -133,6 +138,7 @@ public class Player : NetworkBehaviour, ICombatEntity
     public event Action<string, bool, string> OnCannonPurchaseResult = delegate { };
     public event Action<string, bool, string> OnShipPurchaseResult = delegate { };
     public event Action<string> OnSelectedShipChanged = delegate { };
+    public event Action<PlayerActionItemType> OnActiveActionItemsChanged = delegate { };
     public event Action<string, bool> OnIslandActionFeedback = delegate { };
     public event Action<bool> OnDeathStateChanged = delegate { };
 
@@ -149,6 +155,7 @@ public class Player : NetworkBehaviour, ICombatEntity
     public string OwnedCannonIdsCsv => m_ownedCannonIdsCsv.Value.ToString();
     public string OwnedShipIdsCsv => m_ownedShipIdsCsv.Value.ToString();
     public string SelectedShipId => NormalizeOwnedShipId(m_selectedShipId.Value.ToString());
+    public PlayerActionItemType ActiveActionItems => NormalizeActionItemMask(m_networkActionItem.Value);
     public SeaEntityType EntityType => SeaEntityType.Player;
     public GameObject EntityGameObject => gameObject;
     public string DisplayName
@@ -215,6 +222,7 @@ public class Player : NetworkBehaviour, ICombatEntity
         m_ownedCannonIdsCsv.OnValueChanged += OnOwnedCannonIdsChanged;
         m_ownedShipIdsCsv.OnValueChanged += OnOwnedShipIdsChanged;
         m_selectedShipId.OnValueChanged += OnSelectedShipIdChanged;
+        m_networkActionItem.OnValueChanged += OnActiveActionItemsChangedInternal;
 
         OnPlayerNameChanged(default, m_playerName.Value);
         OnGuildAbbreviationChanged(default, m_networkGuildAbbreviation.Value);
@@ -233,6 +241,7 @@ public class Player : NetworkBehaviour, ICombatEntity
         m_ownedCannonIdsCsv.OnValueChanged -= OnOwnedCannonIdsChanged;
         m_ownedShipIdsCsv.OnValueChanged -= OnOwnedShipIdsChanged;
         m_selectedShipId.OnValueChanged -= OnSelectedShipIdChanged;
+        m_networkActionItem.OnValueChanged -= OnActiveActionItemsChangedInternal;
         base.OnDestroy();
     }
 
@@ -246,11 +255,7 @@ public class Player : NetworkBehaviour, ICombatEntity
 
         // Floating damage / heal numbers
         int delta = previousValue - newValue;
-        if (delta > 0)
-        {
-            DamageNumberService.Show(transform.position, delta, false);
-        }
-        else if (delta < 0)
+        if (delta < 0)
         {
             DamageNumberService.Show(transform.position, -delta, true);
         }
@@ -316,6 +321,11 @@ public class Player : NetworkBehaviour, ICombatEntity
         OnSelectedShipChanged?.Invoke(NormalizeOwnedShipId(newValue.ToString()));
     }
 
+    private void OnActiveActionItemsChangedInternal(int previousValue, int newValue)
+    {
+        OnActiveActionItemsChanged?.Invoke(NormalizeActionItemMask(newValue));
+    }
+
     public void ApplyPersistedWallet(int gold, int diamond, int? experience = null)
     {
         if (!IsServer)
@@ -367,6 +377,40 @@ public class Player : NetworkBehaviour, ICombatEntity
 
         m_ownedShipIdsCsv.Value = new FixedString512Bytes(BuildOwnedShipsCsv(ownedShipIds));
         EnsureSelectedShipIsOwned();
+    }
+
+    public void ApplyPersistedSelectedShip(string shipId)
+    {
+        if (!IsServer)
+        {
+            Debug.LogWarning($"Player {gameObject.name}: ApplyPersistedSelectedShip is server-only.");
+            return;
+        }
+
+        string normalizedShipId = NormalizeOwnedShipId(shipId);
+        if (string.IsNullOrWhiteSpace(normalizedShipId) || !OwnsShip(normalizedShipId))
+        {
+            EnsureSelectedShipIsOwned();
+            return;
+        }
+
+        if (string.Equals(SelectedShipId, normalizedShipId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        m_selectedShipId.Value = new FixedString64Bytes(normalizedShipId);
+    }
+
+    public void ApplyPersistedActiveActionItems(PlayerActionItemType actionItems)
+    {
+        if (!IsServer)
+        {
+            Debug.LogWarning($"Player {gameObject.name}: ApplyPersistedActiveActionItems is server-only.");
+            return;
+        }
+
+        m_networkActionItem.Value = (int)NormalizeActionItemMask((int)actionItems);
     }
 
     public void ApplyGuildAbbreviation(string guildAbbreviation)
@@ -425,6 +469,37 @@ public class Player : NetworkBehaviour, ICombatEntity
 
         RequestCannonPurchaseServerRpc(normalizedCannonId);
         return true;
+    }
+
+    public bool TryToggleActionItem(PlayerActionItemType actionItem)
+    {
+        PlayerActionItemType normalizedActionItem = NormalizeActionItemType((int)actionItem);
+        if (normalizedActionItem == PlayerActionItemType.None || !IsOwner)
+        {
+            return false;
+        }
+
+        if (IsServer)
+        {
+            SetActionItemEnabled(normalizedActionItem, !HasActionItem(normalizedActionItem));
+        }
+        else
+        {
+            ToggleActionItemServerRpc((int)normalizedActionItem);
+        }
+
+        return true;
+    }
+
+    public bool HasActionItem(PlayerActionItemType actionItem)
+    {
+        PlayerActionItemType normalizedActionItem = NormalizeActionItemType((int)actionItem);
+        if (normalizedActionItem == PlayerActionItemType.None)
+        {
+            return false;
+        }
+
+        return (ActiveActionItems & normalizedActionItem) == normalizedActionItem;
     }
 
     public bool RequestShipPurchase(string shipId)
@@ -516,6 +591,18 @@ public class Player : NetworkBehaviour, ICombatEntity
     }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    private void ToggleActionItemServerRpc(int actionItemValue)
+    {
+        PlayerActionItemType normalizedActionItem = NormalizeActionItemType(actionItemValue);
+        if (normalizedActionItem == PlayerActionItemType.None)
+        {
+            return;
+        }
+
+        SetActionItemEnabled(normalizedActionItem, !HasActionItem(normalizedActionItem));
+    }
+
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
     private void RequestShipPurchaseServerRpc(string shipId)
     {
         if (MultiplayerController.Instance == null)
@@ -551,6 +638,30 @@ public class Player : NetworkBehaviour, ICombatEntity
             NormalizeOwnedCannonId(cannonId),
             success,
             string.IsNullOrWhiteSpace(message) ? (success ? "Purchase completed." : "Purchase failed.") : message);
+    }
+
+    private void SetActionItemEnabled(PlayerActionItemType actionItem, bool isEnabled)
+    {
+        if (!IsServer)
+        {
+            Debug.LogWarning($"Player {gameObject.name}: SetActionItemEnabled is server-only.");
+            return;
+        }
+
+        PlayerActionItemType normalizedActionItem = NormalizeActionItemType((int)actionItem);
+        PlayerActionItemType currentMask = ActiveActionItems;
+
+        if (normalizedActionItem == PlayerActionItemType.None)
+        {
+            m_networkActionItem.Value = (int)PlayerActionItemType.None;
+            return;
+        }
+
+        PlayerActionItemType updatedMask = isEnabled
+            ? currentMask | normalizedActionItem
+            : currentMask & ~normalizedActionItem;
+
+        m_networkActionItem.Value = (int)NormalizeActionItemMask((int)updatedMask);
     }
 
     [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
@@ -855,6 +966,11 @@ public class Player : NetworkBehaviour, ICombatEntity
     /// </summary>
     public void TakeDamage(int damage)
     {
+        TakeDamage(damage, null);
+    }
+
+    public void TakeDamage(int damage, GameObject damageSource)
+    {
         if (damage <= 0)
         {
             return;
@@ -866,20 +982,32 @@ public class Player : NetworkBehaviour, ICombatEntity
             return;
         }
 
-        ApplyDamage(damage);
+        ApplyDamage(damage, damageSource);
     }
 
     /// <summary>
     /// Server-only: Actually apply damage to the player.
     /// </summary>
-    private void ApplyDamage(int damage)
+    private void ApplyDamage(int damage, GameObject damageSource)
     {
         if (damage <= 0) return;
         if (!IsServer) return;
         if (m_networkHealth.Value <= 0) return;
 
-        int newHealth = Mathf.Max(m_networkHealth.Value - damage, 0);
+        int resolvedDamage = CombatActionItemUtility.ApplyIncomingDamageModifiers(
+            gameObject,
+            damage,
+            damageSource,
+            out DamageNumberEffectStyle effectStyle);
+
+        if (resolvedDamage <= 0)
+        {
+            return;
+        }
+
+        int newHealth = Mathf.Max(m_networkHealth.Value - resolvedDamage, 0);
         m_networkHealth.Value = newHealth;
+        ShowDamageNumberClientRpc(resolvedDamage, (int)effectStyle);
 
         if (newHealth <= 0)
         {
@@ -926,6 +1054,16 @@ public class Player : NetworkBehaviour, ICombatEntity
     private void NotifyDeathClientRpc()
     {
         Debug.Log($"Player {gameObject.name} has died!");
+    }
+
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    private void ShowDamageNumberClientRpc(int amount, int effectStyle)
+    {
+        DamageNumberService.Show(
+            transform.position,
+            amount,
+            false,
+            NormalizeDamageNumberEffectStyle(effectStyle));
     }
 
     private IEnumerator RespawnAfterDelay(float delay)
@@ -1638,6 +1776,27 @@ public class Player : NetworkBehaviour, ICombatEntity
         return string.IsNullOrWhiteSpace(cannonId)
             ? string.Empty
             : cannonId.Trim().ToLowerInvariant();
+    }
+
+    private static PlayerActionItemType NormalizeActionItemType(int actionItemValue)
+    {
+        return actionItemValue switch
+        {
+            (int)PlayerActionItemType.BlackGunpowder => PlayerActionItemType.BlackGunpowder,
+            (int)PlayerActionItemType.AgwesArmorPlating => PlayerActionItemType.AgwesArmorPlating,
+            _ => PlayerActionItemType.None
+        };
+    }
+
+    private static PlayerActionItemType NormalizeActionItemMask(int actionItemMask)
+    {
+        int allowedMask = (int)(PlayerActionItemType.BlackGunpowder | PlayerActionItemType.AgwesArmorPlating);
+        return (PlayerActionItemType)(actionItemMask & allowedMask);
+    }
+
+    private static DamageNumberEffectStyle NormalizeDamageNumberEffectStyle(int effectStyleValue)
+    {
+        return CombatActionItemUtility.NormalizeDamageNumberEffectStyle(effectStyleValue);
     }
 
     private static string NormalizeOwnedShipId(string shipId)

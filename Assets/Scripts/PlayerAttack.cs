@@ -207,9 +207,11 @@ public class PlayerAttack : NetworkBehaviour
             return 0;
         }
 
-        return seaEntity.EntityType == SeaEntityType.Monster
+        int resolvedDamage = seaEntity.EntityType == SeaEntityType.Monster
             ? Mathf.Max(0, harpoonDamage)
             : Mathf.Max(0, damage);
+
+        return CombatActionItemUtility.ApplyOutgoingDamageModifiers(gameObject, resolvedDamage);
     }
 
     // ------------------------------------------------------------------

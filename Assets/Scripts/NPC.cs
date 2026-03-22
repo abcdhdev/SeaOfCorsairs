@@ -202,11 +202,7 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 
         // Floating damage / heal numbers
         int delta = previousValue - newValue;
-        if (delta > 0)
-        {
-            DamageNumberService.Show(transform.position, delta, false);
-        }
-        else if (delta < 0)
+        if (delta < 0)
         {
             DamageNumberService.Show(transform.position, -delta, true);
         }
@@ -419,13 +415,35 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
             EnterCombatLocal(damageSource);
         }
 
-        int newHealth = Mathf.Max(m_networkHealth.Value - damage, 0);
+        int resolvedDamage = CombatActionItemUtility.ApplyIncomingDamageModifiers(
+            gameObject,
+            damage,
+            damageSource,
+            out DamageNumberEffectStyle effectStyle);
+
+        if (resolvedDamage <= 0)
+        {
+            return;
+        }
+
+        int newHealth = Mathf.Max(m_networkHealth.Value - resolvedDamage, 0);
         m_networkHealth.Value = newHealth;
+        ShowDamageNumberClientRpc(resolvedDamage, (int)effectStyle);
 
         if (newHealth <= 0)
         {
             HandleDeath(damageSource);
         }
+    }
+
+    [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+    private void ShowDamageNumberClientRpc(int amount, int effectStyle)
+    {
+        DamageNumberService.Show(
+            transform.position,
+            amount,
+            false,
+            CombatActionItemUtility.NormalizeDamageNumberEffectStyle(effectStyle));
     }
 
     private void Retaliate()
