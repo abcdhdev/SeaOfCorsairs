@@ -23,35 +23,38 @@ MonoBehaviour:
   npcRoamWaitTime: 3
   npcLeashRadius: 300
   npcHomeArrivalDistance: 8
-  cannonballPrefab: {fileID: 7358711587312340462, guid: 4acc5313fe557b242ae29285b1a85bbd, type: 3}
+  cannonballPrefab: {fileID: 712315992225036414, guid: 7a067c289a6530843abf3173864bc5ee, type: 3}
   cannonFireSpeed: 20
   cannonArcHeightFactor: 0.2
-  cannonDamage: 250
+  cannonDamage: 0
   cannonMaxHitDistance: 150
   cannonShootingInterval: 2
   cannonAmmoTypes:
   - id: standard
     displayName: Standard
     damage: 20
-    projectileMaterial: {fileID: 2100000, guid: 6253fdeb3d376dc46b5a24d7bc5dd875, type: 2}
+    projectilePrefab: {fileID: 712315992225036414, guid: 7a067c289a6530843abf3173864bc5ee, type: 3}
   - id: heavy
     displayName: Heavy
     damage: 30
-    projectileMaterial: {fileID: 2100000, guid: 4449d3a8c3f247998c7cbf2d555b1d84, type: 2}
+    projectilePrefab: {fileID: 7358711587312340462, guid: 801462c9f9da471eb80d59e605df9e10, type: 3}
   - id: chain
     displayName: Chain
     damage: 15
-    projectileMaterial: {fileID: 2100000, guid: a87d330d8ffe410c83b2bff4b69a2f00, type: 2}
+    projectilePrefab: {fileID: 7358711587312340462, guid: b1fbd4ff92a24d29bfdc68c77f54fbf1, type: 3}
   harpoonAmmoTypes:
   - id: harpoon-25
     displayName: 25 Damage
     damage: 25
+    projectileColor: {r: 0.8039216, g: 0.4980392, b: 0.19607843, a: 1}
   - id: harpoon-50
     displayName: 50 Damage
     damage: 50
+    projectileColor: {r: 0.7529412, g: 0.7529412, b: 0.7529412, a: 1}
   - id: harpoon-250
     displayName: 250 Damage
     damage: 250
+    projectileColor: {r: 1, g: 0.84313726, b: 0, a: 1}
   healthBarPlaceUnderTarget: 0
   healthBarWorldOffset: {x: 0, y: 0, z: -5.9}
   hideHealthBarWhenEmpty: 1

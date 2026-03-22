@@ -5,7 +5,7 @@ using Unity.Netcode;
 using UnityEngine;
 
 [RequireComponent(typeof(NetworkObject))]
-[RequireComponent(typeof(Cannon))]
+[RequireComponent(typeof(WeaponFireController))]
 [RequireComponent(typeof(PlayerAttack))]
 public sealed class IslandTurret : NetworkBehaviour, ICombatEntity
 {
@@ -35,7 +35,7 @@ public sealed class IslandTurret : NetworkBehaviour, ICombatEntity
 
     private readonly List<ulong> aggressorIds = new();
 
-    private Cannon cachedCannon;
+    private WeaponFireController cachedFireController;
     private PlayerAttack cachedAttack;
     private ulong retaliatingAgainstId;
     private Vector3 lastNotifiedPosition;
@@ -57,16 +57,16 @@ public sealed class IslandTurret : NetworkBehaviour, ICombatEntity
     public GameObject TargetGameObject => gameObject;
     public bool CanBeTargeted => IsSpawned && isActiveAndEnabled && CurrentHealth > 0;
 
-    private Cannon Cannon
+    private WeaponFireController FireController
     {
         get
         {
-            if (cachedCannon == null)
+            if (cachedFireController == null)
             {
-                cachedCannon = GetComponent<Cannon>();
+                cachedFireController = GetComponent<WeaponFireController>();
             }
 
-            return cachedCannon;
+            return cachedFireController;
         }
     }
 
@@ -323,7 +323,7 @@ public sealed class IslandTurret : NetworkBehaviour, ICombatEntity
     private void ConfigureWeapon()
     {
         ResolveCannonballPrefab();
-        Cannon?.ApplySettings(
+        FireController?.ApplySettings(
             cannonballPrefab,
             fireSpeed,
             arcHeightFactor,

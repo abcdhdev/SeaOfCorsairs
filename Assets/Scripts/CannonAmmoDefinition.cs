@@ -8,11 +8,12 @@ public sealed class CannonAmmoDefinition
     [SerializeField] private string displayName = "Standard";
     // Bonus damage added on top of the configured base cannon damage.
     [SerializeField, Min(0)] private int damage = 20;
-    [SerializeField] private Material projectileMaterial;
+    [SerializeField] private GameObject projectilePrefab;
+    [SerializeField, HideInInspector] private Material projectileMaterial;
 
     public string Id => id;
     public string DisplayName => displayName;
     public int Damage => damage;
-    public Material ProjectileMaterial => projectileMaterial;
+    public GameObject ProjectilePrefab => projectilePrefab;
 }
 

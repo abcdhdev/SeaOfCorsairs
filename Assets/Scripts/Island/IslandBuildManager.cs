@@ -825,7 +825,7 @@ public sealed class IslandBuildManager : MonoBehaviour
 
         foreach (MonoBehaviour behaviour in preview.GetComponentsInChildren<MonoBehaviour>(true))
         {
-            if (behaviour is IslandTurret or Cannon or PlayerAttack or NetworkTransform)
+            if (behaviour is IslandTurret or WeaponFireController or PlayerAttack or NetworkTransform)
             {
                 behaviour.enabled = false;
             }

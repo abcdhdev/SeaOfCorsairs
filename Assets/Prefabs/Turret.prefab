@@ -74,7 +74,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 464f5717214980f40a3e2c9aa02b4d1c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Cannon
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponFireController
   ShowTopMostFoldoutHeaderGroup: 1
   cannonballPrefab: {fileID: 0}
   fireSpeed: 10

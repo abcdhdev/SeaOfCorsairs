@@ -43,7 +43,7 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
     [SerializeField] public int repairAmount = 5;
 
     private Coroutine repairCoroutine;
-    private Cannon npcCannon;
+    private WeaponFireController npcWeaponFireController;
     private PlayerAttack playerAttack;
     private NPCMovement movement;
     private int spawnSlotId = -1;
@@ -151,7 +151,7 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
             networkObject.CheckObjectVisibility = clientId => FogOfWarNetworkVisibilityController.ShouldNpcBeVisibleToClient(this, clientId);
         }
 
-        npcCannon = GetComponent<Cannon>();
+        npcWeaponFireController = GetComponent<WeaponFireController>();
         playerAttack = GetComponent<PlayerAttack>();
         movement = GetComponent<NPCMovement>();
         if (movement != null)
@@ -712,9 +712,9 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
                     gameplayConfig.HideHealthBarWhenEmpty);
             }
 
-            if (npcCannon != null)
+            if (npcWeaponFireController != null)
             {
-                npcCannon.ApplySettings(
+                npcWeaponFireController.ApplySettings(
                     gameplayConfig.CannonballPrefab,
                     gameplayConfig.CannonFireSpeed,
                     gameplayConfig.CannonArcHeightFactor,
@@ -741,9 +741,9 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
                 resolvedAttackInterval);
         }
 
-        if (npcCannon != null && gameplayConfig != null && npcDefinition != null)
+        if (npcWeaponFireController != null && gameplayConfig != null && npcDefinition != null)
         {
-            npcCannon.ApplySettings(
+            npcWeaponFireController.ApplySettings(
                 gameplayConfig.CannonballPrefab,
                 gameplayConfig.CannonFireSpeed,
                 gameplayConfig.CannonArcHeightFactor,

@@ -19,7 +19,7 @@ public class PlayerAttack : NetworkBehaviour
         public int DamageAmount;
     }
 
-    private Cannon _cannon;
+    private WeaponFireController _fireController;
     private ulong serverTargetNetworkObjectId;
 
     [SerializeField, HideInInspector] private float maxHitDistance = 150f;
@@ -30,16 +30,16 @@ public class PlayerAttack : NetworkBehaviour
     [SerializeField, HideInInspector] private int harpoonDamage = 25;
     [SerializeField, HideInInspector] private LayerMask hitOcclusionMask = ~0;
 
-    private Cannon Cannon
+    private WeaponFireController FireController
     {
         get
         {
-            if (_cannon == null)
+            if (_fireController == null)
             {
-                _cannon = GetComponent<Cannon>();
+                _fireController = GetComponent<WeaponFireController>();
             }
 
-            return _cannon;
+            return _fireController;
         }
     }
 
@@ -250,11 +250,11 @@ public class PlayerAttack : NetworkBehaviour
     }
 
     [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
-    private void BroadcastFireClientRpc(ulong targetNetworkObjectId)
+    private void BroadcastFireClientRpc(ulong targetNetworkObjectId, bool useHarpoonVisual)
     {
         if (TryResolveNetworkObject(targetNetworkObjectId, out NetworkObject targetNetObj))
         {
-            Cannon?.PlayReplicatedFire(targetNetObj.gameObject);
+            FireController?.PlayReplicatedFire(targetNetObj.gameObject, useHarpoonVisual);
         }
     }
 
@@ -329,7 +329,7 @@ public class PlayerAttack : NetworkBehaviour
                 yield break;
             }
 
-            BroadcastFireClientRpc(targetNetworkObjectId);
+            BroadcastFireClientRpc(targetNetworkObjectId, ShouldUseHarpoonVisual(target));
 
             int resolvedDamage = ResolveDamageAmountForTarget(target);
             if (resolvedDamage <= 0)
@@ -393,13 +393,13 @@ public class PlayerAttack : NetworkBehaviour
             return 0f;
         }
 
-        Cannon cannon = Cannon;
-        if (cannon == null)
+        WeaponFireController fireController = FireController;
+        if (fireController == null)
         {
             return 0f;
         }
 
-        float speed = cannon.FireSpeed;
+        float speed = fireController.FireSpeed;
         if (speed <= 0.01f)
         {
             return 0f;
@@ -407,6 +407,14 @@ public class PlayerAttack : NetworkBehaviour
 
         float distance = Vector3.Distance(transform.position, target.transform.position);
         return distance / speed;
+    }
+
+    private bool ShouldUseHarpoonVisual(GameObject target)
+    {
+        return target != null &&
+               harpoonDamage > 0 &&
+               CombatTargetingUtility.TryGetSeaEntity(target, out ISeaEntity seaEntity) &&
+               seaEntity.EntityType == SeaEntityType.Monster;
     }
 
     // ------------------------------------------------------------------

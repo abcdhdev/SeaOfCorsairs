@@ -119,7 +119,11 @@ public class Player : NetworkBehaviour, ICombatEntity
         NetworkVariableWritePermission.Server);
 
     private int selectedCannonAmmoIndex;
-    private int selectedHarpoonAmmoIndex;
+    private NetworkVariable<int> m_networkHarpoonAmmoIndex = new NetworkVariable<int>(
+        0,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
     public event Action<float> OnHealthChanged = delegate { };
     public event Action<int, int, int> OnRewardWalletChanged = delegate { };
@@ -764,7 +768,7 @@ public class Player : NetworkBehaviour, ICombatEntity
             SyncCombatAggressorCount();
         }
         selectedCannonAmmoIndex = 0;
-        selectedHarpoonAmmoIndex = 0;
+        m_networkHarpoonAmmoIndex.OnValueChanged += OnHarpoonAmmoIndexChanged;
         ApplyInitialCannonAmmoSelection();
         ApplyInitialHarpoonSelection();
 
@@ -825,6 +829,8 @@ public class Player : NetworkBehaviour, ICombatEntity
             StopCoroutine(respawnCoroutine);
             respawnCoroutine = null;
         }
+
+        m_networkHarpoonAmmoIndex.OnValueChanged -= OnHarpoonAmmoIndexChanged;
 
         base.OnNetworkDespawn();
 
@@ -1390,7 +1396,7 @@ public class Player : NetworkBehaviour, ICombatEntity
         return gameplayConfig != null ? gameplayConfig.HarpoonAmmoTypes : Array.Empty<HarpoonAmmoDefinition>();
     }
 
-    public int SelectedHarpoonAmmoIndex => selectedHarpoonAmmoIndex;
+    public int SelectedHarpoonAmmoIndex => m_networkHarpoonAmmoIndex.Value;
 
     public bool TrySelectCannonAmmo(int ammoIndex)
     {
@@ -1451,16 +1457,16 @@ public class Player : NetworkBehaviour, ICombatEntity
             return;
         }
 
-        if (TryGetComponent(out Cannon cannon))
+        if (TryGetComponent(out WeaponFireController weaponFireController))
         {
-            cannon.ApplyAmmoOverride(ammo.Damage, ammo.ProjectileMaterial);
+            weaponFireController.ApplyAmmoOverride(ammo.Damage, ammo.ProjectilePrefab);
         }
         else
         {
-            Cannon childCannon = GetComponentInChildren<Cannon>();
-            if (childCannon != null)
+            WeaponFireController childWeaponFireController = GetComponentInChildren<WeaponFireController>();
+            if (childWeaponFireController != null)
             {
-                childCannon.ApplyAmmoOverride(ammo.Damage, ammo.ProjectileMaterial);
+                childWeaponFireController.ApplyAmmoOverride(ammo.Damage, ammo.ProjectilePrefab);
             }
         }
 
@@ -1512,22 +1518,11 @@ public class Player : NetworkBehaviour, ICombatEntity
             return false;
         }
 
-        IReadOnlyList<HarpoonAmmoDefinition> options = GetHarpoonAmmoOptions();
-        if (options == null || options.Count == 0)
+        if (!ApplyHarpoonSelection(ammoIndex))
         {
-            Debug.LogWarning("Player: No harpoon ammo types configured on gameplayConfig.");
+            Debug.LogWarning("Player: No valid harpoon ammo types configured on gameplayConfig.");
             return false;
         }
-
-        ammoIndex = Mathf.Clamp(ammoIndex, 0, options.Count - 1);
-        HarpoonAmmoDefinition ammo = options[ammoIndex];
-        if (ammo == null)
-        {
-            return false;
-        }
-
-        ApplySelectedHarpoon(ammo);
-        selectedHarpoonAmmoIndex = ammoIndex;
 
         if (!IsServer)
         {
@@ -1540,21 +1535,7 @@ public class Player : NetworkBehaviour, ICombatEntity
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
     private void SelectHarpoonAmmoServerRpc(int ammoIndex)
     {
-        IReadOnlyList<HarpoonAmmoDefinition> options = GetHarpoonAmmoOptions();
-        if (options == null || options.Count == 0)
-        {
-            return;
-        }
-
-        ammoIndex = Mathf.Clamp(ammoIndex, 0, options.Count - 1);
-        HarpoonAmmoDefinition ammo = options[ammoIndex];
-        if (ammo == null)
-        {
-            return;
-        }
-
-        ApplySelectedHarpoon(ammo);
-        selectedHarpoonAmmoIndex = ammoIndex;
+        ApplyHarpoonSelection(ammoIndex);
     }
 
     private void ApplySelectedHarpoon(HarpoonAmmoDefinition ammo)
@@ -1568,19 +1549,62 @@ public class Player : NetworkBehaviour, ICombatEntity
         {
             attack.ApplyHarpoonOverride(ammo.Damage);
         }
+
+        if (TryGetComponent(out WeaponFireController weaponFireController))
+        {
+            weaponFireController.ApplyHarpoonVisualOverride(ammo.ProjectileColor);
+        }
+        else
+        {
+            WeaponFireController childWeaponFireController = GetComponentInChildren<WeaponFireController>();
+            if (childWeaponFireController != null)
+            {
+                childWeaponFireController.ApplyHarpoonVisualOverride(ammo.ProjectileColor);
+            }
+        }
     }
 
     private void ApplyInitialHarpoonSelection()
     {
+        ApplyHarpoonSelection(m_networkHarpoonAmmoIndex.Value);
+    }
+
+    private void OnHarpoonAmmoIndexChanged(int previousValue, int newValue)
+    {
+        ApplyHarpoonSelection(newValue);
+    }
+
+    private bool ApplyHarpoonSelection(int ammoIndex)
+    {
+        if (!TryResolveHarpoonAmmo(ammoIndex, out int resolvedIndex, out HarpoonAmmoDefinition selectedAmmo))
+        {
+            return false;
+        }
+
+        ApplySelectedHarpoon(selectedAmmo);
+
+        if (IsServer && m_networkHarpoonAmmoIndex.Value != resolvedIndex)
+        {
+            m_networkHarpoonAmmoIndex.Value = resolvedIndex;
+        }
+
+        return true;
+    }
+
+    private bool TryResolveHarpoonAmmo(int ammoIndex, out int resolvedIndex, out HarpoonAmmoDefinition ammo)
+    {
+        resolvedIndex = -1;
+        ammo = null;
+
         IReadOnlyList<HarpoonAmmoDefinition> options = GetHarpoonAmmoOptions();
         if (options == null || options.Count == 0)
         {
-            return;
+            return false;
         }
 
-        int clampedIndex = Mathf.Clamp(selectedHarpoonAmmoIndex, 0, options.Count - 1);
-        HarpoonAmmoDefinition selectedAmmo = options[clampedIndex];
-        if (selectedAmmo == null)
+        int clampedIndex = Mathf.Clamp(ammoIndex, 0, options.Count - 1);
+        ammo = options[clampedIndex];
+        if (ammo == null)
         {
             for (int i = 0; i < options.Count; i++)
             {
@@ -1590,18 +1614,18 @@ public class Player : NetworkBehaviour, ICombatEntity
                 }
 
                 clampedIndex = i;
-                selectedAmmo = options[i];
+                ammo = options[i];
                 break;
             }
         }
 
-        if (selectedAmmo == null)
+        if (ammo == null)
         {
-            return;
+            return false;
         }
 
-        selectedHarpoonAmmoIndex = clampedIndex;
-        ApplySelectedHarpoon(selectedAmmo);
+        resolvedIndex = clampedIndex;
+        return true;
     }
 
     #endregion
@@ -1914,9 +1938,9 @@ public class Player : NetworkBehaviour, ICombatEntity
                 gameplayConfig.HideHealthBarWhenEmpty);
         }
 
-        if (TryGetComponent(out Cannon cannon))
+        if (TryGetComponent(out WeaponFireController weaponFireController))
         {
-            cannon.ApplySettings(
+            weaponFireController.ApplySettings(
                 gameplayConfig.CannonballPrefab,
                 gameplayConfig.CannonFireSpeed,
                 gameplayConfig.CannonArcHeightFactor,

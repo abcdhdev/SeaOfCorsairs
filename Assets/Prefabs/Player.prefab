@@ -5340,7 +5340,7 @@ Transform:
   m_GameObject: {fileID: 6896289966457415486}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0.05, y: 0, z: 0.58}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -5438,78 +5438,6 @@ MonoBehaviour:
   gameplayConfig: {fileID: 11400000, guid: 9ad4b72fe39e47040ac1a64ea710f1c9, type: 2}
   m_maxHealth: 100
   respawnDelaySeconds: 5
-  PlayerName:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
-    m_InternalValue:
-      utf8LengthInBytes: 6
-      bytes:
-        offset0000:
-          byte0000: 80
-          byte0001: 108
-          byte0002: 97
-          byte0003: 121
-          byte0004: 101
-          byte0005: 114
-          byte0006: 0
-          byte0007: 0
-          byte0008: 0
-          byte0009: 0
-          byte0010: 0
-          byte0011: 0
-          byte0012: 0
-          byte0013: 0
-          byte0014: 0
-          byte0015: 0
-        offset0016:
-          byte0000: 0
-          byte0001: 0
-          byte0002: 0
-          byte0003: 0
-          byte0004: 0
-          byte0005: 0
-          byte0006: 0
-          byte0007: 0
-          byte0008: 0
-          byte0009: 0
-          byte0010: 0
-          byte0011: 0
-          byte0012: 0
-          byte0013: 0
-          byte0014: 0
-          byte0015: 0
-        offset0032:
-          byte0000: 0
-          byte0001: 0
-          byte0002: 0
-          byte0003: 0
-          byte0004: 0
-          byte0005: 0
-          byte0006: 0
-          byte0007: 0
-          byte0008: 0
-          byte0009: 0
-          byte0010: 0
-          byte0011: 0
-          byte0012: 0
-          byte0013: 0
-          byte0014: 0
-          byte0015: 0
-        byte0048: 0
-        byte0049: 0
-        byte0050: 0
-        byte0051: 0
-        byte0052: 0
-        byte0053: 0
-        byte0054: 0
-        byte0055: 0
-        byte0056: 0
-        byte0057: 0
-        byte0058: 0
-        byte0059: 0
-        byte0060: 0
-        byte0061: 0
   repairRate: 2
   repairAmount: 5
   boardingDistance: 25
@@ -5525,7 +5453,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 464f5717214980f40a3e2c9aa02b4d1c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Cannon
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponFireController
   ShowTopMostFoldoutHeaderGroup: 1
   cannonballPrefab: {fileID: 0}
   fireSpeed: 10
@@ -5534,7 +5462,8 @@ MonoBehaviour:
   baseDamage: 20
   ammoBonusDamage: 0
   maxHitDistance: 150
-  projectileMaterialOverride: {fileID: 0}
+  projectilePrefabOverride: {fileID: 0}
+  harpoonProjectileColor: {r: 0.8039216, g: 0.49803922, b: 0.19607843, a: 1}
 --- !u!114 &6685784690479133911
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5553,6 +5482,7 @@ MonoBehaviour:
   damage: 20
   baseDamage: 20
   ammoBonusDamage: 0
+  harpoonDamage: 25
   hitOcclusionMask:
     serializedVersion: 2
     m_Bits: 4294967295
