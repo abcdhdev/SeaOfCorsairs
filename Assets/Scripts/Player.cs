@@ -134,6 +134,7 @@ public class Player : NetworkBehaviour, ICombatEntity
     public event Action<string, bool, string> OnShipPurchaseResult = delegate { };
     public event Action<string> OnSelectedShipChanged = delegate { };
     public event Action<string, bool> OnIslandActionFeedback = delegate { };
+    public event Action<bool> OnDeathStateChanged = delegate { };
 
     // Public properties
     public int MaxHealth => m_maxHealth;
@@ -945,12 +946,14 @@ public class Player : NetworkBehaviour, ICombatEntity
     /// </summary>
     private void OnDeath()
     {
+        OnDeathStateChanged?.Invoke(true);
         // Client-side death effects can be triggered here
         // e.g., play death animation, sound effects, etc.
     }
 
     private void OnRespawned()
     {
+        OnDeathStateChanged?.Invoke(false);
         // Client-side respawn effects can be triggered here.
     }
 

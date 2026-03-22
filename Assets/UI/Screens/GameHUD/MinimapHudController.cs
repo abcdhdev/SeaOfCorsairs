@@ -588,23 +588,71 @@ public sealed class MinimapHudController : MonoBehaviour
         minimapViewportBorder.MarkDirtyRepaint();
     }
 
-    private bool TryPopulateViewportOutlinePoints(Camera gameplayCamera, float width, float height, Rect markerBounds)
+    public bool TryGetViewportMapNormalizedBounds(out Rect normalizedBounds)
     {
-        if (!IsGameplayCameraUsable(gameplayCamera))
+        normalizedBounds = default;
+
+        if (localPlayer == null)
+        {
+            TryResolveLocalPlayer();
+        }
+
+        TryResolveBoundsFromNavMeshSurface();
+
+        Camera gameplayCamera = ResolveGameplayCamera();
+        if (!TryGetViewportWorldCorners(
+                gameplayCamera,
+                out Vector3 worldBottomLeft,
+                out Vector3 worldBottomRight,
+                out Vector3 worldTopRight,
+                out Vector3 worldTopLeft))
         {
             return false;
         }
 
-        float projectionHeight = projectViewportAtLocalPlayerHeight && localPlayer != null
-            ? localPlayer.position.y
-            : viewportProjectionHeight;
+        Vector2 normalizedBottomLeft = WorldToMapNormalized(worldBottomLeft);
+        Vector2 normalizedBottomRight = WorldToMapNormalized(worldBottomRight);
+        Vector2 normalizedTopRight = WorldToMapNormalized(worldTopRight);
+        Vector2 normalizedTopLeft = WorldToMapNormalized(worldTopLeft);
 
-        Plane projectionPlane = new Plane(Vector3.up, new Vector3(0f, projectionHeight, 0f));
+        float minX = Mathf.Clamp01(Mathf.Min(
+            normalizedBottomLeft.x,
+            normalizedBottomRight.x,
+            normalizedTopRight.x,
+            normalizedTopLeft.x));
+        float maxX = Mathf.Clamp01(Mathf.Max(
+            normalizedBottomLeft.x,
+            normalizedBottomRight.x,
+            normalizedTopRight.x,
+            normalizedTopLeft.x));
+        float minY = Mathf.Clamp01(Mathf.Min(
+            normalizedBottomLeft.y,
+            normalizedBottomRight.y,
+            normalizedTopRight.y,
+            normalizedTopLeft.y));
+        float maxY = Mathf.Clamp01(Mathf.Max(
+            normalizedBottomLeft.y,
+            normalizedBottomRight.y,
+            normalizedTopRight.y,
+            normalizedTopLeft.y));
 
-        if (!TryProjectViewportPointToPlane(gameplayCamera, projectionPlane, 0f, 0f, out Vector3 worldBottomLeft) ||
-            !TryProjectViewportPointToPlane(gameplayCamera, projectionPlane, 1f, 0f, out Vector3 worldBottomRight) ||
-            !TryProjectViewportPointToPlane(gameplayCamera, projectionPlane, 1f, 1f, out Vector3 worldTopRight) ||
-            !TryProjectViewportPointToPlane(gameplayCamera, projectionPlane, 0f, 1f, out Vector3 worldTopLeft))
+        if (maxX - minX <= 0.0001f || maxY - minY <= 0.0001f)
+        {
+            return false;
+        }
+
+        normalizedBounds = Rect.MinMaxRect(minX, minY, maxX, maxY);
+        return true;
+    }
+
+    private bool TryPopulateViewportOutlinePoints(Camera gameplayCamera, float width, float height, Rect markerBounds)
+    {
+        if (!TryGetViewportWorldCorners(
+                gameplayCamera,
+                out Vector3 worldBottomLeft,
+                out Vector3 worldBottomRight,
+                out Vector3 worldTopRight,
+                out Vector3 worldTopLeft))
         {
             return false;
         }
@@ -619,6 +667,42 @@ public sealed class MinimapHudController : MonoBehaviour
         ClampToRect(ref viewportOutlinePoints[2], markerBounds);
         ClampToRect(ref viewportOutlinePoints[3], markerBounds);
         return true;
+    }
+
+    private bool TryGetViewportWorldCorners(
+        Camera gameplayCamera,
+        out Vector3 worldBottomLeft,
+        out Vector3 worldBottomRight,
+        out Vector3 worldTopRight,
+        out Vector3 worldTopLeft)
+    {
+        worldBottomLeft = default;
+        worldBottomRight = default;
+        worldTopRight = default;
+        worldTopLeft = default;
+
+        if (!IsGameplayCameraUsable(gameplayCamera))
+        {
+            return false;
+        }
+
+        float projectionHeight = GetViewportProjectionHeight();
+        Plane projectionPlane = new Plane(Vector3.up, new Vector3(0f, projectionHeight, 0f));
+
+        return TryProjectViewportPointToPlane(gameplayCamera, projectionPlane, 0f, 0f, out worldBottomLeft) &&
+               TryProjectViewportPointToPlane(gameplayCamera, projectionPlane, 1f, 0f, out worldBottomRight) &&
+               TryProjectViewportPointToPlane(gameplayCamera, projectionPlane, 1f, 1f, out worldTopRight) &&
+               TryProjectViewportPointToPlane(gameplayCamera, projectionPlane, 0f, 1f, out worldTopLeft);
+    }
+
+    private float GetViewportProjectionHeight()
+    {
+        if (projectViewportAtLocalPlayerHeight && localPlayer != null)
+        {
+            return localPlayer.position.y;
+        }
+
+        return viewportProjectionHeight;
     }
 
     private static bool TryProjectViewportPointToPlane(Camera cam, Plane plane, float viewportX, float viewportY, out Vector3 worldPoint)

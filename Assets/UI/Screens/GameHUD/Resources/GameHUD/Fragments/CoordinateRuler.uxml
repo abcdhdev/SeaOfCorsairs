@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="CoordinateRulerRoot" picking-mode="Ignore" class="coordinate-ruler-root">
+        <ui:VisualElement name="CoordinateRulerCorner" picking-mode="Ignore" class="coordinate-ruler-corner"/>
+        <ui:VisualElement name="CoordinateTopRuler" picking-mode="Ignore" class="coordinate-top-ruler">
+            <ui:VisualElement name="CoordinateTopLabels" picking-mode="Ignore" class="coordinate-top-labels"/>
+        </ui:VisualElement>
+        <ui:VisualElement name="CoordinateLeftRuler" picking-mode="Ignore" class="coordinate-left-ruler">
+            <ui:VisualElement name="CoordinateLeftLabels" picking-mode="Ignore" class="coordinate-left-labels"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

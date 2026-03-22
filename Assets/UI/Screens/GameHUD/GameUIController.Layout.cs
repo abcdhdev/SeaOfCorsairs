@@ -5,6 +5,7 @@ public partial class GameUIController
 {
     private const string TopBarMountName = "TopBarMount";
     private const string MinimapMountName = "MinimapMount";
+    private const string CoordinateRulerMountName = "CoordinateRulerMount";
     private const string ChatMountName = "ChatMount";
     private const string ActionBarMountName = "ActionBarMount";
     private const string IslandEditMountName = "IslandEditMount";
@@ -12,6 +13,7 @@ public partial class GameUIController
 
     private const string TopBarFragmentPath = "GameHUD/Fragments/TopBar";
     private const string MinimapFragmentPath = "GameHUD/Fragments/Minimap";
+    private const string CoordinateRulerFragmentPath = "GameHUD/Fragments/CoordinateRuler";
     private const string ChatFragmentPath = "GameHUD/Fragments/ChatPanel";
     private const string ActionBarFragmentPath = "GameHUD/Fragments/ActionBar";
     private const string IslandEditFragmentPath = "GameHUD/Fragments/IslandEditBar";
@@ -26,6 +28,7 @@ public partial class GameUIController
 
         EnsureFragmentMounted(TopBarMountName, "TopMenuBar", TopBarFragmentPath);
         EnsureFragmentMounted(MinimapMountName, "MinimapRoot", MinimapFragmentPath);
+        EnsureFragmentMounted(CoordinateRulerMountName, "CoordinateRulerRoot", CoordinateRulerFragmentPath);
         EnsureFragmentMounted(ChatMountName, "MmoChatRoot", ChatFragmentPath);
         EnsureFragmentMounted(ActionBarMountName, "BottomHudContainer", ActionBarFragmentPath);
         EnsureFragmentMounted(IslandEditMountName, "IslandEditRoot", IslandEditFragmentPath);

@@ -11,6 +11,9 @@
     --hud-green-bg: rgb(4, 36, 11);
     --hud-red-fill: rgba(120, 16, 12, 0.95);
     --hud-red-bg: rgb(41, 4, 4);
+    --coordinate-ruler-offset-top: 56px;
+    --coordinate-ruler-top-height: 22px;
+    --coordinate-ruler-left-width: 40px;
 }
 
 .hud-root {
@@ -27,6 +30,111 @@
     right: 0;
     bottom: 0;
     left: 0;
+}
+
+.coordinate-ruler-root {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
+.coordinate-ruler-corner {
+    position: absolute;
+    top: var(--coordinate-ruler-offset-top);
+    left: 0;
+    width: var(--coordinate-ruler-left-width);
+    height: var(--coordinate-ruler-top-height);
+    background-color: rgba(7, 12, 18, 0.4);
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-right-color: rgba(227, 170, 95, 0.36);
+    border-bottom-color: rgba(227, 170, 95, 0.36);
+}
+
+.coordinate-top-ruler {
+    position: absolute;
+    top: var(--coordinate-ruler-offset-top);
+    left: var(--coordinate-ruler-left-width);
+    right: 0;
+    height: var(--coordinate-ruler-top-height);
+    background-color: rgba(7, 12, 18, 0.28);
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(227, 170, 95, 0.28);
+}
+
+.coordinate-left-ruler {
+    position: absolute;
+    top: var(--coordinate-ruler-offset-top);
+    bottom: 0;
+    left: 0;
+    width: var(--coordinate-ruler-left-width);
+    background-color: rgba(7, 12, 18, 0.28);
+    border-right-width: 1px;
+    border-right-color: rgba(227, 170, 95, 0.28);
+}
+
+.coordinate-top-labels {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.coordinate-left-labels {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.coordinate-ruler-label {
+    position: absolute;
+    min-width: 0;
+    min-height: 0;
+    color: rgba(241, 215, 174, 0.76);
+    font-size: 9px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    background-color: rgba(0, 0, 0, 0);
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.coordinate-ruler-label-major {
+    color: rgba(255, 233, 200, 0.95);
+}
+
+.coordinate-top-label {
+    top: 0;
+    bottom: 0;
+    padding-top: 1px;
+    border-right-width: 0;
+    border-right-color: rgba(227, 170, 95, 0.14);
+    border-left-width: 1px;
+    border-left-color: rgba(227, 170, 95, 0.14);
+}
+
+.coordinate-top-label.coordinate-ruler-label-major {
+    border-right-color: rgba(227, 170, 95, 0.3);
+    border-left-color: rgba(227, 170, 95, 0.3);
+}
+
+.coordinate-left-label {
+    left: 0;
+    right: 0;
+    padding-right: 2px;
+    border-bottom-width: 0;
+    border-bottom-color: rgba(227, 170, 95, 0.14);
+    border-top-width: 1px;
+    border-top-color: rgba(227, 170, 95, 0.14);
+}
+
+.coordinate-left-label.coordinate-ruler-label-major {
+    border-bottom-color: rgba(227, 170, 95, 0.3);
+    border-top-color: rgba(227, 170, 95, 0.3);
 }
 
 .dead-overlay-root {
@@ -719,7 +827,7 @@
 
 .reward-notification-root {
     position: absolute;
-    top: 64px;
+    top: 80px;
     right: 0;
     left: 0;
     align-items: center;

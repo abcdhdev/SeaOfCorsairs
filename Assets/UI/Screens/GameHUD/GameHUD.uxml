@@ -3,6 +3,7 @@
     <ui:VisualElement name="HudRoot" picking-mode="Ignore" class="hud-root">
         <ui:VisualElement name="TopBarMount" picking-mode="Ignore"/>
         <ui:VisualElement name="MinimapMount" picking-mode="Ignore"/>
+        <ui:VisualElement name="CoordinateRulerMount" picking-mode="Ignore"/>
         <ui:VisualElement name="CombatOverlayLayer" picking-mode="Ignore" class="combat-overlay-layer"/>
         <ui:VisualElement name="CameraZoomRoot" class="camera-zoom-root">
             <ui:Slider name="CameraZoomSlider" class="camera-zoom-slider"/>

@@ -53,8 +53,74 @@ public partial class GameUIController
         return SelectObject.Instance != null ? SelectObject.Instance.SelectedTarget : null;
     }
 
+    private void OnLocalPlayerSpawned(Player player)
+    {
+        BindLocalPlayerDeathEvents(player);
+    }
+
+    private void BindLocalPlayerDeathEvents(Player localPlayer)
+    {
+        if (observedLocalPlayer == localPlayer)
+        {
+            isLocalPlayerDead = localPlayer != null && localPlayer.IsDead;
+            if (isLocalPlayerDead)
+            {
+                TrackHealthTarget(null);
+                SetHealthVisible(false);
+            }
+
+            return;
+        }
+
+        UnbindLocalPlayerDeathEvents();
+
+        observedLocalPlayer = localPlayer;
+        isLocalPlayerDead = localPlayer != null && localPlayer.IsDead;
+
+        if (observedLocalPlayer != null)
+        {
+            observedLocalPlayer.OnDeathStateChanged += OnLocalPlayerDeathStateChanged;
+        }
+
+        if (isLocalPlayerDead)
+        {
+            TrackHealthTarget(null);
+            SetHealthVisible(false);
+        }
+    }
+
+    private void UnbindLocalPlayerDeathEvents()
+    {
+        if (observedLocalPlayer != null)
+        {
+            observedLocalPlayer.OnDeathStateChanged -= OnLocalPlayerDeathStateChanged;
+            observedLocalPlayer = null;
+        }
+
+        isLocalPlayerDead = false;
+    }
+
+    private void OnLocalPlayerDeathStateChanged(bool isDead)
+    {
+        isLocalPlayerDead = isDead;
+
+        if (isDead)
+        {
+            TrackHealthTarget(null);
+            SetHealthVisible(false);
+            return;
+        }
+
+        TrackHealthTarget(GetSelectedHealthTarget());
+    }
+
     private void TrackHealthTarget(IHealthSystem healthTarget)
     {
+        if (isLocalPlayerDead)
+        {
+            healthTarget = null;
+        }
+
         Component healthTargetComponent = healthTarget as Component;
         if (trackedHealthTargetComponent == healthTargetComponent &&
             ReferenceEquals(trackedHealthTarget, healthTarget))

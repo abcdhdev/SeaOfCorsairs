@@ -432,6 +432,11 @@ public class WorldNameplateUI : MonoBehaviour
         if (healthBarSlice != null)
         {
             healthBarSlice.pickingMode = PickingMode.Ignore;
+            // Center the flash on the health boundary so it reads as a slice instead of a block.
+            healthBarSlice.style.translate = new Translate(
+                new Length(-50f, LengthUnit.Percent),
+                new Length(0f, LengthUnit.Pixel),
+                0f);
             healthBarSlice.style.display = DisplayStyle.None;
             healthBarSlice.style.opacity = 0f;
         }

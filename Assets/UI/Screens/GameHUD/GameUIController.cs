@@ -127,6 +127,8 @@ public partial class GameUIController : MonoBehaviour
     private IHealthSystem trackedHealthTarget;
     private Component trackedHealthTargetComponent;
     private Player cachedLocalPlayer;
+    private Player observedLocalPlayer;
+    private bool isLocalPlayerDead;
     private int displayedPlayerHealth = -1;
     private int displayedPlayerMaxHealth = -1;
     private int displayedPlayerGold = -1;
@@ -153,6 +155,9 @@ public partial class GameUIController : MonoBehaviour
         root = uiDocument.rootVisualElement;
         EnsureHudLayoutComposed();
         BindUiElements();
+        Player.LocalPlayerSpawned -= OnLocalPlayerSpawned;
+        Player.LocalPlayerSpawned += OnLocalPlayerSpawned;
+        BindLocalPlayerDeathEvents(Player.LocalPlayer);
         EnsureShipSection();
         SetCombatOverlayVisible(true);
         EnsureAmmoMenu();
@@ -191,6 +196,8 @@ public partial class GameUIController : MonoBehaviour
 
         UnregisterBlockingUiElements();
         UnregisterUiCallbacks();
+        Player.LocalPlayerSpawned -= OnLocalPlayerSpawned;
+        UnbindLocalPlayerDeathEvents();
         CloseAmmoMenu();
         CloseHarpoonMenu();
         marketController?.Dispose();
@@ -248,7 +255,10 @@ public partial class GameUIController : MonoBehaviour
             return;
         }
 
-        TrackHealthTarget(GetSelectedHealthTarget());
+        if (!isLocalPlayerDead)
+        {
+            TrackHealthTarget(GetSelectedHealthTarget());
+        }
 
         if (trackedHealthTargetComponent != null)
         {
@@ -262,6 +272,7 @@ public partial class GameUIController : MonoBehaviour
         UpdatePlayerExpBar();
         RefreshWeaponSelectionTooltips();
         UpdateCameraZoomControl();
+        RefreshCoordinateRuler();
         UpdateFpsAndPing();
         marketController?.Refresh();
         guildManagementController?.Refresh();
@@ -350,6 +361,7 @@ public partial class GameUIController : MonoBehaviour
         topMenuGuildsButton = root.Q<Button>("TopMenuGuildsButton");
         topMenuShipButton = root.Q<Button>("TopMenuShipButton");
         topMenuLogoutButton = root.Q<Button>("TopMenuLogoutButton");
+        BindCoordinateRulerElements();
         if (topMenuShieldDropdown != null)
         {
             topMenuShieldDropdown.pickingMode = PickingMode.Position;
@@ -361,6 +373,8 @@ public partial class GameUIController : MonoBehaviour
     private void ClearUiElementReferences()
     {
         cachedLocalPlayer = null;
+        observedLocalPlayer = null;
+        isLocalPlayerDead = false;
         displayedPlayerHealth = -1;
         displayedPlayerMaxHealth = -1;
         displayedPlayerGold = -1;
@@ -412,6 +426,7 @@ public partial class GameUIController : MonoBehaviour
         cameraZoomRoot = null;
         cameraZoomSlider = null;
         cameraZoomThumb = null;
+        ClearCoordinateRulerReferences();
         ClearIslandEditReferences();
         root = null;
 
