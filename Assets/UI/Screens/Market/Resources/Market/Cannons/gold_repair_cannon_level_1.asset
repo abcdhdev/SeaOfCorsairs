@@ -17,8 +17,12 @@ MonoBehaviour:
   description: This repair cannon fires valuable repair ammunition with great precision.
   icon: {fileID: 2800000, guid: 1bae882a9ab68de4782eb9d75e9917b7, type: 3}
   hitProbability: 45
-  cannonRange: 18
+  cannonRange: 54
   reloadTimeSeconds: 10
+  criticalHitProbability: 0
+  criticalHitDamage: 0
+  bonusDamageFlat: 0
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

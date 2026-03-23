@@ -18,8 +18,12 @@ MonoBehaviour:
     on board.
   icon: {fileID: 2800000, guid: 14ca00500f5cbdb41ab74ba6402c2259, type: 3}
   hitProbability: 75
-  cannonRange: 30
+  cannonRange: 90
   reloadTimeSeconds: 7
+  criticalHitProbability: 20
+  criticalHitDamage: 20
+  bonusDamageFlat: 0
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

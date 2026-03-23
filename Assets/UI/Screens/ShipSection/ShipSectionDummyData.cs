@@ -11,7 +11,8 @@ public static class ShipSectionDummyData
 
         var categories = new List<ShipSectionCategoryData>
         {
-            new ShipSectionCategoryData("designs", "ships", "Ship Designs")
+            new ShipSectionCategoryData("designs", "ships", "Ship Designs"),
+            new ShipSectionCategoryData("ship-depot", "ships", "Ship Depot")
         };
 
         var items = new List<ShipSectionItemData>

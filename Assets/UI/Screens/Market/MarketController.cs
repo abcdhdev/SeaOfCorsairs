@@ -11,7 +11,10 @@ public sealed class MarketController : IDisposable
     private const string MarketStyleResourcePath = "Market/Market";
     private const string MarketCategoryCannonsId = "cannons";
     private const string MarketCategoryShipsId = "ships";
-    private const string DefaultStatusMessage = "Select a ship or cannon to buy it from the market.";
+    private const string MarketCategoryAmmoId = MarketInventoryCatalogRuntime.AmmoCategoryId;
+    private const string MarketCategoryHarpoonsId = MarketInventoryCatalogRuntime.HarpoonsCategoryId;
+    private const string MarketCategoryActionItemsId = MarketInventoryCatalogRuntime.ActionItemsCategoryId;
+    private const string DefaultStatusMessage = "Select an item to buy it from the market.";
     private const string CategoryButtonClass = "window-category-button";
     private const string CategoryButtonSelectedClass = "window-category-button-selected";
     private const string OwnedStateOwnedClass = "market-owned-state-owned";
@@ -24,7 +27,7 @@ public sealed class MarketController : IDisposable
     private readonly VisualElement attachTarget;
     private readonly Func<Player> localPlayerProvider;
     private readonly List<MarketItemViewModel> visibleItems = new List<MarketItemViewModel>();
-    private readonly HashSet<string> ownedCannonIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> inventoryAmounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> ownedShipIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     private VisualElement overlayRoot;
@@ -45,7 +48,7 @@ public sealed class MarketController : IDisposable
     private string pendingPurchaseKey = string.Empty;
     private int displayedGold = -1;
     private int displayedDiamonds = -1;
-    private string displayedOwnedCannonsCsv = string.Empty;
+    private string displayedInventorySnapshot = string.Empty;
     private string displayedOwnedShipsCsv = string.Empty;
 
     public MarketController(VisualElement attachTarget, Func<Player> localPlayerProvider)
@@ -156,7 +159,7 @@ public sealed class MarketController : IDisposable
 
         int currentGold = localPlayer != null ? Mathf.Max(0, localPlayer.Gold) : 0;
         int currentDiamonds = localPlayer != null ? Mathf.Max(0, localPlayer.Diamonds) : 0;
-        string ownedCannonsCsv = localPlayer != null ? localPlayer.OwnedCannonIdsCsv ?? string.Empty : string.Empty;
+        string inventorySnapshot = localPlayer != null ? localPlayer.InventorySnapshot ?? string.Empty : string.Empty;
         string ownedShipsCsv = localPlayer != null ? localPlayer.OwnedShipIdsCsv ?? string.Empty : string.Empty;
 
         if (goldValueLabel != null && displayedGold != currentGold)
@@ -171,12 +174,12 @@ public sealed class MarketController : IDisposable
 
         bool stateChanged = displayedGold != currentGold ||
                             displayedDiamonds != currentDiamonds ||
-                            !string.Equals(displayedOwnedCannonsCsv, ownedCannonsCsv, StringComparison.Ordinal) ||
+                            !string.Equals(displayedInventorySnapshot, inventorySnapshot, StringComparison.Ordinal) ||
                             !string.Equals(displayedOwnedShipsCsv, ownedShipsCsv, StringComparison.Ordinal);
 
         displayedGold = currentGold;
         displayedDiamonds = currentDiamonds;
-        displayedOwnedCannonsCsv = ownedCannonsCsv;
+        displayedInventorySnapshot = inventorySnapshot;
         displayedOwnedShipsCsv = ownedShipsCsv;
 
         if (!stateChanged)
@@ -184,7 +187,7 @@ public sealed class MarketController : IDisposable
             return;
         }
 
-        SyncOwnedSet(ownedCannonsCsv, ownedCannonIds, NormalizeCannonId);
+        SyncInventoryAmounts(localPlayer);
         SyncOwnedSet(ownedShipsCsv, ownedShipIds, MarketShipCatalogRuntime.NormalizeShipId);
         RefreshListItems();
     }
@@ -222,9 +225,9 @@ public sealed class MarketController : IDisposable
         selectedCategoryId = MarketCategoryCannonsId;
         displayedGold = -1;
         displayedDiamonds = -1;
-        displayedOwnedCannonsCsv = string.Empty;
+        displayedInventorySnapshot = string.Empty;
         displayedOwnedShipsCsv = string.Empty;
-        ownedCannonIds.Clear();
+        inventoryAmounts.Clear();
         ownedShipIds.Clear();
         visibleItems.Clear();
     }
@@ -284,11 +287,13 @@ public sealed class MarketController : IDisposable
 
         MarketItemViewModel definition = visibleItems[index];
         MarketRowController controller = item.userData as MarketRowController;
+        int ownedAmount = GetOwnedAmount(definition);
         controller?.Bind(
             definition,
             displayedGold,
             displayedDiamonds,
-            IsOwned(definition),
+            ownedAmount,
+            definition.IsUniquePurchase && IsOwned(definition),
             string.Equals(pendingPurchaseKey, definition.PurchaseKey, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -337,7 +342,7 @@ public sealed class MarketController : IDisposable
         RebuildItems();
         displayedGold = -1;
         displayedDiamonds = -1;
-        displayedOwnedCannonsCsv = string.Empty;
+        displayedInventorySnapshot = string.Empty;
         displayedOwnedShipsCsv = string.Empty;
         Refresh();
         SetStatus(DefaultStatusMessage, isSuccess: false, useTone: false, clearPendingPurchase: false);
@@ -371,6 +376,9 @@ public sealed class MarketController : IDisposable
         categoryList.Clear();
         AddCategoryButton(MarketCategoryCannonsId, "Cannons");
         AddCategoryButton(MarketCategoryShipsId, "Ships");
+        AddCategoryButton(MarketCategoryAmmoId, "Ammo");
+        AddCategoryButton(MarketCategoryHarpoonsId, "Harpoons");
+        AddCategoryButton(MarketCategoryActionItemsId, "Action Items");
 
         if (categoryTitleLabel != null)
         {
@@ -432,6 +440,31 @@ public sealed class MarketController : IDisposable
                 visibleItems.Add(MarketItemViewModel.FromShip(ship));
             }
         }
+        else
+        {
+            IReadOnlyList<MarketInventoryItemData> catalogItems = MarketInventoryCatalogRuntime.GetItemsForCategory(selectedCategoryId);
+            for (int index = 0; index < catalogItems.Count; index++)
+            {
+                MarketInventoryItemData item = catalogItems[index];
+                if (item == null)
+                {
+                    continue;
+                }
+
+                visibleItems.Add(MarketItemViewModel.FromInventoryItem(item));
+            }
+        }
+
+        visibleItems.Sort(static (left, right) =>
+        {
+            int sortOrderComparison = left.SortOrder.CompareTo(right.SortOrder);
+            if (sortOrderComparison != 0)
+            {
+                return sortOrderComparison;
+            }
+
+            return string.Compare(left.DisplayName, right.DisplayName, StringComparison.OrdinalIgnoreCase);
+        });
 
         if (categoryTitleLabel != null)
         {
@@ -472,6 +505,8 @@ public sealed class MarketController : IDisposable
         {
             observedPlayer.OnCannonPurchaseResult += OnObservedPlayerCannonPurchaseResult;
             observedPlayer.OnShipPurchaseResult += OnObservedPlayerShipPurchaseResult;
+            observedPlayer.OnInventoryItemPurchaseResult += OnObservedPlayerInventoryItemPurchaseResult;
+            observedPlayer.OnInventoryChanged += OnObservedPlayerInventoryChanged;
         }
     }
 
@@ -481,6 +516,8 @@ public sealed class MarketController : IDisposable
         {
             observedPlayer.OnCannonPurchaseResult -= OnObservedPlayerCannonPurchaseResult;
             observedPlayer.OnShipPurchaseResult -= OnObservedPlayerShipPurchaseResult;
+            observedPlayer.OnInventoryItemPurchaseResult -= OnObservedPlayerInventoryItemPurchaseResult;
+            observedPlayer.OnInventoryChanged -= OnObservedPlayerInventoryChanged;
             observedPlayer = null;
         }
     }
@@ -511,6 +548,24 @@ public sealed class MarketController : IDisposable
         Refresh();
     }
 
+    private void OnObservedPlayerInventoryItemPurchaseResult(string itemId, bool success, string message)
+    {
+        string purchaseKey = BuildPurchaseKey(MarketItemCategory.Inventory, PlayerInventoryState.NormalizeItemId(itemId));
+        if (string.Equals(pendingPurchaseKey, purchaseKey, StringComparison.OrdinalIgnoreCase))
+        {
+            pendingPurchaseKey = string.Empty;
+        }
+
+        SetStatus(message, success, useTone: true, clearPendingPurchase: success);
+        RefreshListItems();
+        Refresh();
+    }
+
+    private void OnObservedPlayerInventoryChanged()
+    {
+        Refresh();
+    }
+
     private void OnBuyClicked(MarketItemViewModel definition)
     {
         if (definition == null)
@@ -525,7 +580,7 @@ public sealed class MarketController : IDisposable
             return;
         }
 
-        if (IsOwned(definition))
+        if (definition.IsUniquePurchase && IsOwned(definition))
         {
             SetStatus($"{definition.DisplayName} is already owned.", isSuccess: false, useTone: true);
             return;
@@ -537,9 +592,13 @@ public sealed class MarketController : IDisposable
             return;
         }
 
-        bool requestSent = definition.Category == MarketItemCategory.Cannon
-            ? localPlayer.RequestCannonPurchase(definition.Id)
-            : localPlayer.RequestShipPurchase(definition.Id);
+        bool requestSent = definition.Category switch
+        {
+            MarketItemCategory.Cannon => localPlayer.RequestCannonPurchase(definition.Id),
+            MarketItemCategory.Ship => localPlayer.RequestShipPurchase(definition.Id),
+            MarketItemCategory.Inventory => localPlayer.RequestInventoryItemPurchase(definition.Id),
+            _ => false
+        };
 
         if (!requestSent)
         {
@@ -560,8 +619,8 @@ public sealed class MarketController : IDisposable
         }
 
         return definition.Category == MarketItemCategory.Cannon
-            ? ownedCannonIds.Contains(definition.Id)
-            : ownedShipIds.Contains(definition.Id);
+            ? false
+            : definition.Category == MarketItemCategory.Ship && ownedShipIds.Contains(definition.Id);
     }
 
     private void SetStatus(string message, bool isSuccess, bool useTone, bool clearPendingPurchase = true)
@@ -644,6 +703,39 @@ public sealed class MarketController : IDisposable
         }
     }
 
+    private void SyncInventoryAmounts(Player localPlayer)
+    {
+        inventoryAmounts.Clear();
+        if (localPlayer == null)
+        {
+            return;
+        }
+
+        IReadOnlyList<PlayerInventoryItemState> inventoryItems = localPlayer.GetInventoryItems();
+        Dictionary<string, int> amounts = PlayerInventoryState.CreateAmountLookup(inventoryItems);
+        foreach (KeyValuePair<string, int> entry in amounts)
+        {
+            inventoryAmounts[entry.Key] = Mathf.Max(0, entry.Value);
+        }
+    }
+
+    private int GetOwnedAmount(MarketItemViewModel definition)
+    {
+        if (definition == null)
+        {
+            return 0;
+        }
+
+        if (definition.Category == MarketItemCategory.Ship)
+        {
+            return ownedShipIds.Contains(definition.Id) ? 1 : 0;
+        }
+
+        return inventoryAmounts.TryGetValue(definition.Id, out int ownedAmount)
+            ? Mathf.Max(0, ownedAmount)
+            : 0;
+    }
+
     private static string NormalizeCannonId(string cannonId)
     {
         return string.IsNullOrWhiteSpace(cannonId)
@@ -663,13 +755,29 @@ public sealed class MarketController : IDisposable
             return "Ships";
         }
 
+        if (string.Equals(categoryId, MarketCategoryAmmoId, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Ammo";
+        }
+
+        if (string.Equals(categoryId, MarketCategoryHarpoonsId, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Harpoons";
+        }
+
+        if (string.Equals(categoryId, MarketCategoryActionItemsId, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Action Items";
+        }
+
         return "Cannons";
     }
 
     private enum MarketItemCategory
     {
         Cannon = 0,
-        Ship = 1
+        Ship = 1,
+        Inventory = 2
     }
 
     private sealed class MarketItemViewModel
@@ -683,7 +791,10 @@ public sealed class MarketController : IDisposable
             string statLine1,
             string statLine2,
             string statLine3,
-            MarketCost cost)
+            MarketCost cost,
+            bool isUniquePurchase,
+            int purchaseAmount,
+            int sortOrder)
         {
             Category = category;
             Id = id ?? string.Empty;
@@ -694,6 +805,9 @@ public sealed class MarketController : IDisposable
             StatLine2 = statLine2 ?? string.Empty;
             StatLine3 = statLine3 ?? string.Empty;
             Cost = cost ?? new MarketCost();
+            IsUniquePurchase = isUniquePurchase;
+            PurchaseAmount = Mathf.Max(1, purchaseAmount);
+            SortOrder = Mathf.Max(0, sortOrder);
         }
 
         public MarketItemCategory Category { get; }
@@ -705,20 +819,59 @@ public sealed class MarketController : IDisposable
         public string StatLine2 { get; }
         public string StatLine3 { get; }
         public MarketCost Cost { get; }
+        public bool IsUniquePurchase { get; }
+        public int PurchaseAmount { get; }
+        public int SortOrder { get; }
         public string PurchaseKey => BuildPurchaseKey(Category, Id);
 
         public static MarketItemViewModel FromCannon(MarketCannonData cannon)
         {
+            bool hasAdvancedCombatStats =
+                cannon.CriticalHitProbability > 0f ||
+                cannon.CriticalHitDamage > 0f ||
+                cannon.BonusDamageFlat > 0 ||
+                cannon.BonusDamagePercentage > 0f;
+
             return new MarketItemViewModel(
                 MarketItemCategory.Cannon,
                 cannon.Id,
                 cannon.DisplayName,
                 cannon.Description,
                 cannon.Icon,
-                $"Hit {cannon.HitProbability}%",
-                $"Range {cannon.CannonRange:0.#}",
-                $"Reload {cannon.ReloadTimeSeconds:0.#}s",
-                cannon.Cost);
+                hasAdvancedCombatStats
+                    ? $"Hit {cannon.HitProbability}% | Crit {cannon.CriticalHitProbability:0.#}%"
+                    : $"Hit {cannon.HitProbability}%",
+                hasAdvancedCombatStats
+                    ? $"Range {cannon.CannonRange:0.#} | Reload {cannon.ReloadTimeSeconds:0.#}s"
+                    : $"Range {cannon.CannonRange:0.#}",
+                hasAdvancedCombatStats
+                    ? BuildCannonBonusStatLine(cannon)
+                    : $"Reload {cannon.ReloadTimeSeconds:0.#}s",
+                cannon.Cost,
+                false,
+                1,
+                cannon.SortOrder);
+        }
+
+        private static string BuildCannonBonusStatLine(MarketCannonData cannon)
+        {
+            var parts = new List<string>();
+            if (cannon.CriticalHitDamage > 0f)
+            {
+                parts.Add($"Crit Dmg +{cannon.CriticalHitDamage:0.#}%");
+            }
+
+            if (cannon.BonusDamageFlat > 0)
+            {
+                parts.Add($"+{cannon.BonusDamageFlat} Dmg");
+            }
+
+            if (cannon.BonusDamagePercentage > 0f)
+            {
+                parts.Add($"+{cannon.BonusDamagePercentage:0.#}% Dmg");
+            }
+
+            return parts.Count > 0 ? string.Join(" | ", parts) : string.Empty;
         }
 
         public static MarketItemViewModel FromShip(MarketShipData ship)
@@ -732,7 +885,27 @@ public sealed class MarketController : IDisposable
                 ship.PrimaryStatLabel,
                 ship.SecondaryStatLabel,
                 ship.TertiaryStatLabel,
-                ship.Cost);
+                ship.Cost,
+                true,
+                1,
+                ship.SortOrder);
+        }
+
+        public static MarketItemViewModel FromInventoryItem(MarketInventoryItemData item)
+        {
+            return new MarketItemViewModel(
+                MarketItemCategory.Inventory,
+                item.Id,
+                item.DisplayName,
+                item.Description,
+                item.Icon,
+                item.StatLine1,
+                item.StatLine2,
+                item.StatLine3,
+                item.Cost,
+                false,
+                item.PurchaseAmount,
+                item.SortOrder);
         }
     }
 
@@ -770,7 +943,7 @@ public sealed class MarketController : IDisposable
             }
         }
 
-        public void Bind(MarketItemViewModel definition, int gold, int diamonds, bool isOwned, bool isPending)
+        public void Bind(MarketItemViewModel definition, int gold, int diamonds, int ownedAmount, bool isUniqueOwned, bool isPending)
         {
             boundDefinition = definition;
 
@@ -796,41 +969,52 @@ public sealed class MarketController : IDisposable
                 descriptionLabel.text = definition.Description;
             }
 
-            if (statLine1Label != null)
-            {
-                statLine1Label.text = definition.StatLine1;
-            }
-
-            if (statLine2Label != null)
-            {
-                statLine2Label.text = definition.StatLine2;
-            }
-
-            if (statLine3Label != null)
-            {
-                statLine3Label.text = definition.StatLine3;
-            }
+            BindStatLabel(statLine1Label, definition.StatLine1);
+            BindStatLabel(statLine2Label, definition.StatLine2);
+            BindStatLabel(statLine3Label, definition.StatLine3);
 
             RebuildCostList(definition.Cost);
 
             bool canAfford = definition.Cost.CanAfford(gold, diamonds);
             if (ownedLabel != null)
             {
-                ownedLabel.EnableInClassList(OwnedStateOwnedClass, isOwned);
-                ownedLabel.EnableInClassList(OwnedStateLockedClass, !isOwned);
-                ownedLabel.text = isOwned
-                    ? "Owned"
-                    : canAfford
-                        ? "Ready to buy"
-                        : definition.Cost.BuildShortageText(gold, diamonds);
+                bool hasAnyOwned = ownedAmount > 0;
+                ownedLabel.EnableInClassList(OwnedStateOwnedClass, hasAnyOwned);
+                ownedLabel.EnableInClassList(OwnedStateLockedClass, !hasAnyOwned);
+                ownedLabel.text = definition.IsUniquePurchase
+                    ? isUniqueOwned
+                        ? "Owned"
+                        : canAfford
+                            ? "Ready to buy"
+                            : definition.Cost.BuildShortageText(gold, diamonds)
+                    : $"Owned: {Mathf.Max(0, ownedAmount):N0}";
             }
 
             if (buyButton != null)
             {
-                buyButton.text = isOwned ? "Owned" : isPending ? "Buying..." : "Buy";
-                buyButton.SetEnabled(!isOwned && !isPending);
-                buyButton.EnableInClassList(BuyButtonUnaffordableClass, !isOwned && !isPending && !canAfford);
+                bool isDisabledByOwnership = definition.IsUniquePurchase && isUniqueOwned;
+                buyButton.text = isDisabledByOwnership
+                    ? "Owned"
+                    : isPending
+                        ? "Buying..."
+                        : definition.PurchaseAmount > 1
+                            ? $"Buy {definition.PurchaseAmount:N0}"
+                            : "Buy 1";
+                buyButton.SetEnabled(!isDisabledByOwnership && !isPending);
+                buyButton.EnableInClassList(BuyButtonUnaffordableClass, !isDisabledByOwnership && !isPending && !canAfford);
             }
+        }
+
+        private static void BindStatLabel(Label label, string text)
+        {
+            if (label == null)
+            {
+                return;
+            }
+
+            bool hasText = !string.IsNullOrWhiteSpace(text);
+            label.text = hasText ? text : string.Empty;
+            label.style.display = hasText ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private void RebuildCostList(MarketCost cost)

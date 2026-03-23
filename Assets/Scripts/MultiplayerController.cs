@@ -40,16 +40,20 @@ public class MultiplayerController : MonoBehaviour
         public Action<int, int, int> WalletChangedHandler;
         public Action<string> SelectedShipChangedHandler;
         public Action<PlayerActionItemType> ActiveActionItemsChangedHandler;
+        public Action InventoryChangedHandler;
+        public Action ShipCannonLoadoutsChangedHandler;
         public CancellationTokenSource LifetimeCts = new();
         public SemaphoreSlim PlayerStateSyncLock = new(1, 1);
         public int WalletVersion;
         public bool HasWalletVersion;
-        public bool IsApplyingWallet;
+        public bool IsApplyingPlayerState;
         public int PendingGold;
         public int PendingDiamond;
         public int PendingExperience;
         public string PendingSelectedShipId = string.Empty;
         public PlayerActionItemType PendingActiveActionItems = PlayerActionItemType.None;
+        public string PendingInventorySnapshot = string.Empty;
+        public string PendingShipCannonLoadoutsSnapshot = string.Empty;
         public bool WalletDirty;
         public bool WalletSaveLoopRunning;
         public bool PlayerStatusDirty;
@@ -645,7 +649,7 @@ public class MultiplayerController : MonoBehaviour
 
         session.WalletChangedHandler = (diamonds, gold, experience) =>
         {
-            if (session.IsApplyingWallet || session.LifetimeCts.IsCancellationRequested)
+            if (session.IsApplyingPlayerState || session.LifetimeCts.IsCancellationRequested)
             {
                 return;
             }
@@ -687,19 +691,30 @@ public class MultiplayerController : MonoBehaviour
 
         session.SelectedShipChangedHandler = _ =>
         {
-            session.PendingSelectedShipId = player.SelectedShipId ?? string.Empty;
-            session.PendingActiveActionItems = player.ActiveActionItems;
-            QueuePlayerStatusSave(session);
+            HandleObservedPlayerStatusChanged(session, player);
         };
         session.ActiveActionItemsChangedHandler = _ =>
         {
-            session.PendingSelectedShipId = player.SelectedShipId ?? string.Empty;
-            session.PendingActiveActionItems = player.ActiveActionItems;
-            QueuePlayerStatusSave(session);
+            HandleObservedPlayerStatusChanged(session, player);
         };
+        session.InventoryChangedHandler = () => HandleObservedPlayerStatusChanged(session, player);
+        session.ShipCannonLoadoutsChangedHandler = () => HandleObservedPlayerStatusChanged(session, player);
 
         player.OnSelectedShipChanged += session.SelectedShipChangedHandler;
         player.OnActiveActionItemsChanged += session.ActiveActionItemsChangedHandler;
+        player.OnInventoryChanged += session.InventoryChangedHandler;
+        player.OnShipCannonLoadoutsChanged += session.ShipCannonLoadoutsChangedHandler;
+    }
+
+    private void HandleObservedPlayerStatusChanged(AuthenticatedClientSession session, Player player)
+    {
+        if (session == null || player == null || session.LifetimeCts.IsCancellationRequested || session.IsApplyingPlayerState)
+        {
+            return;
+        }
+
+        CapturePendingPlayerStatus(session, player);
+        QueuePlayerStatusSave(session);
     }
 
     private static void UnsubscribeFromPlayerStatusChanges(AuthenticatedClientSession session)
@@ -719,6 +734,18 @@ public class MultiplayerController : MonoBehaviour
         {
             session.Player.OnActiveActionItemsChanged -= session.ActiveActionItemsChangedHandler;
             session.ActiveActionItemsChangedHandler = null;
+        }
+
+        if (session.InventoryChangedHandler != null)
+        {
+            session.Player.OnInventoryChanged -= session.InventoryChangedHandler;
+            session.InventoryChangedHandler = null;
+        }
+
+        if (session.ShipCannonLoadoutsChangedHandler != null)
+        {
+            session.Player.OnShipCannonLoadoutsChanged -= session.ShipCannonLoadoutsChangedHandler;
+            session.ShipCannonLoadoutsChangedHandler = null;
         }
     }
 
@@ -758,6 +785,8 @@ public class MultiplayerController : MonoBehaviour
                         session,
                         session.PendingSelectedShipId,
                         session.PendingActiveActionItems,
+                        session.PendingInventorySnapshot,
+                        session.PendingShipCannonLoadoutsSnapshot,
                         session.LifetimeCts.Token);
                 }
                 finally
@@ -866,12 +895,6 @@ public class MultiplayerController : MonoBehaviour
                 return;
             }
 
-            if (player.OwnsCannon(normalizedCannonId))
-            {
-                player.NotifyCannonPurchaseResult(normalizedCannonId, false, $"{cannonDisplayName} is already owned.");
-                return;
-            }
-
             var playerDataClient = new BackendPlayerDataClient(ResolvePlayerDataBaseUrl());
             for (int attempt = 0; attempt < 3; attempt++)
             {
@@ -894,15 +917,16 @@ public class MultiplayerController : MonoBehaviour
                     session.PendingExperience = Mathf.Max(0, player.Experience);
                     session.WalletDirty = false;
 
-                    session.IsApplyingWallet = true;
+                    session.IsApplyingPlayerState = true;
                     try
                     {
                         player.ApplyPersistedWallet(purchase.gold, purchase.diamond);
-                        player.ApplyPersistedOwnedCannons(purchase.ownedCannonIds);
+                        player.ApplyPersistedInventory(ToInventoryItemStates(purchase.inventoryItems));
+                        CapturePendingPlayerStatus(session, player);
                     }
                     finally
                     {
-                        session.IsApplyingWallet = false;
+                        session.IsApplyingPlayerState = false;
                     }
 
                     player.NotifyCannonPurchaseResult(normalizedCannonId, true, $"{cannonDisplayName} purchased.");
@@ -1009,15 +1033,16 @@ public class MultiplayerController : MonoBehaviour
                     session.PendingExperience = Mathf.Max(0, player.Experience);
                     session.WalletDirty = false;
 
-                    session.IsApplyingWallet = true;
+                    session.IsApplyingPlayerState = true;
                     try
                     {
                         player.ApplyPersistedWallet(purchase.gold, purchase.diamond);
                         player.ApplyPersistedOwnedShips(purchase.ownedShipIds);
+                        CapturePendingPlayerStatus(session, player);
                     }
                     finally
                     {
-                        session.IsApplyingWallet = false;
+                        session.IsApplyingPlayerState = false;
                     }
 
                     player.NotifyShipPurchaseResult(normalizedShipId, true, $"{shipDisplayName} purchased.");
@@ -1065,6 +1090,117 @@ public class MultiplayerController : MonoBehaviour
         }
     }
 
+    private async Task ProcessInventoryItemPurchaseAsync(Player player, string itemId)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        if (!_clientSessions.TryGetValue(player.OwnerClientId, out var session))
+        {
+            player.NotifyInventoryItemPurchaseResult(itemId, false, "Unable to find your backend session.");
+            return;
+        }
+
+        var acquiredPlayerStateLock = false;
+        try
+        {
+            await session.PlayerStateSyncLock.WaitAsync(session.LifetimeCts.Token);
+            acquiredPlayerStateLock = true;
+
+            if (session.LifetimeCts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            string normalizedItemId = PlayerInventoryState.NormalizeItemId(itemId);
+            if (!TryGetInventoryPurchaseDisplayName(normalizedItemId, out string itemDisplayName, out int purchasedAmount))
+            {
+                player.NotifyInventoryItemPurchaseResult(normalizedItemId, false, "Unknown market item.");
+                return;
+            }
+
+            var playerDataClient = new BackendPlayerDataClient(ResolvePlayerDataBaseUrl());
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                session.LifetimeCts.Token.ThrowIfCancellationRequested();
+
+                try
+                {
+                    var purchase = await playerDataClient.PurchaseInventoryItemAsync(
+                        session.AccessToken,
+                        normalizedItemId,
+                        player.Gold,
+                        player.Diamonds,
+                        session.HasWalletVersion ? session.WalletVersion : (int?)null,
+                        session.LifetimeCts.Token);
+
+                    session.WalletVersion = purchase.version;
+                    session.HasWalletVersion = true;
+                    session.PendingGold = Mathf.Max(0, purchase.gold);
+                    session.PendingDiamond = Mathf.Max(0, purchase.diamond);
+                    session.PendingExperience = Mathf.Max(0, player.Experience);
+                    session.WalletDirty = false;
+
+                    session.IsApplyingPlayerState = true;
+                    try
+                    {
+                        player.ApplyPersistedWallet(purchase.gold, purchase.diamond);
+                        player.ApplyPersistedInventory(ToInventoryItemStates(purchase.inventoryItems));
+                        CapturePendingPlayerStatus(session, player);
+                    }
+                    finally
+                    {
+                        session.IsApplyingPlayerState = false;
+                    }
+
+                    int successAmount = purchase.purchasedAmount > 0 ? purchase.purchasedAmount : purchasedAmount;
+                    player.NotifyInventoryItemPurchaseResult(normalizedItemId, true, $"{itemDisplayName} x{successAmount:N0} purchased.");
+                    return;
+                }
+                catch (BackendApiException ex) when (ex.StatusCode == 401 && attempt < 2)
+                {
+                    if (!await TryRefreshSessionTokensAsync(session, session.LifetimeCts.Token))
+                    {
+                        player.NotifyInventoryItemPurchaseResult(normalizedItemId, false, $"Could not refresh your session: {ex.Message}");
+                        return;
+                    }
+                }
+                catch (BackendApiException ex) when (ex.StatusCode == 409 && attempt < 2)
+                {
+                    if (!await TryReloadWalletVersionAsync(session, session.LifetimeCts.Token))
+                    {
+                        player.NotifyInventoryItemPurchaseResult(normalizedItemId, false, $"Could not refresh your latest wallet state: {ex.Message}");
+                        return;
+                    }
+                }
+                catch (BackendApiException ex)
+                {
+                    player.NotifyInventoryItemPurchaseResult(normalizedItemId, false, ex.Message);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    player.NotifyInventoryItemPurchaseResult(normalizedItemId, false, $"Purchase failed: {ex.Message}");
+                    return;
+                }
+            }
+
+            player.NotifyInventoryItemPurchaseResult(normalizedItemId, false, $"Purchase failed for {itemDisplayName}.");
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (acquiredPlayerStateLock)
+            {
+                session.PlayerStateSyncLock.Release();
+            }
+        }
+    }
+
     private static async Task<bool> TryLoadPlayerStateIntoPlayerAsync(AuthenticatedClientSession session, Player player, CancellationToken cancellationToken)
     {
         var playerDataClient = new BackendPlayerDataClient(ResolvePlayerDataBaseUrl());
@@ -1083,22 +1219,21 @@ public class MultiplayerController : MonoBehaviour
                 session.PendingExperience = Mathf.Max(0, playerState.experience);
                 session.WalletDirty = false;
 
-                session.IsApplyingWallet = true;
+                session.IsApplyingPlayerState = true;
                 try
                 {
                     player.ApplyPersistedWallet(playerState.gold, playerState.diamond, playerState.experience);
-                    player.ApplyPersistedOwnedCannons(playerState.ownedCannonIds);
                     player.ApplyPersistedOwnedShips(playerState.ownedShipIds);
+                    player.ApplyPersistedInventory(ToInventoryItemStates(playerState.inventoryItems));
+                    player.ApplyPersistedShipCannonLoadouts(ToShipCannonLoadoutStates(playerState.shipCannonLoadouts));
                     player.ApplyPersistedSelectedShip(playerState.selectedShipId);
                     player.ApplyPersistedActiveActionItems((PlayerActionItemType)playerState.activeActionItems);
+                    CapturePendingPlayerStatus(session, player);
                 }
                 finally
                 {
-                    session.IsApplyingWallet = false;
+                    session.IsApplyingPlayerState = false;
                 }
-
-                session.PendingSelectedShipId = player.SelectedShipId ?? string.Empty;
-                session.PendingActiveActionItems = player.ActiveActionItems;
 
                 return true;
             }
@@ -1281,6 +1416,8 @@ public class MultiplayerController : MonoBehaviour
         AuthenticatedClientSession session,
         string selectedShipId,
         PlayerActionItemType activeActionItems,
+        string inventorySnapshot,
+        string shipCannonLoadoutsSnapshot,
         CancellationToken cancellationToken)
     {
         var playerDataClient = new BackendPlayerDataClient(ResolvePlayerDataBaseUrl());
@@ -1295,6 +1432,8 @@ public class MultiplayerController : MonoBehaviour
                     session.AccessToken,
                     selectedShipId,
                     activeActionItems,
+                    inventorySnapshot,
+                    shipCannonLoadoutsSnapshot,
                     cancellationToken);
 
                 session.WalletVersion = status.version;
@@ -1382,10 +1521,13 @@ public class MultiplayerController : MonoBehaviour
 
         session.LifetimeCts.Dispose();
         session.Player = null;
+        session.IsApplyingPlayerState = false;
         session.WalletDirty = false;
         session.PendingExperience = 0;
         session.PendingSelectedShipId = string.Empty;
         session.PendingActiveActionItems = PlayerActionItemType.None;
+        session.PendingInventorySnapshot = string.Empty;
+        session.PendingShipCannonLoadoutsSnapshot = string.Empty;
         session.WalletSaveLoopRunning = false;
         session.PlayerStatusDirty = false;
         session.PlayerStatusSaveLoopRunning = false;
@@ -1460,6 +1602,75 @@ public class MultiplayerController : MonoBehaviour
         return false;
     }
 
+    private static bool TryGetInventoryPurchaseDisplayName(string itemId, out string displayName, out int purchasedAmount)
+    {
+        if (MarketInventoryCatalogRuntime.TryGetItem(itemId, out MarketInventoryItemData item) && item != null)
+        {
+            displayName = string.IsNullOrWhiteSpace(item.DisplayName) ? item.Id : item.DisplayName;
+            purchasedAmount = item.PurchaseAmount;
+            return true;
+        }
+
+        displayName = string.Empty;
+        purchasedAmount = 0;
+        return false;
+    }
+
+    private static void CapturePendingPlayerStatus(AuthenticatedClientSession session, Player player)
+    {
+        if (session == null || player == null)
+        {
+            return;
+        }
+
+        session.PendingSelectedShipId = player.SelectedShipId ?? string.Empty;
+        session.PendingActiveActionItems = player.ActiveActionItems;
+        session.PendingInventorySnapshot = player.InventorySnapshot ?? string.Empty;
+        session.PendingShipCannonLoadoutsSnapshot = player.ShipCannonLoadoutsSnapshot ?? string.Empty;
+    }
+
+    private static List<PlayerInventoryItemState> ToInventoryItemStates(IEnumerable<InventoryItemStackResponse> inventoryItems)
+    {
+        var items = new List<PlayerInventoryItemState>();
+        if (inventoryItems == null)
+        {
+            return items;
+        }
+
+        foreach (InventoryItemStackResponse item in inventoryItems)
+        {
+            if (item == null)
+            {
+                continue;
+            }
+
+            items.Add(new PlayerInventoryItemState(item.itemId, item.amount));
+        }
+
+        return items;
+    }
+
+    private static List<ShipCannonLoadoutState> ToShipCannonLoadoutStates(IEnumerable<ShipCannonLoadoutResponse> loadouts)
+    {
+        var states = new List<ShipCannonLoadoutState>();
+        if (loadouts == null)
+        {
+            return states;
+        }
+
+        foreach (ShipCannonLoadoutResponse loadout in loadouts)
+        {
+            if (loadout == null)
+            {
+                continue;
+            }
+
+            states.Add(new ShipCannonLoadoutState(loadout.shipId, ToInventoryItemStates(loadout.cannons)));
+        }
+
+        return states;
+    }
+
     private static string ResolveConfiguredBaseUrl(string envVarName, string configuredSessionUrl, string fallbackUrl)
     {
         string configured = Environment.GetEnvironmentVariable(envVarName);
@@ -1531,6 +1742,26 @@ public class MultiplayerController : MonoBehaviour
         _ = ProcessShipPurchaseAsync(player, shipId);
 #else
         player.NotifyShipPurchaseResult(shipId, false, "Ship purchases are only available on the game server.");
+#endif
+    }
+
+    public void RequestInventoryItemPurchase(Player player, string itemId)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+#if UNITY_SERVER || UNITY_EDITOR
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
+        {
+            player.NotifyInventoryItemPurchaseResult(itemId, false, "The market is only available while connected to the server.");
+            return;
+        }
+
+        _ = ProcessInventoryItemPurchaseAsync(player, itemId);
+#else
+        player.NotifyInventoryItemPurchaseResult(itemId, false, "Item purchases are only available on the game server.");
 #endif
     }
 

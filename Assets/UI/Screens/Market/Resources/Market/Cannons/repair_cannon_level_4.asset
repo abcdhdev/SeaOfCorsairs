@@ -18,8 +18,12 @@ MonoBehaviour:
     and fires further than ever expected.
   icon: {fileID: 2800000, guid: 4ae247f6f2b8e9c47b364626a21f312a, type: 3}
   hitProbability: 79
-  cannonRange: 29
+  cannonRange: 87
   reloadTimeSeconds: 6
+  criticalHitProbability: 0
+  criticalHitDamage: 0
+  bonusDamageFlat: 0
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 1

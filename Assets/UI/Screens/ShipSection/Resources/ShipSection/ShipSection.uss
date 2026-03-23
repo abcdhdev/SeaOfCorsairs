@@ -106,3 +106,234 @@
     border-bottom-color: rgba(108, 132, 154, 0.72);
     border-left-color: rgba(108, 132, 154, 0.72);
 }
+
+.ship-depot-root {
+    flex-direction: column;
+    row-gap: 14px;
+}
+
+.ship-depot-header {
+    padding-top: 16px;
+    padding-right: 18px;
+    padding-bottom: 16px;
+    padding-left: 18px;
+    background-color: rgba(11, 10, 18, 0.94);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(191, 145, 71, 0.72);
+    border-right-color: rgba(191, 145, 71, 0.72);
+    border-bottom-color: rgba(191, 145, 71, 0.72);
+    border-left-color: rgba(191, 145, 71, 0.72);
+}
+
+.ship-depot-header-title {
+    color: rgba(248, 212, 156, 0.98);
+    -unity-font-style: bold;
+    font-size: 20px;
+}
+
+.ship-depot-header-copy {
+    margin-top: 6px;
+    color: rgba(207, 214, 226, 0.94);
+    font-size: 12px;
+}
+
+.ship-depot-header-status {
+    margin-top: 10px;
+    color: rgba(121, 229, 145, 0.98);
+    -unity-font-style: bold;
+    font-size: 13px;
+}
+
+.ship-depot-columns {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.ship-depot-column {
+    flex-grow: 1;
+    min-width: 0;
+    padding-top: 14px;
+    padding-right: 14px;
+    padding-bottom: 14px;
+    padding-left: 14px;
+    background-color: rgba(10, 13, 20, 0.92);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(79, 100, 126, 0.45);
+    border-right-color: rgba(79, 100, 126, 0.45);
+    border-bottom-color: rgba(79, 100, 126, 0.45);
+    border-left-color: rgba(79, 100, 126, 0.45);
+}
+
+.ship-depot-column-summary {
+    max-width: 260px;
+}
+
+.ship-depot-column-title {
+    color: rgba(248, 212, 156, 0.98);
+    -unity-font-style: bold;
+    font-size: 16px;
+}
+
+.ship-depot-column-subtitle {
+    margin-top: 4px;
+    margin-bottom: 10px;
+    color: rgba(168, 182, 200, 0.84);
+    font-size: 11px;
+}
+
+.ship-depot-column-body {
+    flex-direction: column;
+    row-gap: 10px;
+}
+
+.ship-depot-card {
+    padding-top: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
+    padding-left: 10px;
+    background-color: rgba(16, 11, 6, 0.84);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(171, 120, 61, 0.55);
+    border-right-color: rgba(171, 120, 61, 0.55);
+    border-bottom-color: rgba(171, 120, 61, 0.55);
+    border-left-color: rgba(171, 120, 61, 0.55);
+}
+
+.ship-depot-card-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ship-depot-card-title {
+    flex-grow: 1;
+    color: rgba(241, 229, 208, 0.98);
+    -unity-font-style: bold;
+    font-size: 14px;
+}
+
+.ship-depot-card-count {
+    margin-left: 12px;
+    min-width: 52px;
+    color: rgba(255, 210, 121, 0.98);
+    -unity-font-style: bold;
+    font-size: 18px;
+    -unity-text-align: middle-right;
+}
+
+.ship-depot-card-description {
+    margin-top: 6px;
+    color: rgba(186, 194, 206, 0.88);
+    font-size: 11px;
+}
+
+.ship-depot-card-stats {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    gap: 6px;
+}
+
+.ship-depot-card-stat {
+    padding-top: 2px;
+    padding-right: 8px;
+    padding-bottom: 2px;
+    padding-left: 8px;
+    background-color: rgba(18, 22, 31, 0.92);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(85, 114, 141, 0.44);
+    border-right-color: rgba(85, 114, 141, 0.44);
+    border-bottom-color: rgba(85, 114, 141, 0.44);
+    border-left-color: rgba(85, 114, 141, 0.44);
+    color: rgba(239, 183, 88, 0.96);
+    -unity-font-style: bold;
+    font-size: 11px;
+}
+
+.ship-depot-card-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.ship-depot-card-button {
+    min-width: 90px;
+    color: rgba(241, 248, 255, 0.99);
+}
+
+.ship-depot-card-button-primary {
+    background-color: rgba(20, 77, 47, 0.96);
+    border-top-color: rgba(84, 189, 122, 0.9);
+    border-right-color: rgba(84, 189, 122, 0.9);
+    border-bottom-color: rgba(84, 189, 122, 0.9);
+    border-left-color: rgba(84, 189, 122, 0.9);
+}
+
+.ship-depot-card-button-primary:hover {
+    background-color: rgba(28, 101, 61, 0.98);
+}
+
+.ship-depot-card-button-secondary {
+    background-color: rgba(87, 44, 20, 0.96);
+    border-top-color: rgba(217, 150, 94, 0.88);
+    border-right-color: rgba(217, 150, 94, 0.88);
+    border-bottom-color: rgba(217, 150, 94, 0.88);
+    border-left-color: rgba(217, 150, 94, 0.88);
+}
+
+.ship-depot-card-button-secondary:hover {
+    background-color: rgba(115, 58, 25, 0.98);
+}
+
+.ship-depot-summary-row {
+    flex-direction: column;
+    padding-top: 8px;
+    padding-right: 10px;
+    padding-bottom: 8px;
+    padding-left: 10px;
+    background-color: rgba(21, 11, 16, 0.86);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(124, 75, 45, 0.62);
+    border-right-color: rgba(124, 75, 45, 0.62);
+    border-bottom-color: rgba(124, 75, 45, 0.62);
+    border-left-color: rgba(124, 75, 45, 0.62);
+}
+
+.ship-depot-summary-label {
+    color: rgba(182, 192, 210, 0.86);
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.ship-depot-summary-value {
+    margin-top: 4px;
+    color: rgba(121, 229, 145, 0.98);
+    -unity-font-style: bold;
+    font-size: 18px;
+}
+
+.ship-depot-empty {
+    padding-top: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
+    padding-left: 10px;
+    color: rgba(182, 190, 196, 0.86);
+    font-size: 12px;
+    background-color: rgba(12, 14, 20, 0.7);
+}

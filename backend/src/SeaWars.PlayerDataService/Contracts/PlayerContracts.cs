@@ -14,7 +14,15 @@ public sealed record UpdatePlayerWalletRequest(int Gold, int Diamond, int Experi
 
 public sealed record PurchaseCannonRequest(string CannonId, int Gold, int Diamond, int? ExpectedVersion);
 
-public sealed record CannonPurchaseResponse(string CannonId, string[] OwnedCannonIds, int Gold, int Diamond, int Version, DateTimeOffset UpdatedAt);
+public sealed record InventoryItemStackResponse(string ItemId, int Amount);
+
+public sealed record ShipCannonLoadoutResponse(string ShipId, InventoryItemStackResponse[] Cannons);
+
+public sealed record CannonPurchaseResponse(string CannonId, InventoryItemStackResponse[] InventoryItems, int Gold, int Diamond, int Version, DateTimeOffset UpdatedAt);
+
+public sealed record PurchaseInventoryItemRequest(string ItemId, int Gold, int Diamond, int? ExpectedVersion);
+
+public sealed record InventoryItemPurchaseResponse(string ItemId, int PurchasedAmount, InventoryItemStackResponse[] InventoryItems, int Gold, int Diamond, int Version, DateTimeOffset UpdatedAt);
 
 public sealed record PurchaseShipRequest(string ShipId, int Gold, int Diamond, int? ExpectedVersion);
 

@@ -3,5 +3,6 @@
         <ui:VisualElement name="ActionSlotIcon" class="action-slot-icon" />
         <ui:Label text="1" name="ActionSlotTopLabel" class="action-slot-label-top" />
         <ui:Label text="Drag skill here" name="ActionSlotMainLabel" class="action-slot-label-main" />
+        <ui:Label text="" name="ActionSlotAmountLabel" class="action-slot-label-amount" />
     </ui:VisualElement>
 </ui:UXML>

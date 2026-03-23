@@ -18,8 +18,12 @@ MonoBehaviour:
     and critical damage.
   icon: {fileID: 2800000, guid: 3aa0a85eec3393047ab90b5f249dfb37, type: 3}
   hitProbability: 75
-  cannonRange: 25
+  cannonRange: 75
   reloadTimeSeconds: 7
+  criticalHitProbability: 4
+  criticalHitDamage: 4
+  bonusDamageFlat: 0
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

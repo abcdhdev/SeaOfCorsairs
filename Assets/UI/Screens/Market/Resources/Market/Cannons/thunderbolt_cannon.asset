@@ -18,8 +18,12 @@ MonoBehaviour:
     to strike their vessels.
   icon: {fileID: 2800000, guid: 2344a69d04ea1b34e9037fdd2c45c526, type: 3}
   hitProbability: 75
-  cannonRange: 31
+  cannonRange: 93
   reloadTimeSeconds: 5.5
+  criticalHitProbability: 25
+  criticalHitDamage: 39
+  bonusDamageFlat: 200
+  bonusDamagePercentage: 70
   cost:
     entries:
     - currencyType: 0

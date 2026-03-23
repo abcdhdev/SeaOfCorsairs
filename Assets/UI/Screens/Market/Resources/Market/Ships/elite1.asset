@@ -18,7 +18,8 @@ MonoBehaviour:
   icon: {fileID: 2800000, guid: bef4a2355331fff41939741bc92d98c0, type: 3}
   primaryStatLabel: Class Raider
   secondaryStatLabel: Crew 18
-  tertiaryStatLabel: Broadside 4
+  tertiaryStatLabel: Cannon Capacity 12
+  cannonCapacity: 12
   cost:
     entries:
     - currencyType: 0

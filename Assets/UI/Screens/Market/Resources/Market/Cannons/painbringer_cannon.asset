@@ -18,8 +18,12 @@ MonoBehaviour:
     damage with pearl ammunition.
   icon: {fileID: 2800000, guid: 9ff72c1369e9a8d45874a49ae72a8b8e, type: 3}
   hitProbability: 75
-  cannonRange: 30
+  cannonRange: 90
   reloadTimeSeconds: 7
+  criticalHitProbability: 20
+  criticalHitDamage: 20
+  bonusDamageFlat: 50
+  bonusDamagePercentage: 50
   cost:
     entries:
     - currencyType: 0

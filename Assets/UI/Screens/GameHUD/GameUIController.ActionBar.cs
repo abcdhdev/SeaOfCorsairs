@@ -156,10 +156,22 @@ public partial class GameUIController
         mainLabel.pickingMode = PickingMode.Ignore;
         mainLabel.AddToClassList("action-slot-label-main");
 
+        Label amountLabel = slotRoot.Q<Label>(ActionSlotAmountLabelName);
+        if (amountLabel == null)
+        {
+            amountLabel = new Label { name = ActionSlotAmountLabelName };
+            slotRoot.Add(amountLabel);
+        }
+
+        amountLabel.pickingMode = PickingMode.Ignore;
+        amountLabel.AddToClassList("action-slot-label-amount");
+        amountLabel.style.display = DisplayStyle.None;
+
         SlotView slotView = new SlotView
         {
             Root = slotRoot,
             MainLabel = mainLabel,
+            AmountLabel = amountLabel,
             Icon = iconElement
         };
 
@@ -512,6 +524,66 @@ public partial class GameUIController
         slotView.Root.tooltip = assignedSkill.DisplayName;
         slotView.Root.RemoveFromClassList(TopSlotEmptyClass);
         slotView.Root.AddToClassList(TopSlotFilledClass);
+    }
+
+    private void RefreshActionBarAmountBadges(Player localPlayer)
+    {
+        RefreshSlotAmountBadge(GetSlotView(bottomSlotViews, AmmoSourceSlotIndex), localPlayer != null, localPlayer != null ? localPlayer.GetSelectedCannonAmmoAmount() : 0);
+        RefreshSlotAmountBadge(GetSlotView(bottomSlotViews, HarpoonSourceSlotIndex), localPlayer != null, localPlayer != null ? localPlayer.GetSelectedHarpoonAmmoAmount() : 0);
+        RefreshSlotAmountBadge(GetSlotView(bottomSlotViews, ActionItemSourceSlotIndex), localPlayer != null, localPlayer != null ? localPlayer.GetActionItemBadgeAmount() : 0);
+
+        for (int index = 0; index < topSlotAssignments.Length; index++)
+        {
+            SkillDefinition assignedSkill = topSlotAssignments[index];
+            SlotView slotView = GetSlotView(topSlotViews, index);
+            if (assignedSkill == null || slotView == null)
+            {
+                RefreshSlotAmountBadge(slotView, false, 0);
+                continue;
+            }
+
+            int amount = assignedSkill.Id switch
+            {
+                "ammo" => localPlayer != null ? localPlayer.GetSelectedCannonAmmoAmount() : 0,
+                "harpoon" => localPlayer != null ? localPlayer.GetSelectedHarpoonAmmoAmount() : 0,
+                "action-item" => localPlayer != null ? localPlayer.GetActionItemBadgeAmount() : 0,
+                _ => 0
+            };
+
+            bool shouldDisplay = localPlayer != null &&
+                                 (string.Equals(assignedSkill.Id, "ammo", StringComparison.Ordinal) ||
+                                  string.Equals(assignedSkill.Id, "harpoon", StringComparison.Ordinal) ||
+                                  string.Equals(assignedSkill.Id, "action-item", StringComparison.Ordinal));
+            RefreshSlotAmountBadge(slotView, shouldDisplay, amount);
+        }
+    }
+
+    private static SlotView GetSlotView(SlotView[] slots, int index)
+    {
+        if (slots == null || index < 0 || index >= slots.Length)
+        {
+            return null;
+        }
+
+        return slots[index];
+    }
+
+    private static void RefreshSlotAmountBadge(SlotView slotView, bool shouldDisplay, int amount)
+    {
+        if (slotView?.AmountLabel == null)
+        {
+            return;
+        }
+
+        if (!shouldDisplay)
+        {
+            slotView.AmountLabel.text = string.Empty;
+            slotView.AmountLabel.style.display = DisplayStyle.None;
+            return;
+        }
+
+        slotView.AmountLabel.text = Mathf.Max(0, amount).ToString("N0");
+        slotView.AmountLabel.style.display = DisplayStyle.Flex;
     }
 
     private void OnActionBarToggleClicked()

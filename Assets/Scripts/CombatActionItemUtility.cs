@@ -1,24 +1,37 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public static class CombatActionItemUtility
 {
     private const float BlackGunpowderDamageMultiplier = 1.1f;
     private const float AgwesArmorPlatingDamageMultiplier = 0.9f;
+    private static readonly Dictionary<int, int> PendingBlackGunpowderEffectsBySourceId = new Dictionary<int, int>();
 
-    public static int ApplyOutgoingDamageModifiers(GameObject attacker, int baseDamage)
+    public static int ApplyOutgoingDamageModifiers(int baseDamage, bool useBlackGunpowder)
     {
         if (baseDamage <= 0)
         {
             return 0;
         }
 
-        if (TryGetActionItemOwner(attacker, out Player attackingPlayer) &&
-            attackingPlayer.HasActionItem(PlayerActionItemType.BlackGunpowder))
+        if (useBlackGunpowder)
         {
             return ScaleDamage(baseDamage, BlackGunpowderDamageMultiplier);
         }
 
         return baseDamage;
+    }
+
+    public static void MarkNextIncomingDamageEffect(GameObject damageSource, bool useBlackGunpowder)
+    {
+        if (!useBlackGunpowder || damageSource == null)
+        {
+            return;
+        }
+
+        int sourceId = damageSource.GetInstanceID();
+        PendingBlackGunpowderEffectsBySourceId.TryGetValue(sourceId, out int currentCount);
+        PendingBlackGunpowderEffectsBySourceId[sourceId] = currentCount + 1;
     }
 
     public static int ApplyIncomingDamageModifiers(
@@ -37,14 +50,14 @@ public static class CombatActionItemUtility
 
         if (damageSource != null &&
             TryGetActionItemOwner(target, out Player defendingPlayer) &&
-            defendingPlayer.HasActionItem(PlayerActionItemType.AgwesArmorPlating))
+            defendingPlayer.HasActionItem(PlayerActionItemType.AgwesArmorPlating) &&
+            defendingPlayer.TryConsumeIncomingDefenseResources())
         {
             effectStyle = DamageNumberEffectStyle.AgwesArmorPlating;
             return ScaleDamage(resolvedDamage, AgwesArmorPlatingDamageMultiplier);
         }
 
-        if (TryGetActionItemOwner(damageSource, out Player attackingPlayer) &&
-            attackingPlayer.HasActionItem(PlayerActionItemType.BlackGunpowder))
+        if (TryConsumeMarkedBlackGunpowderEffect(damageSource))
         {
             effectStyle = DamageNumberEffectStyle.BlackGunpowder;
         }
@@ -81,6 +94,31 @@ public static class CombatActionItemUtility
         }
 
         return candidate.TryGetComponent(out player);
+    }
+
+    private static bool TryConsumeMarkedBlackGunpowderEffect(GameObject damageSource)
+    {
+        if (damageSource == null)
+        {
+            return false;
+        }
+
+        int sourceId = damageSource.GetInstanceID();
+        if (!PendingBlackGunpowderEffectsBySourceId.TryGetValue(sourceId, out int pendingCount) || pendingCount <= 0)
+        {
+            return false;
+        }
+
+        if (pendingCount == 1)
+        {
+            PendingBlackGunpowderEffectsBySourceId.Remove(sourceId);
+        }
+        else
+        {
+            PendingBlackGunpowderEffectsBySourceId[sourceId] = pendingCount - 1;
+        }
+
+        return true;
     }
 }
 

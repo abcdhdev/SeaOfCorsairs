@@ -16,9 +16,13 @@ MonoBehaviour:
   displayName: Rift Cannon
   description: Unleash the power of the Greater Rift and make enemies tremble.
   icon: {fileID: 2800000, guid: 73d72eb0e21927641b644bd63f35fbad, type: 3}
-  hitProbability: 20
-  cannonRange: 30
+  hitProbability: 80
+  cannonRange: 90
   reloadTimeSeconds: 6.5
+  criticalHitProbability: 20
+  criticalHitDamage: 20
+  bonusDamageFlat: 5
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

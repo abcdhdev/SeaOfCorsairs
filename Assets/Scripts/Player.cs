@@ -13,7 +13,7 @@ using SeaWars.Utility;
 /// Attach to the player prefab alongside ClickToMove.
 /// Uses NetworkVariables for automatic state synchronization.
 /// </summary>
-public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
+public partial class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 {
     /// <summary>
     /// Static event fired when the LOCAL player spawns.
@@ -27,7 +27,7 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
     public static Player LocalPlayer { get; private set; }
 
     [Header("Config")]
-    [SerializeField] private PrefabGameplayConfig gameplayConfig;
+    [SerializeField] private PlayerGameplayConfig gameplayConfig;
 
     [Header("Health Settings")]
     [SerializeField] private int m_maxHealth = 100;
@@ -220,6 +220,8 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
         m_networkGold.OnValueChanged += OnRewardWalletValueChanged;
         m_networkExperience.OnValueChanged += OnRewardWalletValueChanged;
         m_ownedCannonIdsCsv.OnValueChanged += OnOwnedCannonIdsChanged;
+        m_inventorySnapshot.OnValueChanged += OnInventorySnapshotChanged;
+        m_shipCannonLoadoutsSnapshot.OnValueChanged += OnShipCannonLoadoutsSnapshotChanged;
         m_ownedShipIdsCsv.OnValueChanged += OnOwnedShipIdsChanged;
         m_selectedShipId.OnValueChanged += OnSelectedShipIdChanged;
         m_networkActionItem.OnValueChanged += OnActiveActionItemsChangedInternal;
@@ -239,6 +241,8 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
         m_networkGold.OnValueChanged -= OnRewardWalletValueChanged;
         m_networkExperience.OnValueChanged -= OnRewardWalletValueChanged;
         m_ownedCannonIdsCsv.OnValueChanged -= OnOwnedCannonIdsChanged;
+        m_inventorySnapshot.OnValueChanged -= OnInventorySnapshotChanged;
+        m_shipCannonLoadoutsSnapshot.OnValueChanged -= OnShipCannonLoadoutsSnapshotChanged;
         m_ownedShipIdsCsv.OnValueChanged -= OnOwnedShipIdsChanged;
         m_selectedShipId.OnValueChanged -= OnSelectedShipIdChanged;
         m_networkActionItem.OnValueChanged -= OnActiveActionItemsChangedInternal;
@@ -318,6 +322,7 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 
     private void OnSelectedShipIdChanged(FixedString64Bytes previousValue, FixedString64Bytes newValue)
     {
+        RefreshCannonCombatRuntimeSettings();
         OnSelectedShipChanged?.Invoke(NormalizeOwnedShipId(newValue.ToString()));
     }
 
@@ -364,7 +369,22 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
             return;
         }
 
-        m_ownedCannonIdsCsv.Value = new FixedString512Bytes(BuildOwnedCannonsCsv(ownedCannonIds));
+        var inventoryItems = new List<PlayerInventoryItemState>(ownedCannonIds != null ? ownedCannonIds.Count : 0);
+        if (ownedCannonIds != null)
+        {
+            for (int index = 0; index < ownedCannonIds.Count; index++)
+            {
+                string normalizedCannonId = NormalizeOwnedCannonId(ownedCannonIds[index]);
+                if (string.IsNullOrWhiteSpace(normalizedCannonId))
+                {
+                    continue;
+                }
+
+                inventoryItems.Add(new PlayerInventoryItemState(normalizedCannonId, 1));
+            }
+        }
+
+        ApplyPersistedInventory(inventoryItems);
     }
 
     public void ApplyPersistedOwnedShips(IReadOnlyList<string> ownedShipIds)
@@ -377,6 +397,9 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 
         m_ownedShipIdsCsv.Value = new FixedString512Bytes(BuildOwnedShipsCsv(ownedShipIds));
         EnsureSelectedShipIsOwned();
+        NormalizeAndApplyLoadoutsServer(
+            PlayerInventoryState.ParseShipCannonLoadoutsSnapshot(ShipCannonLoadoutsSnapshot),
+            PlayerInventoryState.ParseInventorySnapshot(InventorySnapshot));
     }
 
     public void ApplyPersistedSelectedShip(string shipId)
@@ -411,6 +434,7 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
         }
 
         m_networkActionItem.Value = (int)NormalizeActionItemMask((int)actionItems);
+        DisableUnavailableActionItemsServer();
     }
 
     public void ApplyGuildAbbreviation(string guildAbbreviation)
@@ -436,12 +460,25 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 
     public bool OwnsCannon(string cannonId)
     {
-        return ContainsOwnedCannonId(m_ownedCannonIdsCsv.Value.ToString(), cannonId);
+        return GetInventoryAmount(cannonId) > 0;
     }
 
     public string[] GetOwnedCannonIds()
     {
-        return ParseOwnedCannonsCsv(m_ownedCannonIdsCsv.Value.ToString());
+        IReadOnlyList<PlayerInventoryItemState> inventoryItems = GetInventoryItems();
+        var ownedCannonIds = new List<string>(inventoryItems.Count);
+        for (int index = 0; index < inventoryItems.Count; index++)
+        {
+            PlayerInventoryItemState item = inventoryItems[index];
+            if (item.Amount <= 0 || !PlayerInventoryState.IsCannon(item.ItemId))
+            {
+                continue;
+            }
+
+            ownedCannonIds.Add(item.ItemId);
+        }
+
+        return ownedCannonIds.Count == 0 ? Array.Empty<string>() : ownedCannonIds.ToArray();
     }
 
     public bool OwnsShip(string shipId)
@@ -479,6 +516,11 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
             return false;
         }
 
+        if (!HasActionItem(normalizedActionItem) && GetActionItemAmount(normalizedActionItem) <= 0)
+        {
+            return false;
+        }
+
         if (IsServer)
         {
             SetActionItemEnabled(normalizedActionItem, !HasActionItem(normalizedActionItem));
@@ -499,7 +541,8 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
             return false;
         }
 
-        return (ActiveActionItems & normalizedActionItem) == normalizedActionItem;
+        return (ActiveActionItems & normalizedActionItem) == normalizedActionItem &&
+               GetActionItemAmount(normalizedActionItem) > 0;
     }
 
     public bool RequestShipPurchase(string shipId)
@@ -654,6 +697,11 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
         if (normalizedActionItem == PlayerActionItemType.None)
         {
             m_networkActionItem.Value = (int)PlayerActionItemType.None;
+            return;
+        }
+
+        if (isEnabled && GetActionItemAmount(normalizedActionItem) <= 0)
+        {
             return;
         }
 
@@ -1611,7 +1659,7 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
             }
         }
 
-        // Keep server-side damage in sync. Ammo damage is layered on top of the configured base damage.
+        // Projectile visuals follow the selected ammo, while PlayerAttack resolves equipped-cannon damage on the server.
         if (TryGetComponent(out PlayerAttack attack))
         {
             attack.ApplyAmmoOverride(ammo.Damage);
@@ -1620,30 +1668,7 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 
     private void ApplyInitialCannonAmmoSelection()
     {
-        IReadOnlyList<CannonAmmoDefinition> options = GetCannonAmmoOptions();
-        if (options == null || options.Count == 0)
-        {
-            return;
-        }
-
-        int clampedIndex = Mathf.Clamp(selectedCannonAmmoIndex, 0, options.Count - 1);
-        CannonAmmoDefinition selectedAmmo = options[clampedIndex];
-        if (selectedAmmo == null)
-        {
-            for (int i = 0; i < options.Count; i++)
-            {
-                if (options[i] == null)
-                {
-                    continue;
-                }
-
-                clampedIndex = i;
-                selectedAmmo = options[i];
-                break;
-            }
-        }
-
-        if (selectedAmmo == null)
+        if (!TryResolveSelectedCannonAmmo(out int clampedIndex, out CannonAmmoDefinition selectedAmmo))
         {
             return;
         }
@@ -2100,23 +2125,34 @@ public class Player : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
                 gameplayConfig.HideHealthBarWhenEmpty);
         }
 
+        RefreshCannonCombatRuntimeSettings();
+    }
+
+    private void RefreshCannonCombatRuntimeSettings()
+    {
+        if (gameplayConfig == null)
+        {
+            return;
+        }
+
+        float resolvedRange = ResolveCurrentShipCannonMaxRange();
+        float resolvedInterval = ResolveCurrentShipCannonSalvoInterval();
+        float resolvedProjectileSpeed = ResolveCurrentShipCannonProjectileSpeed();
+
         if (TryGetComponent(out WeaponFireController weaponFireController))
         {
             weaponFireController.ApplySettings(
-                gameplayConfig.CannonballPrefab,
-                gameplayConfig.CannonFireSpeed,
+                null,
+                resolvedProjectileSpeed,
                 gameplayConfig.CannonArcHeightFactor,
-                gameplayConfig.CannonDamage,
-                gameplayConfig.CannonMaxHitDistance,
-                gameplayConfig.CannonShootingInterval);
+                0,
+                resolvedRange,
+                resolvedInterval);
         }
 
         if (TryGetComponent(out PlayerAttack playerAttack))
         {
-            playerAttack.ApplySettings(
-                gameplayConfig.CannonDamage,
-                gameplayConfig.CannonMaxHitDistance,
-                gameplayConfig.CannonShootingInterval);
+            playerAttack.ApplySettings(0, resolvedRange, resolvedInterval);
         }
     }
 

@@ -17,8 +17,12 @@ MonoBehaviour:
   description: Rapid destruction.
   icon: {fileID: 2800000, guid: 7022d66276d739e4fb787ee01fe8fd12, type: 3}
   hitProbability: 43
-  cannonRange: 14
+  cannonRange: 42
   reloadTimeSeconds: 15
+  criticalHitProbability: 0
+  criticalHitDamage: 0
+  bonusDamageFlat: 0
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

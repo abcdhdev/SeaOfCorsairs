@@ -17,8 +17,12 @@ MonoBehaviour:
   description: Perfect pyrotechnics.
   icon: {fileID: 2800000, guid: 526764e6eaf9d2349a4dc664a5e727a1, type: 3}
   hitProbability: 45
-  cannonRange: 18
+  cannonRange: 54
   reloadTimeSeconds: 10
+  criticalHitProbability: 0
+  criticalHitDamage: 0
+  bonusDamageFlat: 0
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

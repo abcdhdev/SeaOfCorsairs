@@ -27,6 +27,7 @@ public partial class GameUIController : MonoBehaviour
     private const string ActionSlotRootName = "ActionSlotRoot";
     private const string ActionSlotTopLabelName = "ActionSlotTopLabel";
     private const string ActionSlotMainLabelName = "ActionSlotMainLabel";
+    private const string ActionSlotAmountLabelName = "ActionSlotAmountLabel";
     private const string ActionSlotIconName = "ActionSlotIcon";
     private const string EmptySlotText = "Drag skill here";
     private const string TopSlotEmptyClass = "action-slot-empty";
@@ -53,6 +54,7 @@ public partial class GameUIController : MonoBehaviour
     {
         public VisualElement Root;
         public Label MainLabel;
+        public Label AmountLabel;
         public VisualElement Icon;
         public string AppliedIconClass;
     }
@@ -86,6 +88,7 @@ public partial class GameUIController : MonoBehaviour
     private Button topMenuLogoutButton;
     private VisualElement activeActionItemHudRoot;
     private VisualElement activeActionItemHudBlackGunpowder;
+    private VisualElement activeActionItemHudSpacer;
     private VisualElement activeActionItemHudAgwesArmorPlating;
     private float fpsDeltaTime;
     private float fpsPingTimer;
@@ -123,12 +126,15 @@ public partial class GameUIController : MonoBehaviour
     private VisualElement ammoMenuBackdrop;
     private VisualElement ammoMenuPanel;
     private bool isAmmoMenuOpen;
+    private int renderedAmmoMenuSelectionIndex = -1;
     private VisualElement harpoonMenuBackdrop;
     private VisualElement harpoonMenuPanel;
     private bool isHarpoonMenuOpen;
+    private int renderedHarpoonMenuSelectionIndex = -1;
     private VisualElement actionItemMenuBackdrop;
     private VisualElement actionItemMenuPanel;
     private bool isActionItemMenuOpen;
+    private string renderedInventoryMenuSnapshot = string.Empty;
     private ShipSectionController shipSectionController;
 
     private IHealthSystem trackedHealthTarget;
@@ -374,6 +380,7 @@ public partial class GameUIController : MonoBehaviour
         topMenuLogoutButton = root.Q<Button>("TopMenuLogoutButton");
         activeActionItemHudRoot = root.Q<VisualElement>("ActiveActionItemsRoot");
         activeActionItemHudBlackGunpowder = root.Q<VisualElement>("ActiveActionItemHudBlackGunpowder");
+        activeActionItemHudSpacer = root.Q<VisualElement>("ActiveActionItemHudSpacer");
         activeActionItemHudAgwesArmorPlating = root.Q<VisualElement>("ActiveActionItemHudAgwesArmorPlating");
         BindCoordinateRulerElements();
         if (topMenuShieldDropdown != null)
@@ -404,6 +411,9 @@ public partial class GameUIController : MonoBehaviour
         harpoonMenuPanel = null;
         isAmmoMenuOpen = false;
         isHarpoonMenuOpen = false;
+        renderedAmmoMenuSelectionIndex = -1;
+        renderedHarpoonMenuSelectionIndex = -1;
+        renderedInventoryMenuSnapshot = string.Empty;
         topMenuBar = null;
         topMenuFpsPingLabel = null;
         resourceGoldLabel = null;
@@ -419,6 +429,7 @@ public partial class GameUIController : MonoBehaviour
         topMenuLogoutButton = null;
         activeActionItemHudRoot = null;
         activeActionItemHudBlackGunpowder = null;
+        activeActionItemHudSpacer = null;
         activeActionItemHudAgwesArmorPlating = null;
         isTopMenuShieldDropdownOpen = false;
         marketController = null;
@@ -495,13 +506,35 @@ public partial class GameUIController : MonoBehaviour
     {
         Player localPlayer = TryGetLocalPlayer(out Player resolvedLocalPlayer) ? resolvedLocalPlayer : null;
         RefreshActiveActionItemHud(localPlayer);
+        RefreshActionBarAmountBadges(localPlayer);
 
         if (localPlayer == null)
         {
+            CloseAmmoMenu();
+            CloseHarpoonMenu();
+            CloseActionItemMenu();
             return;
         }
 
-        if (isActionItemMenuOpen && renderedActionItemMenuMask != (int)localPlayer.ActiveActionItems)
+        string inventorySnapshot = localPlayer.InventorySnapshot ?? string.Empty;
+
+        if (isAmmoMenuOpen &&
+            (!string.Equals(renderedInventoryMenuSnapshot, inventorySnapshot, StringComparison.Ordinal) ||
+             renderedAmmoMenuSelectionIndex != localPlayer.SelectedCannonAmmoIndex))
+        {
+            OpenAmmoMenu(localPlayer);
+        }
+
+        if (isHarpoonMenuOpen &&
+            (!string.Equals(renderedInventoryMenuSnapshot, inventorySnapshot, StringComparison.Ordinal) ||
+             renderedHarpoonMenuSelectionIndex != localPlayer.SelectedHarpoonAmmoIndex))
+        {
+            OpenHarpoonMenu(localPlayer);
+        }
+
+        if (isActionItemMenuOpen &&
+            (!string.Equals(renderedInventoryMenuSnapshot, inventorySnapshot, StringComparison.Ordinal) ||
+             renderedActionItemMenuMask != (int)localPlayer.ActiveActionItems))
         {
             OpenActionItemMenu(localPlayer);
         }

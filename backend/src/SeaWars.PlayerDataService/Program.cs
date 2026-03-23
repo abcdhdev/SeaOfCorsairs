@@ -368,10 +368,6 @@ app.MapPost("/v1/player/me/cannons/purchase", async (
     if (request.ExpectedVersion is not null)
         db.Entry(entity).Property(x => x.Version).OriginalValue = request.ExpectedVersion.Value;
 
-    var ownedCannonIds = ExtractOwnedCannonIds(entity.State);
-    if (ContainsOwnedCannonId(ownedCannonIds, cannonId))
-        return Results.BadRequest(new ErrorResponse("already_owned", $"{cannonCatalogEntry.DisplayName} is already owned."));
-
     if (request.Gold < cannonCatalogEntry.GoldCost && request.Diamond < cannonCatalogEntry.DiamondCost)
         return Results.BadRequest(new ErrorResponse("insufficient_funds", $"Not enough gold and diamonds to buy {cannonCatalogEntry.DisplayName}."));
 
@@ -381,12 +377,13 @@ app.MapPost("/v1/player/me/cannons/purchase", async (
     if (request.Diamond < cannonCatalogEntry.DiamondCost)
         return Results.BadRequest(new ErrorResponse("insufficient_diamond", $"Not enough diamonds to buy {cannonCatalogEntry.DisplayName}."));
 
-    ownedCannonIds.Add(cannonId);
-    entity.State = UpsertCannonPurchaseStateJson(
+    var inventoryItems = ExtractInventoryItems(entity.State);
+    AddOrIncrementInventoryItem(inventoryItems, cannonId, 1);
+    entity.State = UpsertInventoryStateJson(
         entity.State,
         request.Gold - cannonCatalogEntry.GoldCost,
         request.Diamond - cannonCatalogEntry.DiamondCost,
-        ownedCannonIds);
+        inventoryItems);
     entity.Version += 1;
     entity.UpdatedAt = now;
 
@@ -409,7 +406,97 @@ app.MapPost("/v1/player/me/cannons/purchase", async (
     var wallet = ExtractWallet(entity.State);
     var response = new CannonPurchaseResponse(
         cannonId,
-        ExtractOwnedCannonIds(entity.State).ToArray(),
+        CreateInventoryItemStackResponses(ExtractInventoryItems(entity.State)),
+        wallet.Gold,
+        wallet.Diamond,
+        entity.Version,
+        entity.UpdatedAt);
+
+    return Results.Ok(response);
+})
+    .WithTags("Player")
+    .RequireAuthorization();
+
+app.MapPost("/v1/player/me/items/purchase", async (
+    ClaimsPrincipal principal,
+    PurchaseInventoryItemRequest request,
+    PlayerDbContext db,
+    IConnectionMultiplexer redisMux,
+    IOptions<JsonOptions> jsonOptionsAccessor) =>
+{
+    var userId = GetUserId(principal);
+    if (userId is null)
+        return Results.Json(new ErrorResponse("unauthorized", "Unauthorized."), statusCode: StatusCodes.Status401Unauthorized);
+
+    var itemId = NormalizeInventoryItemId(request.ItemId);
+    if (!TryResolveInventoryCatalogEntry(itemId, out var inventoryCatalogEntry) || inventoryCatalogEntry.Kind == InventoryCatalogItemKind.Cannon)
+        return Results.BadRequest(new ErrorResponse("invalid_item", $"Unknown market item id '{itemId}'."));
+
+    if (request.Gold < 0)
+        return Results.BadRequest(new ErrorResponse("invalid_gold", "Gold must be zero or greater."));
+
+    if (request.Diamond < 0)
+        return Results.BadRequest(new ErrorResponse("invalid_diamond", "Diamond must be zero or greater."));
+
+    var now = DateTimeOffset.UtcNow;
+    var entity = await db.PlayerStates.FindAsync(userId.Value);
+    if (entity is null)
+    {
+        entity = new PlayerState
+        {
+            UserId = userId.Value,
+            Version = 0,
+            State = "{}",
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.PlayerStates.Add(entity);
+        await db.SaveChangesAsync();
+    }
+
+    if (request.ExpectedVersion is not null)
+        db.Entry(entity).Property(x => x.Version).OriginalValue = request.ExpectedVersion.Value;
+
+    if (request.Gold < inventoryCatalogEntry.GoldCost && request.Diamond < inventoryCatalogEntry.DiamondCost)
+        return Results.BadRequest(new ErrorResponse("insufficient_funds", $"Not enough gold and diamonds to buy {inventoryCatalogEntry.DisplayName}."));
+
+    if (request.Gold < inventoryCatalogEntry.GoldCost)
+        return Results.BadRequest(new ErrorResponse("insufficient_gold", $"Not enough gold to buy {inventoryCatalogEntry.DisplayName}."));
+
+    if (request.Diamond < inventoryCatalogEntry.DiamondCost)
+        return Results.BadRequest(new ErrorResponse("insufficient_diamond", $"Not enough diamonds to buy {inventoryCatalogEntry.DisplayName}."));
+
+    var inventoryItems = ExtractInventoryItems(entity.State);
+    AddOrIncrementInventoryItem(inventoryItems, itemId, inventoryCatalogEntry.PurchaseAmount);
+    entity.State = UpsertInventoryStateJson(
+        entity.State,
+        request.Gold - inventoryCatalogEntry.GoldCost,
+        request.Diamond - inventoryCatalogEntry.DiamondCost,
+        inventoryItems);
+    entity.Version += 1;
+    entity.UpdatedAt = now;
+
+    try
+    {
+        await db.SaveChangesAsync();
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        var current = await db.PlayerStates.AsNoTracking().SingleAsync(x => x.UserId == userId.Value);
+        return Results.Conflict(new ConflictResponse(current.Version, current.UpdatedAt));
+    }
+
+    var cacheKey = $"player:state:v2:{userId.Value}";
+    using var doc = JsonDocument.Parse(entity.State);
+    var stateResponse = new PlayerStateResponse(entity.Version, doc.RootElement.Clone(), entity.UpdatedAt);
+    var stateJson = System.Text.Json.JsonSerializer.Serialize(stateResponse, jsonOptionsAccessor.Value.SerializerOptions);
+    await redisMux.GetDatabase().StringSetAsync(cacheKey, stateJson, expiry: TimeSpan.FromMinutes(10));
+
+    var wallet = ExtractWallet(entity.State);
+    var response = new InventoryItemPurchaseResponse(
+        itemId,
+        inventoryCatalogEntry.PurchaseAmount,
+        CreateInventoryItemStackResponses(ExtractInventoryItems(entity.State)),
         wallet.Gold,
         wallet.Diamond,
         entity.Version,
@@ -887,12 +974,13 @@ static string UpsertWalletStateJson(string stateJson, int gold, int diamond, int
     return state.ToJsonString();
 }
 
-static string UpsertCannonPurchaseStateJson(string stateJson, int gold, int diamond, IReadOnlyCollection<string> ownedCannonIds)
+static string UpsertInventoryStateJson(string stateJson, int gold, int diamond, IReadOnlyCollection<InventoryStateItem> inventoryItems)
 {
     var state = ParseStateObject(stateJson);
     state["gold"] = Math.Max(0, gold);
     state["diamond"] = Math.Max(0, diamond);
-    state["ownedCannons"] = CreateOwnedCannonsJsonArray(ownedCannonIds);
+    state["inventoryItems"] = CreateInventoryItemsJsonArray(inventoryItems);
+    state["ownedCannons"] = CreateOwnedCannonsJsonArray(ExtractOwnedCannonIdsFromInventory(inventoryItems));
     return state.ToJsonString();
 }
 
@@ -905,28 +993,118 @@ static string UpsertShipPurchaseStateJson(string stateJson, int gold, int diamon
     return state.ToJsonString();
 }
 
-static List<string> ExtractOwnedCannonIds(string stateJson)
+static List<InventoryStateItem> ExtractInventoryItems(string stateJson)
 {
     var state = ParseStateObject(stateJson);
-    if (!state.TryGetPropertyValue("ownedCannons", out var ownedNode) || ownedNode is not JsonArray ownedArray)
-        return new List<string>();
+    var inventoryItems = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-    var orderedIds = new List<string>();
-    var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    for (var index = 0; index < ownedArray.Count; index++)
+    if (state.TryGetPropertyValue("inventoryItems", out var inventoryNode) && inventoryNode is JsonArray inventoryArray)
     {
-        var rawId = ownedArray[index] is JsonValue ownedValue && ownedValue.TryGetValue<string>(out var parsedId)
-            ? parsedId
-            : string.Empty;
-        var normalizedId = NormalizeCannonId(rawId);
-        if (string.IsNullOrWhiteSpace(normalizedId) || !TryResolveCannonCatalogEntry(normalizedId, out _) || !seenIds.Add(normalizedId))
-            continue;
+        for (var index = 0; index < inventoryArray.Count; index++)
+        {
+            if (inventoryArray[index] is not JsonObject entry)
+                continue;
 
-        orderedIds.Add(normalizedId);
+            var itemId = NormalizeInventoryItemId(ReadStringValue(entry, "itemId"));
+            var amount = ReadNonNegativeInt(entry, "amount");
+            if (string.IsNullOrWhiteSpace(itemId) || amount <= 0 || !TryResolveInventoryCatalogEntry(itemId, out _))
+                continue;
+
+            inventoryItems.TryGetValue(itemId, out var currentAmount);
+            var updatedAmount = (long)currentAmount + amount;
+            inventoryItems[itemId] = updatedAmount >= int.MaxValue ? int.MaxValue : (int)updatedAmount;
+        }
     }
 
-    orderedIds.Sort(static (left, right) => CompareCannonCatalogOrder(left, right));
-    return orderedIds;
+    foreach (var cannonId in ExtractOwnedCannonIdsFromLegacyState(state))
+    {
+        inventoryItems.TryGetValue(cannonId, out var currentAmount);
+        var updatedAmount = (long)currentAmount + 1;
+        inventoryItems[cannonId] = updatedAmount >= int.MaxValue ? int.MaxValue : (int)updatedAmount;
+    }
+
+    var orderedItems = new List<InventoryStateItem>(inventoryItems.Count);
+    foreach (var entry in inventoryItems)
+    {
+        if (entry.Value <= 0)
+            continue;
+
+        orderedItems.Add(new InventoryStateItem(entry.Key, entry.Value));
+    }
+
+    orderedItems.Sort(static (left, right) => CompareInventoryCatalogOrder(left.ItemId, right.ItemId));
+    return orderedItems;
+}
+
+static JsonArray CreateInventoryItemsJsonArray(IEnumerable<InventoryStateItem> inventoryItems)
+{
+    var normalizedItems = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    foreach (var item in inventoryItems)
+    {
+        var itemId = NormalizeInventoryItemId(item.ItemId);
+        if (string.IsNullOrWhiteSpace(itemId) || item.Amount <= 0 || !TryResolveInventoryCatalogEntry(itemId, out _))
+            continue;
+
+        normalizedItems.TryGetValue(itemId, out var currentAmount);
+        var updatedAmount = (long)currentAmount + item.Amount;
+        normalizedItems[itemId] = updatedAmount >= int.MaxValue ? int.MaxValue : (int)updatedAmount;
+    }
+
+    var orderedItems = new List<InventoryStateItem>(normalizedItems.Count);
+    foreach (var entry in normalizedItems)
+    {
+        if (entry.Value <= 0)
+            continue;
+
+        orderedItems.Add(new InventoryStateItem(entry.Key, entry.Value));
+    }
+
+    orderedItems.Sort(static (left, right) => CompareInventoryCatalogOrder(left.ItemId, right.ItemId));
+
+    var array = new JsonArray();
+    for (var index = 0; index < orderedItems.Count; index++)
+    {
+        var item = orderedItems[index];
+        array.Add(new JsonObject
+        {
+            ["itemId"] = item.ItemId,
+            ["amount"] = item.Amount
+        });
+    }
+
+    return array;
+}
+
+static InventoryItemStackResponse[] CreateInventoryItemStackResponses(IReadOnlyList<InventoryStateItem> inventoryItems)
+{
+    var responses = new InventoryItemStackResponse[inventoryItems.Count];
+    for (var index = 0; index < inventoryItems.Count; index++)
+    {
+        responses[index] = new InventoryItemStackResponse(inventoryItems[index].ItemId, inventoryItems[index].Amount);
+    }
+
+    return responses;
+}
+
+static void AddOrIncrementInventoryItem(List<InventoryStateItem> inventoryItems, string itemId, int amount)
+{
+    var normalizedItemId = NormalizeInventoryItemId(itemId);
+    if (string.IsNullOrWhiteSpace(normalizedItemId) || amount <= 0)
+        return;
+
+    for (var index = 0; index < inventoryItems.Count; index++)
+    {
+        if (!string.Equals(inventoryItems[index].ItemId, normalizedItemId, StringComparison.OrdinalIgnoreCase))
+            continue;
+
+        var updatedAmount = (long)inventoryItems[index].Amount + amount;
+        inventoryItems[index] = new InventoryStateItem(normalizedItemId, updatedAmount >= int.MaxValue ? int.MaxValue : (int)updatedAmount);
+        inventoryItems.Sort(static (left, right) => CompareInventoryCatalogOrder(left.ItemId, right.ItemId));
+        return;
+    }
+
+    inventoryItems.Add(new InventoryStateItem(normalizedItemId, amount));
+    inventoryItems.Sort(static (left, right) => CompareInventoryCatalogOrder(left.ItemId, right.ItemId));
 }
 
 static JsonArray CreateOwnedCannonsJsonArray(IEnumerable<string> ownedCannonIds)
@@ -949,6 +1127,44 @@ static JsonArray CreateOwnedCannonsJsonArray(IEnumerable<string> ownedCannonIds)
         array.Add(orderedIds[index]);
 
     return array;
+}
+
+static List<string> ExtractOwnedCannonIdsFromLegacyState(JsonObject state)
+{
+    if (!state.TryGetPropertyValue("ownedCannons", out var ownedNode) || ownedNode is not JsonArray ownedArray)
+        return new List<string>();
+
+    var orderedIds = new List<string>();
+    var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    for (var index = 0; index < ownedArray.Count; index++)
+    {
+        var rawId = ownedArray[index] is JsonValue ownedValue && ownedValue.TryGetValue<string>(out var parsedId)
+            ? parsedId
+            : string.Empty;
+        var normalizedId = NormalizeCannonId(rawId);
+        if (string.IsNullOrWhiteSpace(normalizedId) || !TryResolveCannonCatalogEntry(normalizedId, out _) || !seenIds.Add(normalizedId))
+            continue;
+
+        orderedIds.Add(normalizedId);
+    }
+
+    orderedIds.Sort(static (left, right) => CompareCannonCatalogOrder(left, right));
+    return orderedIds;
+}
+
+static List<string> ExtractOwnedCannonIdsFromInventory(IEnumerable<InventoryStateItem> inventoryItems)
+{
+    var ownedCannonIds = new List<string>();
+    foreach (var item in inventoryItems)
+    {
+        if (item.Amount <= 0 || !TryResolveInventoryCatalogEntry(item.ItemId, out var entry) || entry.Kind != InventoryCatalogItemKind.Cannon)
+            continue;
+
+        ownedCannonIds.Add(item.ItemId);
+    }
+
+    ownedCannonIds.Sort(static (left, right) => CompareCannonCatalogOrder(left, right));
+    return ownedCannonIds;
 }
 
 static List<string> ExtractOwnedShipIds(string stateJson)
@@ -1003,21 +1219,6 @@ static JsonArray CreateOwnedShipsJsonArray(IEnumerable<string> ownedShipIds)
     return array;
 }
 
-static bool ContainsOwnedCannonId(IReadOnlyList<string> ownedCannonIds, string cannonId)
-{
-    var normalizedId = NormalizeCannonId(cannonId);
-    if (string.IsNullOrWhiteSpace(normalizedId))
-        return false;
-
-    for (var index = 0; index < ownedCannonIds.Count; index++)
-    {
-        if (string.Equals(ownedCannonIds[index], normalizedId, StringComparison.OrdinalIgnoreCase))
-            return true;
-    }
-
-    return false;
-}
-
 static string ResolveGuildDisplayName(ClaimsPrincipal principal)
 {
     var displayName = CollapseWhitespace(principal.FindFirstValue("displayName"));
@@ -1051,6 +1252,13 @@ static string NormalizeShipId(string? shipId)
     return string.IsNullOrWhiteSpace(shipId)
         ? string.Empty
         : shipId.Trim().ToLowerInvariant();
+}
+
+static string NormalizeInventoryItemId(string? itemId)
+{
+    return string.IsNullOrWhiteSpace(itemId)
+        ? string.Empty
+        : itemId.Trim().ToLowerInvariant();
 }
 
 static bool TryResolveCannonCatalogEntry(string cannonId, out CannonCatalogEntry entry)
@@ -1141,15 +1349,63 @@ static bool TryResolveCannonCatalogEntry(string cannonId, out CannonCatalogEntry
     }
 }
 
+static bool TryResolveInventoryCatalogEntry(string itemId, out InventoryCatalogEntry entry)
+{
+    var normalizedItemId = NormalizeInventoryItemId(itemId);
+    if (TryResolveCannonCatalogEntry(normalizedItemId, out var cannonEntry))
+    {
+        entry = new InventoryCatalogEntry(
+            cannonEntry.Id,
+            cannonEntry.DisplayName,
+            InventoryCatalogItemKind.Cannon,
+            cannonEntry.GoldCost,
+            cannonEntry.DiamondCost,
+            1,
+            cannonEntry.SortOrder);
+        return true;
+    }
+
+    switch (normalizedItemId)
+    {
+        case "standard":
+            entry = new InventoryCatalogEntry("standard", "Standard Cannonballs", InventoryCatalogItemKind.CannonAmmo, 1000, 0, 1000, 1000);
+            return true;
+        case "heavy":
+            entry = new InventoryCatalogEntry("heavy", "Heavy Cannonballs", InventoryCatalogItemKind.CannonAmmo, 2000, 0, 1000, 1001);
+            return true;
+        case "chain":
+            entry = new InventoryCatalogEntry("chain", "Chain Cannonballs", InventoryCatalogItemKind.CannonAmmo, 1500, 0, 1000, 1002);
+            return true;
+        case "harpoon-25":
+            entry = new InventoryCatalogEntry("harpoon-25", "25 Damage Harpoons", InventoryCatalogItemKind.Harpoon, 750, 0, 50, 1100);
+            return true;
+        case "harpoon-50":
+            entry = new InventoryCatalogEntry("harpoon-50", "50 Damage Harpoons", InventoryCatalogItemKind.Harpoon, 1500, 0, 50, 1101);
+            return true;
+        case "harpoon-250":
+            entry = new InventoryCatalogEntry("harpoon-250", "250 Damage Harpoons", InventoryCatalogItemKind.Harpoon, 7500, 0, 50, 1102);
+            return true;
+        case "black_gunpowder":
+            entry = new InventoryCatalogEntry("black_gunpowder", "Black Gunpowder", InventoryCatalogItemKind.ActionItem, 1000, 0, 100, 1200);
+            return true;
+        case "agwes_armor_plating":
+            entry = new InventoryCatalogEntry("agwes_armor_plating", "Agwe's Armor Plating", InventoryCatalogItemKind.ActionItem, 1000, 0, 100, 1201);
+            return true;
+        default:
+            entry = default;
+            return false;
+    }
+}
+
 static bool TryResolveShipCatalogEntry(string shipId, out ShipCatalogEntry entry)
 {
     switch (NormalizeShipId(shipId))
     {
         case "elite27":
-            entry = new ShipCatalogEntry("elite27", "Elite 27", 0, 0, 0);
+            entry = new ShipCatalogEntry("elite27", "Elite 27", 0, 0, 10, 0);
             return true;
         case "elite1":
-            entry = new ShipCatalogEntry("elite1", "Elite 1", 18000, 0, 1);
+            entry = new ShipCatalogEntry("elite1", "Elite 1", 18000, 0, 12, 1);
             return true;
         default:
             entry = default;
@@ -1172,6 +1428,17 @@ static int CompareShipCatalogOrder(string? leftId, string? rightId)
 {
     var hasLeft = TryResolveShipCatalogEntry(leftId ?? string.Empty, out var leftEntry);
     var hasRight = TryResolveShipCatalogEntry(rightId ?? string.Empty, out var rightEntry);
+
+    if (hasLeft && hasRight)
+        return leftEntry.SortOrder.CompareTo(rightEntry.SortOrder);
+
+    return string.Compare(leftId, rightId, StringComparison.OrdinalIgnoreCase);
+}
+
+static int CompareInventoryCatalogOrder(string? leftId, string? rightId)
+{
+    var hasLeft = TryResolveInventoryCatalogEntry(leftId ?? string.Empty, out var leftEntry);
+    var hasRight = TryResolveInventoryCatalogEntry(rightId ?? string.Empty, out var rightEntry);
 
     if (hasLeft && hasRight)
         return leftEntry.SortOrder.CompareTo(rightEntry.SortOrder);
@@ -1384,7 +1651,9 @@ static WorldObjectResponse CreateWorldObjectResponse(WorldObject entity)
 }
 
 readonly record struct CannonCatalogEntry(string Id, string DisplayName, int GoldCost, int DiamondCost, int SortOrder);
-readonly record struct ShipCatalogEntry(string Id, string DisplayName, int GoldCost, int DiamondCost, int SortOrder);
+readonly record struct InventoryStateItem(string ItemId, int Amount);
+readonly record struct InventoryCatalogEntry(string Id, string DisplayName, InventoryCatalogItemKind Kind, int GoldCost, int DiamondCost, int PurchaseAmount, int SortOrder);
+readonly record struct ShipCatalogEntry(string Id, string DisplayName, int GoldCost, int DiamondCost, int CannonCapacity, int SortOrder);
 readonly record struct GuildStateSnapshot(
     string Name,
     string Tag,
@@ -1392,3 +1661,12 @@ readonly record struct GuildStateSnapshot(
     string LeaderUserId,
     string LeaderDisplayName,
     string[] MemberUserIds);
+
+enum InventoryCatalogItemKind
+{
+    Unknown = 0,
+    Cannon = 1,
+    CannonAmmo = 2,
+    Harpoon = 3,
+    ActionItem = 4
+}

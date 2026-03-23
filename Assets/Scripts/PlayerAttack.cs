@@ -17,6 +17,7 @@ public class PlayerAttack : NetworkBehaviour
         public ulong TargetNetworkObjectId;
         public float ImpactAtTime;
         public int DamageAmount;
+        public bool UsedBlackGunpowder;
     }
 
     private WeaponFireController _fireController;
@@ -129,7 +130,11 @@ public class PlayerAttack : NetworkBehaviour
             return;
         }
 
-        int resolvedDamage = ResolveDamageAmountForTarget(target);
+        if (!TryResolveDamageAmountForTarget(target, usedBlackGunpowder: false, out int resolvedDamage))
+        {
+            return;
+        }
+
         if (resolvedDamage <= 0)
         {
             return;
@@ -161,6 +166,7 @@ public class PlayerAttack : NetworkBehaviour
                 continue;
             }
 
+            CombatActionItemUtility.MarkNextIncomingDamageEffect(gameObject, impact.UsedBlackGunpowder);
             ApplyDamageToTarget(targetNetObj.gameObject, impact.DamageAmount, gameObject);
         }
     }
@@ -200,18 +206,41 @@ public class PlayerAttack : NetworkBehaviour
         damage = Mathf.Max(0, baseDamage + ammoBonusDamage);
     }
 
-    private int ResolveDamageAmountForTarget(GameObject target)
+    private bool TryResolveDamageAmountForTarget(GameObject target, bool usedBlackGunpowder, out int resolvedDamage)
     {
+        resolvedDamage = 0;
         if (!CombatTargetingUtility.TryGetSeaEntity(target, out ISeaEntity seaEntity))
         {
-            return 0;
+            return false;
         }
 
-        int resolvedDamage = seaEntity.EntityType == SeaEntityType.Monster
-            ? Mathf.Max(0, harpoonDamage)
-            : Mathf.Max(0, damage);
+        int baseResolvedDamage;
+        if (seaEntity.EntityType == SeaEntityType.Monster)
+        {
+            baseResolvedDamage = Mathf.Max(0, harpoonDamage);
+            if (baseResolvedDamage <= 0)
+            {
+                return false;
+            }
+        }
+        else if (TryGetComponent(out Player attackingPlayer))
+        {
+            if (!attackingPlayer.TryResolveCurrentShipCannonSalvoDamage(target, out baseResolvedDamage))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            baseResolvedDamage = Mathf.Max(0, damage);
+            if (baseResolvedDamage <= 0)
+            {
+                return false;
+            }
+        }
 
-        return CombatActionItemUtility.ApplyOutgoingDamageModifiers(gameObject, resolvedDamage);
+        resolvedDamage = CombatActionItemUtility.ApplyOutgoingDamageModifiers(baseResolvedDamage, usedBlackGunpowder);
+        return true;
     }
 
     // ------------------------------------------------------------------
@@ -274,6 +303,14 @@ public class PlayerAttack : NetworkBehaviour
             return;
         }
 
+        if (TryGetComponent(out Player attackingPlayer) &&
+            !attackingPlayer.TryValidateAttackResourcesForTargetServer(target, out _, out string resourceFailureReason))
+        {
+            Debug.LogWarning($"[Combat][Attack:{name}] Could not start attack on '{target?.name}': {resourceFailureReason}");
+            ServerExitCombat();
+            return;
+        }
+
         if (serverTargetNetworkObjectId != targetNetworkObjectId)
         {
             if (serverTargetNetworkObjectId != 0 && TryResolveNetworkObject(serverTargetNetworkObjectId, out NetworkObject prevTarget))
@@ -331,17 +368,31 @@ public class PlayerAttack : NetworkBehaviour
                 yield break;
             }
 
-            BroadcastFireClientRpc(targetNetworkObjectId, ShouldUseHarpoonVisual(target));
+            bool useHarpoonVisual = ShouldUseHarpoonVisual(target);
+            bool usedBlackGunpowder = false;
+            if (TryGetComponent(out Player attackingPlayer))
+            {
+                if (!attackingPlayer.TryConsumeAttackResourcesForTarget(target, out useHarpoonVisual, out usedBlackGunpowder, out string consumeFailureReason))
+                {
+                    Debug.LogWarning($"[Combat][Attack:{name}] Attack loop stopping for '{target.name}': {consumeFailureReason}");
+                    ServerExitCombat();
+                    yield break;
+                }
+            }
 
-            int resolvedDamage = ResolveDamageAmountForTarget(target);
-            if (resolvedDamage <= 0)
+            BroadcastFireClientRpc(targetNetworkObjectId, useHarpoonVisual);
+
+            if (!TryResolveDamageAmountForTarget(target, usedBlackGunpowder, out int resolvedDamage))
             {
                 Debug.LogWarning($"[Combat][Attack:{name}] Attack loop stopping for '{target.name}': no valid damage profile was available.");
                 ServerExitCombat();
                 yield break;
             }
 
-            QueueImpact(targetNetworkObjectId, resolvedDamage, GetProjectileTravelDelay(target));
+            if (resolvedDamage > 0)
+            {
+                QueueImpact(targetNetworkObjectId, resolvedDamage, GetProjectileTravelDelay(target), usedBlackGunpowder);
+            }
 
             float remainingInterval = Mathf.Max(0.05f, shootingInterval);
             while (remainingInterval > 0f && serverTargetNetworkObjectId != 0)
@@ -373,7 +424,7 @@ public class PlayerAttack : NetworkBehaviour
         _serverAttackRoutine = null;
     }
 
-    private void QueueImpact(ulong targetNetworkObjectId, int damageAmount, float delaySeconds)
+    private void QueueImpact(ulong targetNetworkObjectId, int damageAmount, float delaySeconds, bool usedBlackGunpowder)
     {
         if (!IsServer || targetNetworkObjectId == 0 || damageAmount <= 0)
         {
@@ -384,7 +435,8 @@ public class PlayerAttack : NetworkBehaviour
         {
             TargetNetworkObjectId = targetNetworkObjectId,
             ImpactAtTime = Time.time + Mathf.Max(0f, delaySeconds),
-            DamageAmount = damageAmount
+            DamageAmount = damageAmount,
+            UsedBlackGunpowder = usedBlackGunpowder
         });
     }
 

@@ -18,8 +18,12 @@ MonoBehaviour:
     extra experience and elite points for every cannonball fired.
   icon: {fileID: 2800000, guid: 82756131e71cf1b4ebdacacada55a0ca, type: 3}
   hitProbability: 75
-  cannonRange: 30
+  cannonRange: 90
   reloadTimeSeconds: 7
+  criticalHitProbability: 0
+  criticalHitDamage: 0
+  bonusDamageFlat: 5
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

@@ -18,8 +18,12 @@ MonoBehaviour:
     by destroying every training target in one test.
   icon: {fileID: 2800000, guid: ec6dbe52d6c9685478ba156ba4f4e887, type: 3}
   hitProbability: 75
-  cannonRange: 30
+  cannonRange: 90
   reloadTimeSeconds: 6.9
+  criticalHitProbability: 20
+  criticalHitDamage: 20
+  bonusDamageFlat: 100
+  bonusDamagePercentage: 70
   cost:
     entries:
     - currencyType: 0

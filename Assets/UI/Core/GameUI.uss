@@ -12,8 +12,9 @@
     --hud-red-fill: rgba(120, 16, 12, 0.95);
     --hud-red-bg: rgb(41, 4, 4);
     --coordinate-ruler-offset-top: 56px;
-    --coordinate-ruler-top-height: 22px;
-    --coordinate-ruler-left-width: 40px;
+    --coordinate-ruler-top-height: 28px;
+    --coordinate-ruler-left-width: 28px;
+    --minimap-offset-top: 92px;
     --active-action-item-hud-top: 84px;
     --active-action-item-hud-icon-gap: 3px;
 }
@@ -647,6 +648,35 @@
     -unity-text-align: middle-center;
 }
 
+.action-slot-label-amount {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    min-width: 18px;
+    min-height: 18px;
+    padding-top: 1px;
+    padding-right: 5px;
+    padding-bottom: 1px;
+    padding-left: 5px;
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+    border-bottom-left-radius: 9px;
+    border-bottom-right-radius: 9px;
+    background-color: rgba(12, 9, 3, 0.9);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(214, 157, 78, 0.86);
+    border-right-color: rgba(214, 157, 78, 0.86);
+    border-bottom-color: rgba(214, 157, 78, 0.86);
+    border-left-color: rgba(214, 157, 78, 0.86);
+    color: rgba(255, 223, 171, 0.98);
+    -unity-font-style: bold;
+    font-size: 11px;
+    -unity-text-align: middle-center;
+}
+
 .action-slot-icon {
     position: absolute;
     top: 0;
@@ -831,16 +861,16 @@
     display: none;
 }
 
+.action-item-menu-panel {
+    row-gap: 4px;
+}
+
 .action-item-menu-button {
     height: 52px;
     min-height: 52px;
-    margin-bottom: 4px;
+    margin-bottom: 0;
     padding-left: 8px;
     padding-right: 8px;
-}
-
-.action-item-menu-button:last-child {
-    margin-bottom: 0;
 }
 
 .action-item-menu-button-content {
@@ -1026,7 +1056,7 @@
 
 .minimap-root {
     position: absolute;
-    top: 58px;
+    top: var(--minimap-offset-top);
     right: 16px;
     width: 236px;
     align-items: stretch;
@@ -1654,7 +1684,7 @@
     flex-direction: row;
     align-items: center;
     padding-top: 7px;
-    padding-right: 8px;
+    padding-right: 5px;
     padding-bottom: 7px;
     padding-left: 8px;
     border-top-left-radius: 0;
@@ -1677,15 +1707,26 @@
     min-width: 48px;
     height: 48px;
     min-height: 48px;
+    flex-shrink: 0;
+    flex-grow: 0;
     display: none;
     background-repeat: no-repeat;
     background-position: center;
     -unity-background-scale-mode: scale-to-fit;
 }
 
+.active-action-item-hud-icon-spacer {
+    width: var(--active-action-item-hud-icon-gap);
+    min-width: var(--active-action-item-hud-icon-gap);
+    height: 1px;
+    min-height: 1px;
+    flex-shrink: 0;
+    flex-grow: 0;
+    display: none;
+}
+
 .active-action-item-hud-icon-black-gunpowder {
     background-image: url("project://database/Assets/UI/Art/Icons/Skills/Icon_BlackGunpowder.jpg");
-    margin-right: 3px;
 }
 
 .active-action-item-hud-icon-agwes-armor-plating {

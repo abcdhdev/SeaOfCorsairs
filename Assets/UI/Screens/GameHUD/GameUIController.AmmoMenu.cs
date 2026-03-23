@@ -61,6 +61,8 @@ public partial class GameUIController
         }
 
         ammoMenuPanel.Clear();
+        renderedInventoryMenuSnapshot = localPlayer.InventorySnapshot ?? string.Empty;
+        renderedAmmoMenuSelectionIndex = -1;
 
         IReadOnlyList<CannonAmmoDefinition> ammoOptions = localPlayer.GetCannonAmmoOptions();
         if (ammoOptions == null || ammoOptions.Count == 0)
@@ -70,6 +72,7 @@ public partial class GameUIController
         else
         {
             int selectedIndex = Mathf.Clamp(localPlayer.SelectedCannonAmmoIndex, 0, ammoOptions.Count - 1);
+            renderedAmmoMenuSelectionIndex = selectedIndex;
 
             for (int i = 0; i < ammoOptions.Count; i++)
             {
@@ -80,6 +83,7 @@ public partial class GameUIController
                 }
 
                 int optionIndex = i;
+                int ownedAmount = localPlayer.GetInventoryAmount(ammo.Id);
                 Button optionButton = new Button(() =>
                 {
                     if (localPlayer.TrySelectCannonAmmo(optionIndex))
@@ -90,7 +94,7 @@ public partial class GameUIController
                     CloseAmmoMenu();
                 })
                 {
-                    text = $"{ammo.DisplayName} ({ammo.Damage})"
+                    text = $"{ammo.DisplayName} ({ammo.Damage}) x{Mathf.Max(0, ownedAmount):N0}"
                 };
 
                 optionButton.AddToClassList("ammo-menu-button");
@@ -158,6 +162,8 @@ public partial class GameUIController
         }
 
         isAmmoMenuOpen = false;
+        renderedAmmoMenuSelectionIndex = -1;
+        renderedInventoryMenuSnapshot = string.Empty;
     }
 
     private void ToggleAmmoMenu()
@@ -208,7 +214,7 @@ public partial class GameUIController
         int selectedIndex = Mathf.Clamp(localPlayer.SelectedCannonAmmoIndex, 0, ammoOptions.Count - 1);
         CannonAmmoDefinition selectedAmmo = ammoOptions[selectedIndex];
         ammoSlot.Root.tooltip = selectedAmmo != null
-            ? $"Cannonball: {selectedAmmo.DisplayName} ({selectedAmmo.Damage})"
+            ? $"Cannonball: {selectedAmmo.DisplayName} ({selectedAmmo.Damage}) | Owned: {Mathf.Max(0, localPlayer.GetInventoryAmount(selectedAmmo.Id)):N0}"
             : "Select ammo";
     }
 }

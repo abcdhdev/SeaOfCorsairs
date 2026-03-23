@@ -18,7 +18,8 @@ MonoBehaviour:
   icon: {fileID: 2800000, guid: b353dfd69b06cf848b7b1d0685b9b8c4, type: 3}
   primaryStatLabel: Class Flagship
   secondaryStatLabel: Crew 32
-  tertiaryStatLabel: Broadside 6
+  tertiaryStatLabel: Cannon Capacity 10
+  cannonCapacity: 10
   cost:
     entries: []
   sortOrder: 0

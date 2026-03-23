@@ -10,6 +10,7 @@ public sealed class MarketShipData : ScriptableObject
     [SerializeField] private string primaryStatLabel = string.Empty;
     [SerializeField] private string secondaryStatLabel = string.Empty;
     [SerializeField] private string tertiaryStatLabel = string.Empty;
+    [SerializeField, Min(0)] private int cannonCapacity;
     [SerializeField] private MarketCost cost = new MarketCost();
     [SerializeField, Min(0)] private int sortOrder;
 
@@ -20,6 +21,7 @@ public sealed class MarketShipData : ScriptableObject
     public string PrimaryStatLabel => primaryStatLabel ?? string.Empty;
     public string SecondaryStatLabel => secondaryStatLabel ?? string.Empty;
     public string TertiaryStatLabel => tertiaryStatLabel ?? string.Empty;
+    public int CannonCapacity => Mathf.Max(0, cannonCapacity);
     public MarketCost Cost => cost ?? (cost = new MarketCost());
     public int SortOrder => Mathf.Max(0, sortOrder);
 
@@ -31,6 +33,7 @@ public sealed class MarketShipData : ScriptableObject
         string newPrimaryStatLabel,
         string newSecondaryStatLabel,
         string newTertiaryStatLabel,
+        int newCannonCapacity,
         int newSortOrder,
         params MarketCostValue[] newCosts)
     {
@@ -41,6 +44,7 @@ public sealed class MarketShipData : ScriptableObject
         primaryStatLabel = newPrimaryStatLabel ?? string.Empty;
         secondaryStatLabel = newSecondaryStatLabel ?? string.Empty;
         tertiaryStatLabel = newTertiaryStatLabel ?? string.Empty;
+        cannonCapacity = Mathf.Max(0, newCannonCapacity);
         sortOrder = Mathf.Max(0, newSortOrder);
         Cost.SetEntries(newCosts);
     }

@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-public sealed class ShipSectionController : IDisposable
+public sealed partial class ShipSectionController : IDisposable
 {
     private const string SharedPanelStyleResourcePath = "Shared/OverlayPanel";
     private const string UxmlResourcePath = "ShipSection/ShipSection";
@@ -38,6 +38,8 @@ public sealed class ShipSectionController : IDisposable
     private Player observedPlayer;
     private string displayedOwnedShipsCsv = string.Empty;
     private string displayedCurrentShipId = string.Empty;
+    private string displayedInventorySnapshot = string.Empty;
+    private string displayedShipCannonLoadoutsSnapshot = string.Empty;
     private bool displayedHasVisualController;
     private bool isDirty = true;
 
@@ -133,12 +135,16 @@ public sealed class ShipSectionController : IDisposable
         PlayerShipVisualController shipVisualController = GetLocalPlayerShipVisualController();
         string ownedShipsCsv = localPlayer != null ? localPlayer.OwnedShipIdsCsv ?? string.Empty : string.Empty;
         string currentShipId = shipVisualController != null ? NormalizeShipId(shipVisualController.CurrentShipId) : string.Empty;
+        string inventorySnapshot = localPlayer != null ? localPlayer.InventorySnapshot ?? string.Empty : string.Empty;
+        string shipCannonLoadoutsSnapshot = localPlayer != null ? localPlayer.ShipCannonLoadoutsSnapshot ?? string.Empty : string.Empty;
         bool hasVisualController = shipVisualController != null;
 
         bool stateChanged = isDirty ||
                             !ReferenceEquals(observedPlayer, localPlayer) ||
                             !string.Equals(displayedOwnedShipsCsv, ownedShipsCsv, StringComparison.Ordinal) ||
                             !string.Equals(displayedCurrentShipId, currentShipId, StringComparison.OrdinalIgnoreCase) ||
+                            !string.Equals(displayedInventorySnapshot, inventorySnapshot, StringComparison.Ordinal) ||
+                            !string.Equals(displayedShipCannonLoadoutsSnapshot, shipCannonLoadoutsSnapshot, StringComparison.Ordinal) ||
                             displayedHasVisualController != hasVisualController;
 
         if (!stateChanged)
@@ -149,6 +155,8 @@ public sealed class ShipSectionController : IDisposable
         observedPlayer = localPlayer;
         displayedOwnedShipsCsv = ownedShipsCsv;
         displayedCurrentShipId = currentShipId;
+        displayedInventorySnapshot = inventorySnapshot;
+        displayedShipCannonLoadoutsSnapshot = shipCannonLoadoutsSnapshot;
         displayedHasVisualController = hasVisualController;
         isDirty = false;
 
@@ -185,6 +193,8 @@ public sealed class ShipSectionController : IDisposable
         observedPlayer = null;
         displayedOwnedShipsCsv = string.Empty;
         displayedCurrentShipId = string.Empty;
+        displayedInventorySnapshot = string.Empty;
+        displayedShipCannonLoadoutsSnapshot = string.Empty;
         displayedHasVisualController = false;
         isDirty = true;
     }
@@ -393,6 +403,12 @@ public sealed class ShipSectionController : IDisposable
         }
 
         itemList.Clear();
+
+        if (IsShipDepotCategorySelected())
+        {
+            RefreshShipDepotItems();
+            return;
+        }
 
         Player localPlayer = Player.LocalPlayer;
         PlayerShipVisualController shipVisualController = GetLocalPlayerShipVisualController();

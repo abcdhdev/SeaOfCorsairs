@@ -17,8 +17,12 @@ MonoBehaviour:
   description: For early victories.
   icon: {fileID: 2800000, guid: 7b41929effbead74886938bb68fbf130, type: 3}
   hitProbability: 29
-  cannonRange: 8
+  cannonRange: 24
   reloadTimeSeconds: 40
+  criticalHitProbability: 0
+  criticalHitDamage: 0
+  bonusDamageFlat: 0
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

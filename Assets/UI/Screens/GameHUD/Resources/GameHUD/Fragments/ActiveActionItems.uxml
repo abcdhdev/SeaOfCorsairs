@@ -5,6 +5,10 @@
             picking-mode="Ignore"
             class="active-action-item-hud-icon active-action-item-hud-icon-black-gunpowder"/>
         <ui:VisualElement
+            name="ActiveActionItemHudSpacer"
+            picking-mode="Ignore"
+            class="active-action-item-hud-icon-spacer"/>
+        <ui:VisualElement
             name="ActiveActionItemHudAgwesArmorPlating"
             picking-mode="Ignore"
             class="active-action-item-hud-icon active-action-item-hud-icon-agwes-armor-plating"/>

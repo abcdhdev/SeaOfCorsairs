@@ -17,6 +17,7 @@ public partial class GameUIController
 
         actionItemMenuPanel = new VisualElement { name = "ActionItemMenuPanel" };
         actionItemMenuPanel.AddToClassList("ammo-menu-panel");
+        actionItemMenuPanel.AddToClassList("action-item-menu-panel");
         actionItemMenuPanel.pickingMode = PickingMode.Position;
         actionItemMenuPanel.style.position = Position.Absolute;
 
@@ -68,10 +69,12 @@ public partial class GameUIController
         actionItemMenuBackdrop.style.display = DisplayStyle.Flex;
         isActionItemMenuOpen = true;
         renderedActionItemMenuMask = (int)localPlayer.ActiveActionItems;
+        renderedInventoryMenuSnapshot = localPlayer.InventorySnapshot ?? string.Empty;
     }
 
     private void AddActionItemOption(Player localPlayer, PlayerActionItemType actionItemType, string label)
     {
+        int ownedAmount = localPlayer.GetActionItemAmount(actionItemType);
         Button optionButton = new Button(() =>
         {
             if (localPlayer.TryToggleActionItem(actionItemType))
@@ -87,6 +90,7 @@ public partial class GameUIController
 
         optionButton.AddToClassList("ammo-menu-button");
         optionButton.AddToClassList("action-item-menu-button");
+        optionButton.SetEnabled(ownedAmount > 0);
         if (localPlayer.HasActionItem(actionItemType))
         {
             optionButton.AddToClassList("ammo-menu-button-selected");
@@ -105,7 +109,7 @@ public partial class GameUIController
             iconElement.style.backgroundImage = new StyleBackground(iconTexture);
         }
 
-        Label labelElement = new Label(label);
+        Label labelElement = new Label($"{label} x{Mathf.Max(0, ownedAmount):N0}");
         labelElement.pickingMode = PickingMode.Ignore;
         labelElement.AddToClassList("action-item-menu-label");
 
@@ -167,6 +171,7 @@ public partial class GameUIController
 
         isActionItemMenuOpen = false;
         renderedActionItemMenuMask = -1;
+        renderedInventoryMenuSnapshot = string.Empty;
     }
 
     private void ToggleActionItemMenu()
@@ -209,13 +214,15 @@ public partial class GameUIController
 
         bool hasBlackGunpowder = localPlayer.HasActionItem(PlayerActionItemType.BlackGunpowder);
         bool hasArmorPlating = localPlayer.HasActionItem(PlayerActionItemType.AgwesArmorPlating);
+        int blackGunpowderAmount = localPlayer.GetActionItemAmount(PlayerActionItemType.BlackGunpowder);
+        int armorPlatingAmount = localPlayer.GetActionItemAmount(PlayerActionItemType.AgwesArmorPlating);
 
         actionItemSlot.Root.tooltip = (hasBlackGunpowder, hasArmorPlating) switch
         {
-            (true, true) => "Action Items: Black Gunpowder (+10% attack damage), Agwe's Armor Plating (-10% received attack damage)",
-            (true, false) => "Action Item: Black Gunpowder (+10% attack damage)",
-            (false, true) => "Action Item: Agwe's Armor Plating (-10% received attack damage)",
-            _ => "Action Items"
+            (true, true) => $"Action Items: Black Gunpowder x{Mathf.Max(0, blackGunpowderAmount):N0} (+10% attack damage), Agwe's Armor Plating x{Mathf.Max(0, armorPlatingAmount):N0} (-10% received attack damage)",
+            (true, false) => $"Action Item: Black Gunpowder x{Mathf.Max(0, blackGunpowderAmount):N0} (+10% attack damage)",
+            (false, true) => $"Action Item: Agwe's Armor Plating x{Mathf.Max(0, armorPlatingAmount):N0} (-10% received attack damage)",
+            _ => $"Action Items | Black Gunpowder x{Mathf.Max(0, blackGunpowderAmount):N0}, Agwe's Armor Plating x{Mathf.Max(0, armorPlatingAmount):N0}"
         };
     }
 
@@ -223,6 +230,7 @@ public partial class GameUIController
     {
         if (activeActionItemHudRoot == null ||
             activeActionItemHudBlackGunpowder == null ||
+            activeActionItemHudSpacer == null ||
             activeActionItemHudAgwesArmorPlating == null)
         {
             return;
@@ -237,24 +245,28 @@ public partial class GameUIController
         displayedActionItemMask = currentMask;
         bool hasBlackGunpowder = localPlayer != null && localPlayer.HasActionItem(PlayerActionItemType.BlackGunpowder);
         bool hasArmorPlating = localPlayer != null && localPlayer.HasActionItem(PlayerActionItemType.AgwesArmorPlating);
+        int blackGunpowderAmount = localPlayer != null ? localPlayer.GetActionItemAmount(PlayerActionItemType.BlackGunpowder) : 0;
+        int armorPlatingAmount = localPlayer != null ? localPlayer.GetActionItemAmount(PlayerActionItemType.AgwesArmorPlating) : 0;
 
         if (currentMask == 0)
         {
             activeActionItemHudRoot.style.display = DisplayStyle.None;
             activeActionItemHudRoot.tooltip = null;
             activeActionItemHudBlackGunpowder.style.display = DisplayStyle.None;
+            activeActionItemHudSpacer.style.display = DisplayStyle.None;
             activeActionItemHudAgwesArmorPlating.style.display = DisplayStyle.None;
             return;
         }
 
         activeActionItemHudBlackGunpowder.style.display = hasBlackGunpowder ? DisplayStyle.Flex : DisplayStyle.None;
+        activeActionItemHudSpacer.style.display = hasBlackGunpowder && hasArmorPlating ? DisplayStyle.Flex : DisplayStyle.None;
         activeActionItemHudAgwesArmorPlating.style.display = hasArmorPlating ? DisplayStyle.Flex : DisplayStyle.None;
         activeActionItemHudRoot.style.display = DisplayStyle.Flex;
         activeActionItemHudRoot.tooltip = (hasBlackGunpowder, hasArmorPlating) switch
         {
-            (true, true) => "Black Gunpowder, Agwe's Armor Plating",
-            (true, false) => "Black Gunpowder",
-            (false, true) => "Agwe's Armor Plating",
+            (true, true) => $"Black Gunpowder x{Mathf.Max(0, blackGunpowderAmount):N0}, Agwe's Armor Plating x{Mathf.Max(0, armorPlatingAmount):N0}",
+            (true, false) => $"Black Gunpowder x{Mathf.Max(0, blackGunpowderAmount):N0}",
+            (false, true) => $"Agwe's Armor Plating x{Mathf.Max(0, armorPlatingAmount):N0}",
             _ => null
         };
     }

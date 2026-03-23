@@ -96,6 +96,8 @@ public sealed class BackendPlayerDataClient
         string accessToken,
         string selectedShipId,
         PlayerActionItemType activeActionItems,
+        string inventorySnapshot,
+        string shipCannonLoadoutsSnapshot,
         CancellationToken cancellationToken = default)
     {
         var currentState = await GetPlayerStateAsync(accessToken, cancellationToken);
@@ -104,6 +106,9 @@ public sealed class BackendPlayerDataClient
 
         state["selectedShipId"] = ResolveSelectedShipId(selectedShipId, ownedShipIds);
         state["activeActionItems"] = NormalizeActionItemMask(activeActionItems);
+        state["inventoryItems"] = BuildInventoryItemsToken(inventorySnapshot);
+        state["ownedCannons"] = BuildOwnedCannonsToken(inventorySnapshot);
+        state["shipCannonLoadouts"] = BuildShipCannonLoadoutsToken(shipCannonLoadoutsSnapshot);
 
         return await UpdatePlayerStateAsync(accessToken, state, currentState.version, cancellationToken);
     }
@@ -169,6 +174,38 @@ public sealed class BackendPlayerDataClient
 
         await request.SendWebRequestAsync(cancellationToken);
         return ParseOrThrow<CannonPurchaseResponse>(request, url);
+    }
+
+    public async Task<InventoryItemPurchaseResponse> PurchaseInventoryItemAsync(
+        string accessToken,
+        string itemId,
+        int gold,
+        int diamond,
+        int? expectedVersion = null,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"{_playerDataBaseUrl}/v1/player/me/items/purchase";
+        var body = new JObject
+        {
+            ["itemId"] = (itemId ?? string.Empty).Trim(),
+            ["gold"] = Math.Max(0, gold),
+            ["diamond"] = Math.Max(0, diamond),
+        };
+
+        if (expectedVersion.HasValue)
+        {
+            body["expectedVersion"] = expectedVersion.Value;
+        }
+
+        using var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST);
+        var bytes = Encoding.UTF8.GetBytes(body.ToString(Formatting.None));
+        request.uploadHandler = new UploadHandlerRaw(bytes);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.SetRequestHeader("Authorization", $"Bearer {accessToken ?? string.Empty}");
+
+        await request.SendWebRequestAsync(cancellationToken);
+        return ParseOrThrow<InventoryItemPurchaseResponse>(request, url);
     }
 
     public async Task<ShipPurchaseResponse> PurchaseShipAsync(
@@ -381,14 +418,17 @@ public sealed class BackendPlayerDataClient
         var diamond = ReadNonNegativeInt(state, "diamond");
         var experience = ReadNonNegativeInt(state, "experience");
         var ownedShipIds = EnsureDefaultShipIds(ReadStringArray(state, "ownedShips"));
+        var inventoryItems = ParseInventoryItems(state);
 
         return new PlayerMarketStateResponse
         {
             gold = gold,
             diamond = diamond,
             experience = experience,
-            ownedCannonIds = ReadStringArray(state, "ownedCannons"),
+            ownedCannonIds = ExtractOwnedCannonIds(inventoryItems),
             ownedShipIds = ownedShipIds,
+            inventoryItems = inventoryItems,
+            shipCannonLoadouts = ParseShipCannonLoadouts(state),
             selectedShipId = ResolveSelectedShipId(ReadStringValue(state, "selectedShipId"), ownedShipIds),
             activeActionItems = ReadActiveActionItemsMask(state),
             version = playerState?.version ?? 0,
@@ -579,6 +619,240 @@ public sealed class BackendPlayerDataClient
         return values;
     }
 
+    private static InventoryItemStackResponse[] ParseInventoryItems(JObject state)
+    {
+        var amountsByItemId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        if (state != null && state.TryGetValue("inventoryItems", out var inventoryToken) && inventoryToken is JArray inventoryArray)
+        {
+            for (var index = 0; index < inventoryArray.Count; index++)
+            {
+                if (inventoryArray[index] is not JObject entry)
+                {
+                    continue;
+                }
+
+                string itemId = PlayerInventoryState.NormalizeItemId(entry.Value<string>("itemId"));
+                int amount = ReadNonNegativeInt(entry, "amount");
+                if (string.IsNullOrWhiteSpace(itemId) || amount <= 0 || PlayerInventoryState.GetItemKind(itemId) == PlayerInventoryItemKind.Unknown)
+                {
+                    continue;
+                }
+
+                amountsByItemId.TryGetValue(itemId, out int currentAmount);
+                long combinedAmount = (long)currentAmount + amount;
+                amountsByItemId[itemId] = combinedAmount >= int.MaxValue ? int.MaxValue : (int)combinedAmount;
+            }
+        }
+
+        if (state != null && state.TryGetValue("ownedCannons", out var ownedCannonsToken) && ownedCannonsToken is JArray ownedCannonsArray)
+        {
+            for (var index = 0; index < ownedCannonsArray.Count; index++)
+            {
+                string itemId = PlayerInventoryState.NormalizeItemId(ownedCannonsArray[index]?.Value<string>());
+                if (!PlayerInventoryState.IsCannon(itemId))
+                {
+                    continue;
+                }
+
+                amountsByItemId.TryGetValue(itemId, out int currentAmount);
+                long combinedAmount = (long)currentAmount + 1;
+                amountsByItemId[itemId] = combinedAmount >= int.MaxValue ? int.MaxValue : (int)combinedAmount;
+            }
+        }
+
+        if (amountsByItemId.Count == 0)
+        {
+            return Array.Empty<InventoryItemStackResponse>();
+        }
+
+        var items = new List<InventoryItemStackResponse>(amountsByItemId.Count);
+        foreach (var entry in amountsByItemId)
+        {
+            if (entry.Value <= 0)
+            {
+                continue;
+            }
+
+            items.Add(new InventoryItemStackResponse
+            {
+                itemId = entry.Key,
+                amount = entry.Value,
+            });
+        }
+
+        items.Sort(static (left, right) => PlayerInventoryState.GetInventorySortOrder(left.itemId).CompareTo(PlayerInventoryState.GetInventorySortOrder(right.itemId)));
+        return items.ToArray();
+    }
+
+    private static ShipCannonLoadoutResponse[] ParseShipCannonLoadouts(JObject state)
+    {
+        if (state == null || !state.TryGetValue("shipCannonLoadouts", out var loadoutToken) || loadoutToken is not JArray loadoutArray)
+        {
+            return Array.Empty<ShipCannonLoadoutResponse>();
+        }
+
+        var loadouts = new List<ShipCannonLoadoutResponse>(loadoutArray.Count);
+        for (var index = 0; index < loadoutArray.Count; index++)
+        {
+            if (loadoutArray[index] is not JObject loadoutObject)
+            {
+                continue;
+            }
+
+            string shipId = MarketShipCatalogRuntime.NormalizeShipId(loadoutObject.Value<string>("shipId"));
+            if (string.IsNullOrWhiteSpace(shipId) || !MarketShipCatalogRuntime.TryGetShip(shipId, out _))
+            {
+                continue;
+            }
+
+            var cannonStacks = new List<InventoryItemStackResponse>();
+            if (loadoutObject.TryGetValue("cannons", out var cannonsToken) && cannonsToken is JArray cannonArray)
+            {
+                for (var cannonIndex = 0; cannonIndex < cannonArray.Count; cannonIndex++)
+                {
+                    if (cannonArray[cannonIndex] is not JObject cannonObject)
+                    {
+                        continue;
+                    }
+
+                    string cannonId = PlayerInventoryState.NormalizeItemId(cannonObject.Value<string>("itemId"));
+                    int amount = ReadNonNegativeInt(cannonObject, "amount");
+                    if (!PlayerInventoryState.IsCannon(cannonId) || amount <= 0)
+                    {
+                        continue;
+                    }
+
+                    cannonStacks.Add(new InventoryItemStackResponse
+                    {
+                        itemId = cannonId,
+                        amount = amount,
+                    });
+                }
+            }
+
+            if (cannonStacks.Count == 0)
+            {
+                continue;
+            }
+
+            cannonStacks.Sort(static (left, right) => PlayerInventoryState.GetInventorySortOrder(left.itemId).CompareTo(PlayerInventoryState.GetInventorySortOrder(right.itemId)));
+            loadouts.Add(new ShipCannonLoadoutResponse
+            {
+                shipId = shipId,
+                cannons = cannonStacks.ToArray(),
+            });
+        }
+
+        return loadouts.ToArray();
+    }
+
+    private static JArray BuildInventoryItemsToken(string inventorySnapshot)
+    {
+        IReadOnlyList<PlayerInventoryItemState> inventoryItems = PlayerInventoryState.ParseInventorySnapshot(inventorySnapshot);
+        var array = new JArray();
+        for (var index = 0; index < inventoryItems.Count; index++)
+        {
+            PlayerInventoryItemState item = inventoryItems[index];
+            if (item.Amount <= 0)
+            {
+                continue;
+            }
+
+            array.Add(new JObject
+            {
+                ["itemId"] = item.ItemId,
+                ["amount"] = item.Amount,
+            });
+        }
+
+        return array;
+    }
+
+    private static JArray BuildOwnedCannonsToken(string inventorySnapshot)
+    {
+        IReadOnlyList<PlayerInventoryItemState> inventoryItems = PlayerInventoryState.ParseInventorySnapshot(inventorySnapshot);
+        var array = new JArray();
+        for (var index = 0; index < inventoryItems.Count; index++)
+        {
+            PlayerInventoryItemState item = inventoryItems[index];
+            if (item.Amount <= 0 || !PlayerInventoryState.IsCannon(item.ItemId))
+            {
+                continue;
+            }
+
+            array.Add(item.ItemId);
+        }
+
+        return array;
+    }
+
+    private static JArray BuildShipCannonLoadoutsToken(string shipCannonLoadoutsSnapshot)
+    {
+        IReadOnlyList<ShipCannonLoadoutState> loadouts = PlayerInventoryState.ParseShipCannonLoadoutsSnapshot(shipCannonLoadoutsSnapshot);
+        var array = new JArray();
+        for (var shipIndex = 0; shipIndex < loadouts.Count; shipIndex++)
+        {
+            ShipCannonLoadoutState loadout = loadouts[shipIndex];
+            if (loadout == null)
+            {
+                continue;
+            }
+
+            var cannonArray = new JArray();
+            IReadOnlyList<PlayerInventoryItemState> cannonStacks = loadout.CannonStacks ?? Array.Empty<PlayerInventoryItemState>();
+            for (var cannonIndex = 0; cannonIndex < cannonStacks.Count; cannonIndex++)
+            {
+                PlayerInventoryItemState cannonStack = cannonStacks[cannonIndex];
+                if (!PlayerInventoryState.IsCannon(cannonStack.ItemId) || cannonStack.Amount <= 0)
+                {
+                    continue;
+                }
+
+                cannonArray.Add(new JObject
+                {
+                    ["itemId"] = cannonStack.ItemId,
+                    ["amount"] = cannonStack.Amount,
+                });
+            }
+
+            if (cannonArray.Count == 0)
+            {
+                continue;
+            }
+
+            array.Add(new JObject
+            {
+                ["shipId"] = loadout.ShipId,
+                ["cannons"] = cannonArray,
+            });
+        }
+
+        return array;
+    }
+
+    private static string[] ExtractOwnedCannonIds(InventoryItemStackResponse[] inventoryItems)
+    {
+        if (inventoryItems == null || inventoryItems.Length == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var cannonIds = new List<string>(inventoryItems.Length);
+        for (var index = 0; index < inventoryItems.Length; index++)
+        {
+            InventoryItemStackResponse item = inventoryItems[index];
+            if (item == null || item.amount <= 0 || !PlayerInventoryState.IsCannon(item.itemId))
+            {
+                continue;
+            }
+
+            cannonIds.Add(PlayerInventoryState.NormalizeItemId(item.itemId));
+        }
+
+        return cannonIds.Count == 0 ? Array.Empty<string>() : cannonIds.ToArray();
+    }
+
 }
 
 [Serializable]
@@ -599,6 +873,8 @@ public sealed class PlayerMarketStateResponse
     public int experience;
     public string[] ownedCannonIds;
     public string[] ownedShipIds;
+    public InventoryItemStackResponse[] inventoryItems = Array.Empty<InventoryItemStackResponse>();
+    public ShipCannonLoadoutResponse[] shipCannonLoadouts = Array.Empty<ShipCannonLoadoutResponse>();
     public string selectedShipId;
     public int activeActionItems;
     public int version;
@@ -617,11 +893,37 @@ public sealed class PlayerStateResponse
 public sealed class CannonPurchaseResponse
 {
     public string cannonId;
-    public string[] ownedCannonIds;
+    public InventoryItemStackResponse[] inventoryItems = Array.Empty<InventoryItemStackResponse>();
     public int gold;
     public int diamond;
     public int version;
     public string updatedAt;
+}
+
+[Serializable]
+public sealed class InventoryItemPurchaseResponse
+{
+    public string itemId;
+    public int purchasedAmount;
+    public InventoryItemStackResponse[] inventoryItems = Array.Empty<InventoryItemStackResponse>();
+    public int gold;
+    public int diamond;
+    public int version;
+    public string updatedAt;
+}
+
+[Serializable]
+public sealed class InventoryItemStackResponse
+{
+    public string itemId;
+    public int amount;
+}
+
+[Serializable]
+public sealed class ShipCannonLoadoutResponse
+{
+    public string shipId;
+    public InventoryItemStackResponse[] cannons = Array.Empty<InventoryItemStackResponse>();
 }
 
 [Serializable]

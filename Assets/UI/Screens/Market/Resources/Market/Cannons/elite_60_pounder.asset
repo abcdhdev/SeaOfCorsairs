@@ -18,8 +18,12 @@ MonoBehaviour:
     increases critical hit chance and critical damage.
   icon: {fileID: 2800000, guid: cfb83dc49e7a3154894512873194385a, type: 3}
   hitProbability: 75
-  cannonRange: 30
+  cannonRange: 90
   reloadTimeSeconds: 7
+  criticalHitProbability: 10
+  criticalHitDamage: 10
+  bonusDamageFlat: 5
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

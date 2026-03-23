@@ -17,8 +17,12 @@ MonoBehaviour:
   description: For minor wars.
   icon: {fileID: 2800000, guid: 07bdf7c2764963848b337187f58d19d5, type: 3}
   hitProbability: 35
-  cannonRange: 10
+  cannonRange: 30
   reloadTimeSeconds: 35
+  criticalHitProbability: 0
+  criticalHitDamage: 0
+  bonusDamageFlat: 0
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

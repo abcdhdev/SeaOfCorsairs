@@ -17,8 +17,12 @@ MonoBehaviour:
   description: For effective attacks.
   icon: {fileID: 2800000, guid: 2e2de0e7e3609754e9061e21d9b119bb, type: 3}
   hitProbability: 38
-  cannonRange: 12
+  cannonRange: 36
   reloadTimeSeconds: 20
+  criticalHitProbability: 0
+  criticalHitDamage: 0
+  bonusDamageFlat: 0
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

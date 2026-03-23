@@ -18,8 +18,12 @@ MonoBehaviour:
     ammo usage and can become a deployable sentinel.
   icon: {fileID: 2800000, guid: d95110aad3dd53641b3e11bded54bb8c, type: 3}
   hitProbability: 75
-  cannonRange: 30
+  cannonRange: 90
   reloadTimeSeconds: 6.5
+  criticalHitProbability: 20
+  criticalHitDamage: 22
+  bonusDamageFlat: 125
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0

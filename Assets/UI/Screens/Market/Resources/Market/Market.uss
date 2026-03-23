@@ -262,8 +262,8 @@
 }
 
 .market-buy-button {
-    width: 84px;
-    min-width: 84px;
+    width: 118px;
+    min-width: 118px;
     margin-top: 22px;
     color: rgba(219, 242, 255, 0.99);
     background-color: rgba(5, 65, 97, 0.96);

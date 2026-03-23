@@ -61,6 +61,8 @@ public partial class GameUIController
         }
 
         harpoonMenuPanel.Clear();
+        renderedInventoryMenuSnapshot = localPlayer.InventorySnapshot ?? string.Empty;
+        renderedHarpoonMenuSelectionIndex = -1;
 
         IReadOnlyList<HarpoonAmmoDefinition> harpoonOptions = localPlayer.GetHarpoonAmmoOptions();
         if (harpoonOptions == null || harpoonOptions.Count == 0)
@@ -70,6 +72,7 @@ public partial class GameUIController
         else
         {
             int selectedIndex = Mathf.Clamp(localPlayer.SelectedHarpoonAmmoIndex, 0, harpoonOptions.Count - 1);
+            renderedHarpoonMenuSelectionIndex = selectedIndex;
 
             for (int i = 0; i < harpoonOptions.Count; i++)
             {
@@ -80,6 +83,7 @@ public partial class GameUIController
                 }
 
                 int optionIndex = i;
+                int ownedAmount = localPlayer.GetInventoryAmount(harpoon.Id);
                 Button optionButton = new Button(() =>
                 {
                     if (localPlayer.TrySelectHarpoonAmmo(optionIndex))
@@ -90,7 +94,7 @@ public partial class GameUIController
                     CloseHarpoonMenu();
                 })
                 {
-                    text = $"{harpoon.DisplayName} ({harpoon.Damage})"
+                    text = $"{harpoon.DisplayName} ({harpoon.Damage}) x{Mathf.Max(0, ownedAmount):N0}"
                 };
 
                 optionButton.AddToClassList("ammo-menu-button");
@@ -158,6 +162,8 @@ public partial class GameUIController
         }
 
         isHarpoonMenuOpen = false;
+        renderedHarpoonMenuSelectionIndex = -1;
+        renderedInventoryMenuSnapshot = string.Empty;
     }
 
     private void ToggleHarpoonMenu()
@@ -208,7 +214,7 @@ public partial class GameUIController
         int selectedIndex = Mathf.Clamp(localPlayer.SelectedHarpoonAmmoIndex, 0, harpoonOptions.Count - 1);
         HarpoonAmmoDefinition selectedHarpoon = harpoonOptions[selectedIndex];
         harpoonSlot.Root.tooltip = selectedHarpoon != null
-            ? $"Harpoon: {selectedHarpoon.DisplayName} ({selectedHarpoon.Damage})"
+            ? $"Harpoon: {selectedHarpoon.DisplayName} ({selectedHarpoon.Damage}) | Owned: {Mathf.Max(0, localPlayer.GetInventoryAmount(selectedHarpoon.Id)):N0}"
             : "Select harpoon";
     }
 }

@@ -18,8 +18,12 @@ MonoBehaviour:
     whose doom it tolls.
   icon: {fileID: 2800000, guid: bbdb89ce568db1a4aab66bb60d845213, type: 3}
   hitProbability: 75
-  cannonRange: 30
+  cannonRange: 90
   reloadTimeSeconds: 8.7
+  criticalHitProbability: 20
+  criticalHitDamage: 20
+  bonusDamageFlat: 75
+  bonusDamagePercentage: 0
   cost:
     entries:
     - currencyType: 0
