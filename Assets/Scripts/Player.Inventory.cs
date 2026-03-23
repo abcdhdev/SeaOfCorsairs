@@ -6,7 +6,8 @@ using UnityEngine;
 
 public partial class Player
 {
-    private const float DefaultPlayerCannonProjectileSpeed = 20f;
+    // Cannonball visuals and impact timing use one fixed speed, independent of cannon range.
+    private const float FixedPlayerCannonProjectileSpeed = 4f;
 
     private struct CurrentShipCannonCombatProfile
     {
@@ -773,7 +774,7 @@ public partial class Player
 
     internal float ResolveCurrentShipCannonProjectileSpeed()
     {
-        return Mathf.Max(DefaultPlayerCannonProjectileSpeed, ResolveCurrentShipCannonMaxRange());
+        return FixedPlayerCannonProjectileSpeed;
     }
 
     internal bool TryResolveCurrentShipCannonSalvoDamage(GameObject target, out int damageAmount)

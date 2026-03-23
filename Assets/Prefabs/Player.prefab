@@ -635,7 +635,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3543951015
+  GlobalObjectIdHash: 1450820942
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -676,7 +676,7 @@ MonoBehaviour:
   TickSyncChildren: 0
   UseUnreliableDeltas: 0
   SyncPositionX: 1
-  SyncPositionY: 1
+  SyncPositionY: 0
   SyncPositionZ: 1
   SyncRotAngleX: 0
   SyncRotAngleY: 1
@@ -730,10 +730,6 @@ MonoBehaviour:
   cannonballPrefab: {fileID: 0}
   fireSpeed: 10
   arcHeightFactor: 0.2
-  damage: 20
-  baseDamage: 20
-  ammoBonusDamage: 0
-  maxHitDistance: 150
   projectilePrefabOverride: {fileID: 0}
   harpoonProjectileColor: {r: 0.8039216, g: 0.49803922, b: 0.19607843, a: 1}
 --- !u!114 &6685784690479133911
@@ -751,9 +747,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   maxHitDistance: 150
   shootingInterval: 2
-  damage: 20
   baseDamage: 20
-  ammoBonusDamage: 0
   harpoonDamage: 25
   hitOcclusionMask:
     serializedVersion: 2
