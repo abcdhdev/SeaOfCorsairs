@@ -25,9 +25,7 @@ public class PlayerAttack : NetworkBehaviour
 
     [SerializeField, HideInInspector] private float maxHitDistance = 150f;
     [SerializeField, HideInInspector] private float shootingInterval = 2f;
-    [SerializeField, HideInInspector] private int damage = 20;
     [SerializeField, HideInInspector] private int baseDamage = 20;
-    [SerializeField, HideInInspector] private int ammoBonusDamage;
     [SerializeField, HideInInspector] private int harpoonDamage = 25;
     [SerializeField, HideInInspector] private LayerMask hitOcclusionMask = ~0;
 
@@ -47,23 +45,14 @@ public class PlayerAttack : NetworkBehaviour
     public void ApplySettings(int newBaseDamage, float newMaxHitDistance, float newShootingInterval)
     {
         baseDamage = Mathf.Max(0, newBaseDamage);
-        RecalculateDamage();
         maxHitDistance = Mathf.Max(0f, newMaxHitDistance);
         shootingInterval = Mathf.Max(0.05f, newShootingInterval);
-    }
-
-    public void ApplyAmmoOverride(int newAmmoBonusDamage)
-    {
-        ammoBonusDamage = Mathf.Max(0, newAmmoBonusDamage);
-        RecalculateDamage();
     }
 
     public void ApplyHarpoonOverride(int newHarpoonDamage)
     {
         harpoonDamage = Mathf.Max(0, newHarpoonDamage);
     }
-
-
 
     private Coroutine _serverAttackRoutine;
     private GameObject _syncedTarget;
@@ -201,11 +190,6 @@ public class PlayerAttack : NetworkBehaviour
         OnShootingTargetChanged?.Invoke(_syncedTarget);
     }
 
-    private void RecalculateDamage()
-    {
-        damage = Mathf.Max(0, baseDamage + ammoBonusDamage);
-    }
-
     private bool TryResolveDamageAmountForTarget(GameObject target, bool usedBlackGunpowder, out int resolvedDamage)
     {
         resolvedDamage = 0;
@@ -232,7 +216,7 @@ public class PlayerAttack : NetworkBehaviour
         }
         else
         {
-            baseResolvedDamage = Mathf.Max(0, damage);
+            baseResolvedDamage = Mathf.Max(0, baseDamage);
             if (baseResolvedDamage <= 0)
             {
                 return false;

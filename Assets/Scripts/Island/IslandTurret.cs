@@ -343,10 +343,7 @@ public sealed class IslandTurret : NetworkBehaviour, ICombatEntity, IDamageSourc
         FireController?.ApplySettings(
             cannonballPrefab,
             fireSpeed,
-            arcHeightFactor,
-            attackDamage,
-            attackRange,
-            attackInterval);
+            arcHeightFactor);
         Attack?.ApplySettings(attackDamage, attackRange, attackInterval);
     }
 

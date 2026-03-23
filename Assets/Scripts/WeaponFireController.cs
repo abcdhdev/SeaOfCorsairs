@@ -1,5 +1,3 @@
-using System.Collections;
-using System;
 using UnityEngine;
 using PrimeTween;
 using Unity.Netcode;
@@ -10,10 +8,6 @@ public class WeaponFireController : NetworkBehaviour
     [SerializeField, HideInInspector] private GameObject cannonballPrefab;
     [SerializeField, HideInInspector] private float fireSpeed = 10.0f;
     [SerializeField, HideInInspector] private float arcHeightFactor = 0.2f;
-    [SerializeField, HideInInspector] private int damage = 20;
-    [SerializeField, HideInInspector] private int baseDamage = 20;
-    [SerializeField, HideInInspector] private int ammoBonusDamage;
-    [SerializeField, HideInInspector] private float maxHitDistance = 150f;
     [SerializeField, HideInInspector] private GameObject projectilePrefabOverride;
     [SerializeField, HideInInspector] private Color harpoonProjectileColor = new Color(0.8039216f, 0.49803922f, 0.19607843f, 1f);
 
@@ -33,10 +27,7 @@ public class WeaponFireController : NetworkBehaviour
     public void ApplySettings(
         GameObject newCannonballPrefab,
         float newFireSpeed,
-        float newArcHeightFactor,
-        int newBaseDamage,
-        float newMaxHitDistance,
-        float newShootingInterval)
+        float newArcHeightFactor)
     {
         if (newCannonballPrefab != null)
         {
@@ -45,16 +36,11 @@ public class WeaponFireController : NetworkBehaviour
 
         fireSpeed = Mathf.Max(0.01f, newFireSpeed);
         arcHeightFactor = Mathf.Max(0f, newArcHeightFactor);
-        baseDamage = Mathf.Max(0, newBaseDamage);
-        RecalculateDamage();
-        maxHitDistance = Mathf.Max(0f, newMaxHitDistance);
     }
 
-    public void ApplyAmmoOverride(int newAmmoBonusDamage, GameObject newProjectilePrefab)
+    public void ApplyProjectilePrefabOverride(GameObject newProjectilePrefab)
     {
-        ammoBonusDamage = Mathf.Max(0, newAmmoBonusDamage);
         projectilePrefabOverride = newProjectilePrefab;
-        RecalculateDamage();
     }
 
     public void ApplyHarpoonVisualOverride(Color newHarpoonProjectileColor)
@@ -114,16 +100,11 @@ public class WeaponFireController : NetworkBehaviour
         return projectilePrefabOverride != null ? projectilePrefabOverride : cannonballPrefab;
     }
 
-    private void RecalculateDamage()
-    {
-        damage = Mathf.Max(0, baseDamage + ammoBonusDamage);
-    }
-
     private void OnProjectileImpact(GameObject target)
     {
         if (target == null) return;
 
-        // Delegate all damage to PlayerAttack (server-authoritative path)
+        // Projectile visuals land locally, but PlayerAttack owns authoritative damage resolution.
         if (Attack != null)
         {
             Attack.RequestDamage(target);

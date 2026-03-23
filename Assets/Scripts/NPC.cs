@@ -735,10 +735,7 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
                 npcWeaponFireController.ApplySettings(
                     gameplayConfig.CannonballPrefab,
                     gameplayConfig.CannonFireSpeed,
-                    gameplayConfig.CannonArcHeightFactor,
-                    resolvedAttackDamage,
-                    resolvedAttackRange,
-                    resolvedAttackInterval);
+                    gameplayConfig.CannonArcHeightFactor);
             }
         }
 
@@ -764,10 +761,7 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
             npcWeaponFireController.ApplySettings(
                 gameplayConfig.CannonballPrefab,
                 gameplayConfig.CannonFireSpeed,
-                gameplayConfig.CannonArcHeightFactor,
-                resolvedAttackDamage,
-                resolvedAttackRange,
-                resolvedAttackInterval);
+                gameplayConfig.CannonArcHeightFactor);
         }
 
         if (TryGetComponent(out WorldNameplateUI worldNameplateUi))

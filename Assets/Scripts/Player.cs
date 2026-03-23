@@ -1646,23 +1646,18 @@ public partial class Player : NetworkBehaviour, ICombatEntity, IDamageSourceRece
             return;
         }
 
+        // Ammo selection only swaps projectile visuals here; damage is resolved on the server.
         if (TryGetComponent(out WeaponFireController weaponFireController))
         {
-            weaponFireController.ApplyAmmoOverride(ammo.Damage, ammo.ProjectilePrefab);
+            weaponFireController.ApplyProjectilePrefabOverride(ammo.ProjectilePrefab);
         }
         else
         {
             WeaponFireController childWeaponFireController = GetComponentInChildren<WeaponFireController>();
             if (childWeaponFireController != null)
             {
-                childWeaponFireController.ApplyAmmoOverride(ammo.Damage, ammo.ProjectilePrefab);
+                childWeaponFireController.ApplyProjectilePrefabOverride(ammo.ProjectilePrefab);
             }
-        }
-
-        // Projectile visuals follow the selected ammo, while PlayerAttack resolves equipped-cannon damage on the server.
-        if (TryGetComponent(out PlayerAttack attack))
-        {
-            attack.ApplyAmmoOverride(ammo.Damage);
         }
     }
 
@@ -2144,10 +2139,7 @@ public partial class Player : NetworkBehaviour, ICombatEntity, IDamageSourceRece
             weaponFireController.ApplySettings(
                 null,
                 resolvedProjectileSpeed,
-                gameplayConfig.CannonArcHeightFactor,
-                0,
-                resolvedRange,
-                resolvedInterval);
+                gameplayConfig.CannonArcHeightFactor);
         }
 
         if (TryGetComponent(out PlayerAttack playerAttack))

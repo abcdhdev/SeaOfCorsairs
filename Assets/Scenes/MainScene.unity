@@ -8957,6 +8957,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 242014622}
+  - component: {fileID: 242014623}
   m_Layer: 0
   m_Name: Gaia Terrains
   m_TagString: Untagged
@@ -8980,6 +8981,26 @@ Transform:
   - {fileID: 282119287}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &242014623
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 242014620}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshModifier
+  m_SerializedVersion: 0
+  m_OverrideArea: 1
+  m_Area: 1
+  m_OverrideGenerateLinks: 0
+  m_GenerateLinks: 0
+  m_IgnoreFromBuild: 0
+  m_ApplyToChildren: 1
+  m_AffectedAgents: ffffffff
 --- !u!21 &255875039
 Material:
   serializedVersion: 8
@@ -54217,7 +54238,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.41666666
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: a035e68d53e807b468d0088a16c47af5, type: 2}
+  m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
 --- !u!4 &1796478652
 Transform:
