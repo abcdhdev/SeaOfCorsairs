@@ -96,12 +96,16 @@ dotnet tool run dotnet-ef migrations add AddSomething `
 
 ### Optional Codex Skill
 
-I created a Codex skill at `C:\Users\Abcd\.codex\skills\sea-wars-backend` to help with recurring backend/compose work.
+Use the Codex skill at `C:\Users\Abcd\.codex\skills\sea-wars-backend` for recurring backend and Docker Compose work.
 
 ### Game Client
 
 ## Game Network Stack
 Game uses Unity Netcode for GameObjects (NGO) for networking.
+
+### Optional Codex Skill
+
+Use the Codex skill at `C:\Users\Abcd\.codex\skills\sea-wars-ui-screens` when implementing UI Toolkit screens so they follow the current `GameHUD` / `MetaRoot` overlay architecture used by Market, Guild, Ship Section, Login Overlay, and other runtime UI.
 
 ## Unity Editor
 Use Unity MCP for Unity Editor tasks.

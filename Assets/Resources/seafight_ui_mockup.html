@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seafight Ritual UI Mockup</title>
+  <style>
+    :root {
+      --gold: #8d6a2c;
+      --gold-light: #caa35a;
+      --gold-dark: #4c3511;
+      --red-1: #531010;
+      --red-2: #250404;
+      --panel: #04111a;
+      --panel-2: #071926;
+      --text: #e7e7e7;
+      --muted: #a9acb2;
+      --green-1: #4da449;
+      --green-2: #2f7f31;
+      --gray-1: #656565;
+      --gray-2: #3a3a3a;
+      --blue-btn: #295b86;
+      --blue-btn-light: #4f87b7;
+      --shadow: rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(130, 78, 22, 0.12), transparent 24%),
+        radial-gradient(circle at 80% 75%, rgba(94, 135, 47, 0.08), transparent 22%),
+        linear-gradient(180deg, #0a2740 0%, #071825 45%, #041018 100%);
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--text);
+      padding: 18px;
+    }
+
+    .window {
+      width: min(1660px, 100%);
+      aspect-ratio: 1.78 / 1;
+      min-height: 820px;
+      background: linear-gradient(180deg, #0b1218, #081017 55%, #050b10);
+      border: 6px solid var(--gold-dark);
+      outline: 2px solid var(--gold-light);
+      box-shadow: 0 20px 60px var(--shadow), inset 0 0 0 2px #1a1206;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .window::before,
+    .window::after {
+      content: "";
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      border: 3px solid var(--gold-light);
+      opacity: 0.25;
+      pointer-events: none;
+    }
+
+    .window::before {
+      top: 8px;
+      left: 8px;
+      border-right: 0;
+      border-bottom: 0;
+      border-radius: 8px 0 0 0;
+    }
+
+    .window::after {
+      right: 8px;
+      bottom: 8px;
+      border-left: 0;
+      border-top: 0;
+      border-radius: 0 0 8px 0;
+    }
+
+    .topbar {
+      height: 66px;
+      background: linear-gradient(180deg, #661212, #300707 70%, #190404);
+      border-bottom: 2px solid var(--gold);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 24px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tab {
+      min-width: 155px;
+      padding: 11px 20px;
+      border: 1px solid var(--gold);
+      background: linear-gradient(180deg, #2c1c12, #130d08);
+      color: #efefef;
+      font-size: 18px;
+      cursor: pointer;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    .tab.active {
+      background: linear-gradient(180deg, #111111, #040404);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+    }
+
+    .top-actions {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      gap: 10px;
+    }
+
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2px solid #4b3a17;
+      background: radial-gradient(circle at 30% 30%, #524317, #201b11 70%);
+      color: #d9ce85;
+      display: grid;
+      place-items: center;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .message-bar {
+      height: 52px;
+      margin: 12px 18px 8px;
+      border-top: 3px double var(--gold);
+      border-bottom: 3px double var(--gold);
+      background: linear-gradient(180deg, rgba(116, 18, 18, 0.92), rgba(55, 8, 8, 0.92));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      text-align: center;
+      padding: 0 60px;
+      color: #ccb9b9;
+      font-size: 18px;
+    }
+
+    .message-bar::before,
+    .message-bar::after {
+      content: "❮";
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #87612d;
+      font-size: 26px;
+      opacity: 0.7;
+    }
+
+    .message-bar::before { left: 18px; }
+    .message-bar::after {
+      right: 18px;
+      content: "❯";
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: 320px 1fr 580px;
+      gap: 10px;
+      padding: 0 18px 12px;
+      height: calc(100% - 138px);
+    }
+
+    .left-panel,
+    .center-panel,
+    .right-panel {
+      min-height: 0;
+    }
+
+    .art-panel {
+      height: calc(100% - 6px);
+      border: 2px solid var(--gold);
+      background:
+        linear-gradient(180deg, rgba(71, 96, 39, 0.25), rgba(22, 32, 19, 0.72)),
+        radial-gradient(circle at 70% 35%, rgba(199, 178, 59, 0.33), transparent 28%),
+        linear-gradient(180deg, #3f5030, #1e2618 55%, #121710);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .art-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 28% 38%, rgba(255, 230, 157, 0.2), transparent 15%),
+        linear-gradient(90deg, rgba(255,255,255,0.06), transparent 18%),
+        linear-gradient(180deg, transparent 55%, rgba(0,0,0,0.32));
+      pointer-events: none;
+    }
+
+    .shaman {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 28px;
+    }
+
+    .shaman-figure {
+      width: 210px;
+      height: 78%;
+      position: relative;
+      filter: drop-shadow(0 12px 16px rgba(0,0,0,0.45));
+    }
+
+    .headdress {
+      position: absolute;
+      left: 50%;
+      top: 10px;
+      transform: translateX(-50%);
+      width: 180px;
+      height: 220px;
+      background: radial-gradient(circle at 50% 55%, rgba(255,255,255,0.9), rgba(222,218,191,0.9) 52%, transparent 53%);
+      clip-path: ellipse(46% 50% at 50% 50%);
+      opacity: 0.95;
+    }
+
+    .head {
+      position: absolute;
+      top: 92px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 70px;
+      height: 86px;
+      background: linear-gradient(180deg, #7e4f3f, #4f2d22);
+      border-radius: 40px 40px 34px 34px;
+      z-index: 2;
+    }
+
+    .body {
+      position: absolute;
+      left: 50%;
+      top: 160px;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 250px;
+      background: linear-gradient(180deg, #557351, #284337 70%, #1d3028);
+      clip-path: polygon(30% 0%, 70% 0%, 92% 18%, 100% 100%, 0% 100%, 10% 18%);
+      z-index: 1;
+    }
+
+    .bowl {
+      position: absolute;
+      right: 18px;
+      bottom: 78px;
+      width: 92px;
+      height: 42px;
+      background: linear-gradient(180deg, #7b8d55, #44522f);
+      border-radius: 0 0 46px 46px;
+      transform: rotate(-8deg);
+      z-index: 3;
+    }
+
+    .magic {
+      position: absolute;
+      right: 52px;
+      bottom: 114px;
+      width: 70px;
+      height: 170px;
+      background: radial-gradient(circle at 50% 80%, rgba(98,255,110,0.58), transparent 30%), linear-gradient(180deg, rgba(130,255,99,0.0), rgba(129,255,92,0.55));
+      filter: blur(4px);
+      transform: rotate(6deg);
+      z-index: 4;
+    }
+
+    .section-title {
+      height: 36px;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      color: #f0f0f0;
+    }
+
+    .content-box {
+      border: 2px solid var(--gold);
+      background:
+        radial-gradient(circle at 55% 72%, rgba(29, 67, 89, 0.14), transparent 28%),
+        linear-gradient(180deg, #03131f, #031018 64%, #020b12);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .center-layout {
+      display: grid;
+      grid-template-rows: 36px 1fr 164px;
+      height: 100%;
+    }
+
+    .loot-box {
+      min-height: 0;
+    }
+
+    .loot-box .content-box {
+      height: 100%;
+    }
+
+    .sea-mini {
+      position: absolute;
+      right: 90px;
+      bottom: 52px;
+      width: 160px;
+      height: 120px;
+      opacity: 0.85;
+    }
+
+    .sea-mini .ship {
+      position: absolute;
+      right: 0;
+      bottom: 18px;
+      width: 64px;
+      height: 28px;
+      background: linear-gradient(180deg, #5c3a20, #24170c);
+      clip-path: polygon(8% 72%, 92% 72%, 72% 100%, 18% 100%);
+      transform: rotate(15deg);
+      box-shadow: 0 0 0 2px rgba(64, 105, 46, 0.6);
+    }
+
+    .sea-mini .glow {
+      position: absolute;
+      right: -10px;
+      bottom: 6px;
+      width: 86px;
+      height: 54px;
+      border: 2px dotted rgba(31, 182, 80, 0.7);
+      border-radius: 50%;
+      transform: rotate(8deg);
+    }
+
+    .sea-mini .marker {
+      position: absolute;
+      left: 26px;
+      bottom: 36px;
+      width: 18px;
+      height: 26px;
+      background: linear-gradient(180deg, #bc7838, #603719);
+      clip-path: polygon(50% 0%, 95% 36%, 72% 100%, 28% 100%, 5% 36%);
+    }
+
+    .sea-mini .name {
+      position: absolute;
+      right: -8px;
+      bottom: -4px;
+      font-size: 16px;
+      color: #73798a;
+    }
+
+    .sea-mini .bar {
+      position: absolute;
+      right: -2px;
+      bottom: -22px;
+      width: 110px;
+      height: 6px;
+      background: linear-gradient(90deg, #2c3b68 0%, #662f9d 70%, #7c2fc7 100%);
+      border-radius: 999px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+
+    .bottom-controls {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 10px;
+      padding-top: 10px;
+      min-height: 0;
+    }
+
+    .currencies {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 18px;
+      padding-left: 24px;
+      color: #e5e5e5;
+      font-size: 20px;
+    }
+
+    .currency-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .currency-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.12) inset;
+    }
+
+    .currency-icon.green {
+      background: radial-gradient(circle at 30% 30%, #aefaa7, #2b9b38);
+      border-radius: 40% 55% 50% 60%;
+    }
+
+    .currency-icon.blue {
+      background: radial-gradient(circle at 35% 35%, #dbffff, #58a9ff 60%, #256fd3);
+      transform: rotate(18deg);
+    }
+
+    .control-area {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      grid-template-rows: 62px 1fr;
+      gap: 10px;
+    }
+
+    .input-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0 18px;
+    }
+
+    .quantity {
+      width: 100%;
+      max-width: 470px;
+      height: 44px;
+      border: 2px solid var(--gold);
+      background: #050607;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 20px;
+      color: #f5f5f5;
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid #444;
+      background: radial-gradient(circle at 30% 30%, #d9d9d9, #5c5c5c 70%, #2a2a2a);
+      cursor: pointer;
+    }
+
+    .cost-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      font-size: 22px;
+      color: #d9d9d9;
+      grid-column: 1 / 2;
+    }
+
+    .cost-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .buttons {
+      grid-column: 2 / 3;
+      grid-row: 1 / 3;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      justify-content: end;
+    }
+
+    .action-btn {
+      height: 54px;
+      font-size: 24px;
+      border: 2px solid var(--gold);
+      cursor: pointer;
+      color: #e9f1e6;
+      text-shadow: 0 1px 0 rgba(0,0,0,0.5);
+    }
+
+    .action-btn.primary {
+      background: linear-gradient(180deg, #5eb55f, #2f7f31 70%, #256a27);
+    }
+
+    .action-btn.secondary {
+      background: linear-gradient(180deg, #7a7a7a, #4b4b4b 70%, #2d2d2d);
+    }
+
+    .right-layout {
+      display: grid;
+      grid-template-rows: 36px 1fr 164px;
+      height: 100%;
+    }
+
+    .map-list {
+      height: 100%;
+      padding: 18px 12px;
+      background:
+        radial-gradient(circle at 88% 74%, rgba(90, 73, 41, 0.22), transparent 18%),
+        radial-gradient(circle at 82% 88%, rgba(86, 71, 44, 0.15), transparent 22%),
+        linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.16));
+      overflow: auto;
+    }
+
+    .map-entry {
+      display: grid;
+      grid-template-columns: 78px 1fr 90px 50px;
+      gap: 14px;
+      align-items: center;
+      color: #d8d8d8;
+      padding: 10px 4px 14px;
+      position: relative;
+    }
+
+    .map-entry + .map-entry {
+      margin-top: 6px;
+    }
+
+    .map-entry::after {
+      content: "";
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 0;
+      height: 2px;
+      background: linear-gradient(90deg, rgba(163, 131, 66, 0.7), rgba(163, 131, 66, 0.2), rgba(163, 131, 66, 0.7));
+    }
+
+    .map-icon {
+      width: 66px;
+      height: 66px;
+      border: 2px solid #5d4118;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.2)),
+        linear-gradient(135deg, #a97831, #ead58d);
+      position: relative;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+    }
+
+    .map-icon::before {
+      content: attr(data-sign);
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 34px;
+      color: rgba(76, 30, 15, 0.9);
+      font-weight: bold;
+    }
+
+    .map-text .title {
+      font-size: 24px;
+      line-height: 1.05;
+      margin-bottom: 4px;
+    }
+
+    .map-text .sub,
+    .map-text .done {
+      font-size: 18px;
+      color: #b0b3b8;
+      line-height: 1.2;
+    }
+
+    .map-values {
+      text-align: right;
+      font-size: 18px;
+      color: #d8d8d8;
+      line-height: 1.5;
+    }
+
+    .eye-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid #41678b;
+      background: radial-gradient(circle at 30% 30%, var(--blue-btn-light), var(--blue-btn));
+      color: white;
+      font-size: 18px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .button-placeholder {
+      height: 100%;
+    }
+
+    @media (max-width: 1400px) {
+      .window {
+        aspect-ratio: auto;
+        min-height: 0;
+        height: auto;
+      }
+
+      .main {
+        grid-template-columns: 260px 1fr 480px;
+      }
+
+      .map-text .title {
+        font-size: 21px;
+      }
+    }
+
+    @media (max-width: 1180px) {
+      body {
+        padding: 8px;
+      }
+
+      .main {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+
+      .art-panel {
+        height: 420px;
+      }
+
+      .center-layout,
+      .right-layout {
+        height: auto;
+      }
+
+      .loot-box .content-box {
+        min-height: 420px;
+      }
+
+      .right-layout .content-box {
+        min-height: 480px;
+      }
+
+      .control-area {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+      }
+
+      .buttons {
+        grid-column: auto;
+        grid-row: auto;
+      }
+
+      .bottom-controls {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="window">
+    <div class="topbar">
+      <div class="tabs">
+        <button class="tab">Aruba Kazanı</button>
+        <button class="tab active">Saba Kazanı</button>
+      </div>
+
+      <div class="top-actions">
+        <button class="icon-btn" aria-label="Yardım">?</button>
+        <button class="icon-btn" aria-label="Kapat">×</button>
+      </div>
+    </div>
+
+    <div class="message-bar">
+      Kullanışlı ürünleri yağmalamak için Şamanların sihrini kullan
+    </div>
+
+    <div class="main">
+      <section class="left-panel">
+        <div class="art-panel">
+          <div class="shaman">
+            <div class="shaman-figure">
+              <div class="headdress"></div>
+              <div class="head"></div>
+              <div class="body"></div>
+              <div class="bowl"></div>
+              <div class="magic"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="center-panel">
+        <div class="center-layout">
+          <div class="section-title">Ganimet</div>
+
+          <div class="loot-box">
+            <div class="content-box">
+              <div class="sea-mini">
+                <div class="marker"></div>
+                <div class="glow"></div>
+                <div class="ship"></div>
+                <div class="name">Shiller</div>
+                <div class="bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bottom-controls">
+            <div class="currencies">
+              <div class="currency-row">
+                <span class="currency-icon green"></span>
+                <span id="greenCount">819</span>
+              </div>
+              <div class="currency-row">
+                <span class="currency-icon blue"></span>
+                <span id="blueCount">44134328</span>
+              </div>
+            </div>
+
+            <div class="control-area">
+              <div class="input-wrap">
+                <div class="quantity">
+                  <span id="quantityValue">1</span>
+                  <button class="spinner" id="quantityBtn" aria-label="Adet artır"></button>
+                </div>
+              </div>
+
+              <div class="buttons">
+                <button class="action-btn primary" id="startBtn">Ritüeli başlat</button>
+                <button class="action-btn secondary" id="clearBtn">Listeyi temizle</button>
+              </div>
+
+              <div class="cost-box">
+                <span>Maliyet</span>
+                <span class="cost-group">
+                  <span class="currency-icon blue"></span>
+                  <span id="costValue">0</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="right-panel">
+        <div class="right-layout">
+          <div class="section-title">Bonus Haritaları</div>
+
+          <div class="content-box map-list" id="mapList"></div>
+
+          <div class="button-placeholder"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const mapData = [
+      { title: 'Başak haritası', sign: '♍', pieces: '1/20', completed: '479' },
+      { title: 'Oğlak Haritası', sign: '♑', pieces: '2/32', completed: '240' },
+      { title: 'Yay Haritası', sign: '♐', pieces: '16/48', completed: '123' },
+      { title: 'Yengeç Haritası', sign: '♋', pieces: '49/64', completed: '79' }
+    ];
+
+    const mapList = document.getElementById('mapList');
+    const quantityValue = document.getElementById('quantityValue');
+    const quantityBtn = document.getElementById('quantityBtn');
+    const costValue = document.getElementById('costValue');
+    const startBtn = document.getElementById('startBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const tabs = document.querySelectorAll('.tab');
+
+    let quantity = 1;
+    const costPerRitual = 0;
+
+    function renderMaps() {
+      mapList.innerHTML = mapData.map((map, index) => `
+        <div class="map-entry" data-index="${index}">
+          <div class="map-icon" data-sign="${map.sign}"></div>
+          <div class="map-text">
+            <div class="title">${map.title}</div>
+            <div class="sub">Harita parçaları</div>
+            <div class="done">Bitirildi</div>
+          </div>
+          <div class="map-values">
+            <div>${map.pieces}</div>
+            <div>${map.completed}</div>
+          </div>
+          <button class="eye-btn" aria-label="${map.title} görüntüle">👁</button>
+        </div>
+      `).join('');
+    }
+
+    function updateCost() {
+      quantityValue.textContent = quantity;
+      costValue.textContent = quantity * costPerRitual;
+    }
+
+    quantityBtn.addEventListener('click', () => {
+      quantity += 1;
+      if (quantity > 99) quantity = 1;
+      updateCost();
+    });
+
+    clearBtn.addEventListener('click', () => {
+      quantity = 1;
+      updateCost();
+    });
+
+    startBtn.addEventListener('click', () => {
+      startBtn.textContent = 'Ritüel başlatıldı';
+      startBtn.disabled = true;
+      setTimeout(() => {
+        startBtn.textContent = 'Ritüeli başlat';
+        startBtn.disabled = false;
+      }, 1200);
+    });
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+
+    mapList.addEventListener('click', (event) => {
+      const eyeBtn = event.target.closest('.eye-btn');
+      if (!eyeBtn) return;
+
+      const entry = eyeBtn.closest('.map-entry');
+      const title = entry?.querySelector('.title')?.textContent || 'Harita';
+      alert(title + ' görüntüleme eylemi');
+    });
+
+    renderMaps();
+    updateCost();
+  </script>
+</body>
+</html>
