@@ -416,9 +416,20 @@ public sealed class ArubaCauldronController : IDisposable
             VisualElement row = new VisualElement();
             row.AddToClassList("aruba-cauldron-map-entry");
 
-            Label badgeLabel = new Label(UiTextSanitizer.SanitizeForLabel(map.BadgeText, collapseWhitespace: true));
-            badgeLabel.AddToClassList("aruba-cauldron-map-icon");
-            row.Add(badgeLabel);
+            string iconClass = GetBonusMapIconClass(map.Id);
+            if (!string.IsNullOrWhiteSpace(iconClass))
+            {
+                VisualElement iconElement = new VisualElement();
+                iconElement.AddToClassList("aruba-cauldron-map-icon");
+                iconElement.AddToClassList(iconClass);
+                row.Add(iconElement);
+            }
+            else
+            {
+                Label badgeLabel = new Label(UiTextSanitizer.SanitizeForLabel(map.BadgeText, collapseWhitespace: true));
+                badgeLabel.AddToClassList("aruba-cauldron-map-icon");
+                row.Add(badgeLabel);
+            }
 
             VisualElement textColumn = new VisualElement();
             textColumn.AddToClassList("aruba-cauldron-map-text");
@@ -455,6 +466,19 @@ public sealed class ArubaCauldronController : IDisposable
         }
 
         areBonusMapsRendered = true;
+    }
+
+    private static string GetBonusMapIconClass(string mapId)
+    {
+        string normalizedMapId = string.IsNullOrWhiteSpace(mapId) ? string.Empty : mapId.Trim().ToLowerInvariant();
+        return normalizedMapId switch
+        {
+            "virgo-map" => "aruba-cauldron-map-icon-virgo",
+            "capricorn-map" => "aruba-cauldron-map-icon-capricorn",
+            "sagittarius-map" => "aruba-cauldron-map-icon-sagittarius",
+            "cancer-map" => "aruba-cauldron-map-icon-cancer",
+            _ => string.Empty
+        };
     }
 
     private void RenderRewards()

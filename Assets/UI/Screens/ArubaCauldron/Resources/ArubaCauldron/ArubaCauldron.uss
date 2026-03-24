@@ -401,9 +401,9 @@
 }
 
 .aruba-cauldron-currency-icon {
-    width: 20px;
+    width: 50px;
     min-width: 20px;
-    height: 20px;
+    height: 50px;
     min-height: 20px;
     margin-right: 10px;
     border-top-width: 1px;
@@ -418,14 +418,23 @@
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;
     border-bottom-left-radius: 10px;
+    background-position-x: center;
+    background-position-y: center;
+    background-repeat: no-repeat;
+    -unity-background-scale-mode: scale-to-fit;
+    display: flex;
+    overflow: visible;
+    aspect-ratio: 1;
 }
 
 .aruba-cauldron-currency-icon-mojo {
-    background-color: rgba(72, 179, 76, 0.98);
+    background-image: url("project://database/Assets/UI/Screens/ArubaCauldron/Resources/ArubaCauldron/Mojo.png?fileID=2800000&guid=8b8479aa535a06942a2986c9377843a3&type=3#Mojo");
+    background-color: rgba(255, 255, 255, 0);
 }
 
 .aruba-cauldron-currency-icon-diamond {
-    background-color: rgba(74, 150, 250, 0.98);
+    background-image: url("project://database/Assets/UI/Screens/ArubaCauldron/Resources/ArubaCauldron/Diamond.png?fileID=2800000&guid=6118cd2c5fb35cc4bb238b2c64a004fe&type=3#Diamond");
+    background-color: rgba(255, 255, 255, 0);
 }
 
 .aruba-cauldron-currency-copy {
@@ -593,9 +602,9 @@
 }
 
 .aruba-cauldron-map-icon {
-    width: 62px;
+    width: 80px;
     min-width: 62px;
-    height: 62px;
+    height: 80px;
     min-height: 62px;
     margin-right: 12px;
     color: rgba(84, 46, 22, 0.98);
@@ -610,7 +619,28 @@
     border-right-color: rgba(110, 78, 35, 0.96);
     border-bottom-color: rgba(110, 78, 35, 0.96);
     border-left-color: rgba(110, 78, 35, 0.96);
-    background-color: rgba(184, 145, 80, 0.98);
+    background-color: rgba(255, 255, 255, 0);
+    background-position-x: center;
+    background-position-y: center;
+    background-repeat: no-repeat;
+    -unity-background-scale-mode: scale-to-fit;
+    aspect-ratio: auto;
+}
+
+.aruba-cauldron-map-icon-virgo {
+    background-image: url("project://database/Assets/UI/Screens/ArubaCauldron/Resources/ArubaCauldron/Virgo.png?fileID=2800000&guid=06d5dc61d0cf0f54e959ba9c47bcc837&type=3#Virgo");
+}
+
+.aruba-cauldron-map-icon-capricorn {
+    background-image: url("project://database/Assets/UI/Screens/ArubaCauldron/Resources/ArubaCauldron/Capricornus.png?fileID=2800000&guid=5fc85e9557b37c748ae2f0a3e64a7168&type=3#Capricornus");
+}
+
+.aruba-cauldron-map-icon-sagittarius {
+    background-image: url("project://database/Assets/UI/Screens/ArubaCauldron/Resources/ArubaCauldron/Sagittarius.png?fileID=2800000&guid=155cb9f36a62a024ea89ff88adccabb6&type=3#Sagittarius");
+}
+
+.aruba-cauldron-map-icon-cancer {
+    background-image: url("project://database/Assets/UI/Screens/ArubaCauldron/Resources/ArubaCauldron/Cancer.png?fileID=2800000&guid=1f1b836b591fc8e49a094ed5e43bd9f1&type=3#Cancer");
 }
 
 .aruba-cauldron-map-text {
