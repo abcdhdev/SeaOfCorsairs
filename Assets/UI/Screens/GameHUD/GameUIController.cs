@@ -96,6 +96,7 @@ public partial class GameUIController : MonoBehaviour
 
     private MarketController marketController;
     private GuildManagementController guildManagementController;
+    private ArubaCauldronController arubaCauldronController;
 
     private VisualElement combatOverlayLayer;
     private VisualElement healthBox;
@@ -221,6 +222,8 @@ public partial class GameUIController : MonoBehaviour
         marketController = null;
         guildManagementController?.Dispose();
         guildManagementController = null;
+        arubaCauldronController?.Dispose();
+        arubaCauldronController = null;
         StopSkillDrag();
         ClearPendingSourcePress();
         TrackHealthTarget(null);
@@ -294,6 +297,7 @@ public partial class GameUIController : MonoBehaviour
         marketController?.Refresh();
         guildManagementController?.Refresh();
         shipSectionController?.Refresh();
+        arubaCauldronController?.Refresh();
         RefreshIslandEditUi();
         RefreshActionBarVisibility();
         UpdateTopMenuButtonStates();
@@ -500,6 +504,18 @@ public partial class GameUIController : MonoBehaviour
         guildManagementController = new GuildManagementController(
             attachTarget);
         guildManagementController.Attach();
+    }
+
+    private void EnsureArubaCauldronSection()
+    {
+        if (root == null || arubaCauldronController != null)
+        {
+            return;
+        }
+
+        VisualElement attachTarget = root.Q<VisualElement>("MetaRoot") ?? root;
+        arubaCauldronController = new ArubaCauldronController(attachTarget, GetLocalPlayerForMarket);
+        arubaCauldronController.Attach();
     }
 
     private void RefreshWeaponSelectionTooltips()

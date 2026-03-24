@@ -169,6 +169,11 @@ public class InputHandler : MonoBehaviour
             return;
         }
 
+        if (TryHandleWorldClickable(ray))
+        {
+            return;
+        }
+
         if (TryHandleClickRay(ray))
         {
             return;
@@ -273,6 +278,47 @@ public class InputHandler : MonoBehaviour
         }
 
         return blockedByGeometry;
+    }
+
+    private bool TryHandleWorldClickable(Ray ray)
+    {
+        RaycastHit[] hits = Physics.RaycastAll(ray, maxClickRayDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        System.Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
+
+        for (int index = 0; index < hits.Length; index++)
+        {
+            Collider hitCollider = hits[index].collider;
+            if (hitCollider == null)
+            {
+                continue;
+            }
+
+            if (IsLocalPlayerHit(hitCollider))
+            {
+                return true;
+            }
+
+            IClickable clickable = hitCollider.GetComponentInParent<IClickable>();
+            if (clickable != null && !ReferenceEquals(clickable, _clickToMove))
+            {
+                clickable.OnClick(hits[index].point);
+                return true;
+            }
+
+            if (CombatTargetingUtility.IsTargetableCollider(hitCollider))
+            {
+                return false;
+            }
+
+            if (IsWaterLayerHit(hitCollider))
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return false;
     }
 
     private bool TryFindCombatTargetFromRay(Ray ray, out GameObject target)

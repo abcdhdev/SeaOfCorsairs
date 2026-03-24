@@ -24,6 +24,20 @@ public sealed record PurchaseInventoryItemRequest(string ItemId, int Gold, int D
 
 public sealed record InventoryItemPurchaseResponse(string ItemId, int PurchasedAmount, InventoryItemStackResponse[] InventoryItems, int Gold, int Diamond, int Version, DateTimeOffset UpdatedAt);
 
+public sealed record StartArubaRitualRequest(int Quantity, int? ExpectedVersion);
+
+public sealed record ArubaRitualResponse(
+    int Quantity,
+    int MojoSpent,
+    int DiamondSpent,
+    string Message,
+    InventoryItemStackResponse[] Rewards,
+    InventoryItemStackResponse[] InventoryItems,
+    int Gold,
+    int Diamond,
+    int Version,
+    DateTimeOffset UpdatedAt);
+
 public sealed record PurchaseShipRequest(string ShipId, int Gold, int Diamond, int? ExpectedVersion);
 
 public sealed record ShipPurchaseResponse(string ShipId, string[] OwnedShipIds, int Gold, int Diamond, int Version, DateTimeOffset UpdatedAt);

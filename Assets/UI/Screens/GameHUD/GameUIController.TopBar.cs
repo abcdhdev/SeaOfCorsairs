@@ -193,6 +193,7 @@ public partial class GameUIController
     {
         SetTopMenuShieldDropdownVisible(false);
         CloseGuildManagement();
+        CloseArubaCauldron();
         CloseIslandBuilding();
         shipSectionController?.Hide();
         ToggleMarket();
@@ -202,6 +203,7 @@ public partial class GameUIController
     {
         SetTopMenuShieldDropdownVisible(false);
         CloseGuildManagement();
+        CloseArubaCauldron();
         CloseMarket();
         CloseIslandBuilding();
         shipSectionController?.ToggleVisibility();
@@ -211,6 +213,7 @@ public partial class GameUIController
     {
         SetTopMenuShieldDropdownVisible(false);
         CloseGuildManagement();
+        CloseArubaCauldron();
         CloseMarket();
         CloseIslandBuilding();
         NetworkManager.Singleton?.Shutdown();
@@ -219,6 +222,7 @@ public partial class GameUIController
     private void OnTopMenuShieldClicked()
     {
         CloseMarket();
+        CloseArubaCauldron();
         shipSectionController?.Hide();
         CloseAmmoMenu();
         CloseActionItemMenu();
@@ -231,6 +235,7 @@ public partial class GameUIController
     {
         SetTopMenuShieldDropdownVisible(false);
         CloseGuildManagement();
+        CloseArubaCauldron();
         CloseMarket();
         shipSectionController?.Hide();
         CloseAmmoMenu();
@@ -243,6 +248,7 @@ public partial class GameUIController
     private void OnTopMenuGuildsClicked()
     {
         SetTopMenuShieldDropdownVisible(false);
+        CloseArubaCauldron();
         CloseMarket();
         shipSectionController?.Hide();
         CloseAmmoMenu();

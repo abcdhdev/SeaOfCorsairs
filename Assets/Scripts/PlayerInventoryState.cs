@@ -8,7 +8,8 @@ public enum PlayerInventoryItemKind
     Cannon = 1,
     CannonAmmo = 2,
     Harpoon = 3,
-    ActionItem = 4
+    ActionItem = 4,
+    RitualCurrency = 5
 }
 
 public readonly struct PlayerInventoryItemState
@@ -39,6 +40,9 @@ public sealed class ShipCannonLoadoutState
 
 public static class PlayerInventoryState
 {
+    public const string StandardCannonAmmoItemId = "standard";
+    public const string StandardHarpoonItemId = "harpoon-25";
+    public const string MojoItemId = "mojo";
     public const string BlackGunpowderItemId = "black_gunpowder";
     public const string AgwesArmorPlatingItemId = "agwes_armor_plating";
 
@@ -70,12 +74,13 @@ public static class PlayerInventoryState
 
         return normalizedItemId switch
         {
-            "standard" => PlayerInventoryItemKind.CannonAmmo,
+            StandardCannonAmmoItemId => PlayerInventoryItemKind.CannonAmmo,
             "heavy" => PlayerInventoryItemKind.CannonAmmo,
             "chain" => PlayerInventoryItemKind.CannonAmmo,
-            "harpoon-25" => PlayerInventoryItemKind.Harpoon,
+            StandardHarpoonItemId => PlayerInventoryItemKind.Harpoon,
             "harpoon-50" => PlayerInventoryItemKind.Harpoon,
             "harpoon-250" => PlayerInventoryItemKind.Harpoon,
+            MojoItemId => PlayerInventoryItemKind.RitualCurrency,
             BlackGunpowderItemId => PlayerInventoryItemKind.ActionItem,
             AgwesArmorPlatingItemId => PlayerInventoryItemKind.ActionItem,
             _ => PlayerInventoryItemKind.Unknown
@@ -100,6 +105,11 @@ public static class PlayerInventoryState
     public static bool IsActionItem(string itemId)
     {
         return GetItemKind(itemId) == PlayerInventoryItemKind.ActionItem;
+    }
+
+    public static bool IsRitualCurrency(string itemId)
+    {
+        return GetItemKind(itemId) == PlayerInventoryItemKind.RitualCurrency;
     }
 
     public static string GetActionItemInventoryId(PlayerActionItemType actionItemType)
@@ -391,12 +401,13 @@ public static class PlayerInventoryState
 
         return normalizedItemId switch
         {
-            "standard" => 1000,
+            StandardCannonAmmoItemId => 1000,
             "heavy" => 1001,
             "chain" => 1002,
-            "harpoon-25" => 1100,
+            StandardHarpoonItemId => 1100,
             "harpoon-50" => 1101,
             "harpoon-250" => 1102,
+            MojoItemId => 1190,
             BlackGunpowderItemId => 1200,
             AgwesArmorPlatingItemId => 1201,
             _ => int.MaxValue

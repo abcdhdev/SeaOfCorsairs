@@ -1201,6 +1201,122 @@ public class MultiplayerController : MonoBehaviour
         }
     }
 
+    private async Task ProcessArubaCauldronRitualAsync(Player player, int quantity)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        if (!_clientSessions.TryGetValue(player.OwnerClientId, out var session))
+        {
+            player.NotifyArubaCauldronRitualResult(quantity, 0, 0, string.Empty, false, "Unable to find your backend session.");
+            return;
+        }
+
+        var acquiredPlayerStateLock = false;
+        try
+        {
+            await session.PlayerStateSyncLock.WaitAsync(session.LifetimeCts.Token);
+            acquiredPlayerStateLock = true;
+
+            if (session.LifetimeCts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (!ArubaCauldronRuntime.IsValidRitualQuantity(quantity))
+            {
+                player.NotifyArubaCauldronRitualResult(quantity, 0, 0, string.Empty, false, "Choose one of the available ritual quantities.");
+                return;
+            }
+
+            var playerDataClient = new BackendPlayerDataClient(ResolvePlayerDataBaseUrl());
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                session.LifetimeCts.Token.ThrowIfCancellationRequested();
+
+                try
+                {
+                    var ritual = await playerDataClient.StartArubaRitualAsync(
+                        session.AccessToken,
+                        quantity,
+                        session.HasWalletVersion ? session.WalletVersion : (int?)null,
+                        session.LifetimeCts.Token);
+
+                    session.WalletVersion = ritual.version;
+                    session.HasWalletVersion = true;
+                    session.PendingGold = Mathf.Max(0, ritual.gold);
+                    session.PendingDiamond = Mathf.Max(0, ritual.diamond);
+                    session.PendingExperience = Mathf.Max(0, player.Experience);
+                    session.WalletDirty = false;
+
+                    session.IsApplyingPlayerState = true;
+                    try
+                    {
+                        player.ApplyPersistedWallet(ritual.gold, ritual.diamond);
+                        player.ApplyPersistedInventory(ToInventoryItemStates(ritual.inventoryItems));
+                        CapturePendingPlayerStatus(session, player);
+                    }
+                    finally
+                    {
+                        session.IsApplyingPlayerState = false;
+                    }
+
+                    string rewardSnapshot = PlayerInventoryState.BuildInventorySnapshot(ToInventoryItemStates(ritual.rewards));
+                    player.NotifyArubaCauldronRitualResult(
+                        ritual.quantity,
+                        ritual.mojoSpent,
+                        ritual.diamondSpent,
+                        rewardSnapshot,
+                        true,
+                        string.IsNullOrWhiteSpace(ritual.message)
+                            ? "Captain Barak Vane returns with fresh spoils."
+                            : ritual.message);
+                    return;
+                }
+                catch (BackendApiException ex) when (ex.StatusCode == 401 && attempt < 2)
+                {
+                    if (!await TryRefreshSessionTokensAsync(session, session.LifetimeCts.Token))
+                    {
+                        player.NotifyArubaCauldronRitualResult(quantity, 0, 0, string.Empty, false, $"Could not refresh your session: {ex.Message}");
+                        return;
+                    }
+                }
+                catch (BackendApiException ex) when (ex.StatusCode == 409 && attempt < 2)
+                {
+                    if (!await TryReloadWalletVersionAsync(session, session.LifetimeCts.Token))
+                    {
+                        player.NotifyArubaCauldronRitualResult(quantity, 0, 0, string.Empty, false, $"Could not refresh your latest wallet state: {ex.Message}");
+                        return;
+                    }
+                }
+                catch (BackendApiException ex)
+                {
+                    player.NotifyArubaCauldronRitualResult(quantity, 0, 0, string.Empty, false, ex.Message);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    player.NotifyArubaCauldronRitualResult(quantity, 0, 0, string.Empty, false, $"Ritual failed: {ex.Message}");
+                    return;
+                }
+            }
+
+            player.NotifyArubaCauldronRitualResult(quantity, 0, 0, string.Empty, false, "Ritual failed.");
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (acquiredPlayerStateLock)
+            {
+                session.PlayerStateSyncLock.Release();
+            }
+        }
+    }
+
     private static async Task<bool> TryLoadPlayerStateIntoPlayerAsync(AuthenticatedClientSession session, Player player, CancellationToken cancellationToken)
     {
         var playerDataClient = new BackendPlayerDataClient(ResolvePlayerDataBaseUrl());
@@ -1762,6 +1878,26 @@ public class MultiplayerController : MonoBehaviour
         _ = ProcessInventoryItemPurchaseAsync(player, itemId);
 #else
         player.NotifyInventoryItemPurchaseResult(itemId, false, "Item purchases are only available on the game server.");
+#endif
+    }
+
+    public void RequestArubaCauldronRitual(Player player, int quantity)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+#if UNITY_SERVER || UNITY_EDITOR
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer)
+        {
+            player.NotifyArubaCauldronRitualResult(quantity, 0, 0, string.Empty, false, "The Aruba ritual is only available while connected to the server.");
+            return;
+        }
+
+        _ = ProcessArubaCauldronRitualAsync(player, quantity);
+#else
+        player.NotifyArubaCauldronRitualResult(quantity, 0, 0, string.Empty, false, "The Aruba ritual is only available on the game server.");
 #endif
     }
 

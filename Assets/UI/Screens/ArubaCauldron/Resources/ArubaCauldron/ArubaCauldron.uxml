@@ -1,0 +1,94 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="project://database/Assets/UI/Core/Resources/Shared/OverlayPanel.uss?fileID=7433441132597879392&amp;guid=6b64251aafd24422b01cd1f0e6ef26f5&amp;type=3#OverlayPanel" />
+    <ui:Style src="project://database/Assets/UI/Screens/ArubaCauldron/Resources/ArubaCauldron/ArubaCauldron.uss?fileID=7433441132597879392&amp;guid=bd28e2028fcdabc4f96d001748bdc0eb&amp;type=3#ArubaCauldron" />
+    <ui:VisualElement name="ArubaCauldronOverlay" class="window-overlay-root aruba-cauldron-overlay-root">
+        <ui:VisualElement name="ArubaCauldronPanel" class="window-panel aruba-cauldron-panel">
+            <ui:VisualElement name="ArubaCauldronHeader" class="window-header aruba-cauldron-topbar">
+                <ui:VisualElement class="aruba-cauldron-tab-strip">
+                    <ui:Button text="Cauldron of Aruba" class="window-tab-button window-tab-button-selected aruba-cauldron-tab-button" />
+                </ui:VisualElement>
+                <ui:VisualElement class="aruba-cauldron-top-actions">
+                    <ui:Button name="ArubaCauldronHelpButton" text="?" class="window-close-button aruba-cauldron-icon-button" />
+                    <ui:Button name="ArubaCauldronCloseButton" text="X" class="window-close-button aruba-cauldron-icon-button aruba-cauldron-close-button" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="aruba-cauldron-message-bar">
+                <ui:Label name="ArubaCauldronStatusLabel" text="Captain Barak Vane can transmute mojo into a fresh haul of supplies." class="aruba-cauldron-status-label" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="window-body aruba-cauldron-main">
+                <ui:VisualElement class="aruba-cauldron-left-panel">
+                    <ui:VisualElement class="aruba-cauldron-art-panel">
+                        <ui:VisualElement class="aruba-cauldron-portrait-frame">
+                            <ui:VisualElement name="ArubaCauldronPortraitImage" class="aruba-cauldron-portrait-image" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="aruba-cauldron-portrait-copy">
+                            <ui:Label text="Captain Barak Vane" class="aruba-cauldron-portrait-caption" />
+                            <ui:Label text="Keeper of the Cauldron of Aruba" class="aruba-cauldron-portrait-subcaption" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="aruba-cauldron-center-panel">
+                    <ui:VisualElement class="aruba-cauldron-section-title-wrap">
+                        <ui:Label text="Loot" class="aruba-cauldron-section-title" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="aruba-cauldron-content-box aruba-cauldron-loot-box">
+                        <ui:Label name="ArubaCauldronRewardsHintLabel" text="Every mojo has an even chance to become one of these rewards." class="aruba-cauldron-hint-label" />
+                        <ui:VisualElement name="ArubaCauldronRewardsGrid" class="aruba-cauldron-rewards-grid" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="aruba-cauldron-bottom-controls">
+                        <ui:VisualElement class="aruba-cauldron-currencies">
+                            <ui:VisualElement class="aruba-cauldron-currency-row">
+                                <ui:VisualElement class="aruba-cauldron-currency-icon aruba-cauldron-currency-icon-mojo" />
+                                <ui:VisualElement class="aruba-cauldron-currency-copy">
+                                    <ui:Label text="Mojo" class="aruba-cauldron-currency-name" />
+                                    <ui:Label name="ArubaCauldronMojoValueLabel" text="0" class="aruba-cauldron-currency-value" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+                            <ui:VisualElement class="aruba-cauldron-currency-row">
+                                <ui:VisualElement class="aruba-cauldron-currency-icon aruba-cauldron-currency-icon-diamond" />
+                                <ui:VisualElement class="aruba-cauldron-currency-copy">
+                                    <ui:Label text="Diamonds" class="aruba-cauldron-currency-name" />
+                                    <ui:Label name="ArubaCauldronDiamondValueLabel" text="0" class="aruba-cauldron-currency-value" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+
+                        <ui:VisualElement class="aruba-cauldron-control-area">
+                            <ui:VisualElement class="aruba-cauldron-input-wrap">
+                                <ui:DropdownField name="ArubaCauldronQuantityDropdown" label="Quantity" class="aruba-cauldron-quantity-dropdown" />
+                            </ui:VisualElement>
+
+                            <ui:VisualElement class="aruba-cauldron-cost-box">
+                                <ui:Label text="Diamond Cost" class="aruba-cauldron-cost-caption" />
+                                <ui:VisualElement class="aruba-cauldron-cost-group">
+                                    <ui:VisualElement class="aruba-cauldron-currency-icon aruba-cauldron-currency-icon-diamond" />
+                                    <ui:Label name="ArubaCauldronDiamondCostValueLabel" text="0" class="aruba-cauldron-cost-value" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+
+                            <ui:Label name="ArubaCauldronPaymentHintLabel" text="Uses 1 mojo from your stockpile." class="aruba-cauldron-payment-hint" />
+
+                            <ui:VisualElement class="aruba-cauldron-buttons">
+                                <ui:Button name="ArubaCauldronStartButton" text="Start Ritual" class="aruba-cauldron-primary-button" />
+                                <ui:Button name="ArubaCauldronClearButton" text="Clear Results" class="aruba-cauldron-secondary-button" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="aruba-cauldron-right-panel">
+                    <ui:VisualElement class="aruba-cauldron-section-title-wrap">
+                        <ui:Label text="Bonus Maps" class="aruba-cauldron-section-title" />
+                    </ui:VisualElement>
+                    <ui:ScrollView mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" class="aruba-cauldron-content-box aruba-cauldron-maps-box">
+                        <ui:VisualElement name="ArubaCauldronBonusMapsList" class="aruba-cauldron-bonus-list" />
+                    </ui:ScrollView>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

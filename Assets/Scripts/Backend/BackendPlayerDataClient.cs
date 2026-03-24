@@ -240,6 +240,34 @@ public sealed class BackendPlayerDataClient
         return ParseOrThrow<ShipPurchaseResponse>(request, url);
     }
 
+    public async Task<ArubaRitualResponse> StartArubaRitualAsync(
+        string accessToken,
+        int quantity,
+        int? expectedVersion = null,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"{_playerDataBaseUrl}/v1/player/me/rituals/aruba";
+        var body = new JObject
+        {
+            ["quantity"] = Math.Max(0, quantity),
+        };
+
+        if (expectedVersion.HasValue)
+        {
+            body["expectedVersion"] = expectedVersion.Value;
+        }
+
+        using var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST);
+        var bytes = Encoding.UTF8.GetBytes(body.ToString(Formatting.None));
+        request.uploadHandler = new UploadHandlerRaw(bytes);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.SetRequestHeader("Authorization", $"Bearer {accessToken ?? string.Empty}");
+
+        await request.SendWebRequestAsync(cancellationToken);
+        return ParseOrThrow<ArubaRitualResponse>(request, url);
+    }
+
     public async Task<GuildListResponse> GetGuildsAsync(string accessToken, CancellationToken cancellationToken = default)
     {
         var url = $"{_playerDataBaseUrl}/v1/guilds";
@@ -931,6 +959,21 @@ public sealed class ShipPurchaseResponse
 {
     public string shipId;
     public string[] ownedShipIds;
+    public int gold;
+    public int diamond;
+    public int version;
+    public string updatedAt;
+}
+
+[Serializable]
+public sealed class ArubaRitualResponse
+{
+    public int quantity;
+    public int mojoSpent;
+    public int diamondSpent;
+    public string message;
+    public InventoryItemStackResponse[] rewards = Array.Empty<InventoryItemStackResponse>();
+    public InventoryItemStackResponse[] inventoryItems = Array.Empty<InventoryItemStackResponse>();
     public int gold;
     public int diamond;
     public int version;

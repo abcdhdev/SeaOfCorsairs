@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -16,6 +17,9 @@ using SeaWars.PlayerDataService.Data;
 using SeaWars.PlayerDataService.Data.Entities;
 using SeaWars.PlayerDataService.Options;
 using StackExchange.Redis;
+
+const string ArubaMojoItemId = "mojo";
+const int ArubaMissingMojoDiamondCost = 1;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -429,7 +433,8 @@ app.MapPost("/v1/player/me/items/purchase", async (
         return Results.Json(new ErrorResponse("unauthorized", "Unauthorized."), statusCode: StatusCodes.Status401Unauthorized);
 
     var itemId = NormalizeInventoryItemId(request.ItemId);
-    if (!TryResolveInventoryCatalogEntry(itemId, out var inventoryCatalogEntry) || inventoryCatalogEntry.Kind == InventoryCatalogItemKind.Cannon)
+    if (!TryResolveInventoryCatalogEntry(itemId, out var inventoryCatalogEntry) ||
+        inventoryCatalogEntry.Kind is InventoryCatalogItemKind.Cannon or InventoryCatalogItemKind.RitualCurrency)
         return Results.BadRequest(new ErrorResponse("invalid_item", $"Unknown market item id '{itemId}'."));
 
     if (request.Gold < 0)
@@ -499,6 +504,106 @@ app.MapPost("/v1/player/me/items/purchase", async (
         CreateInventoryItemStackResponses(ExtractInventoryItems(entity.State)),
         wallet.Gold,
         wallet.Diamond,
+        entity.Version,
+        entity.UpdatedAt);
+
+    return Results.Ok(response);
+})
+    .WithTags("Player")
+    .RequireAuthorization();
+
+app.MapPost("/v1/player/me/rituals/aruba", async (
+    ClaimsPrincipal principal,
+    StartArubaRitualRequest request,
+    PlayerDbContext db,
+    IConnectionMultiplexer redisMux,
+    IOptions<JsonOptions> jsonOptionsAccessor) =>
+{
+    var userId = GetUserId(principal);
+    if (userId is null)
+        return Results.Json(new ErrorResponse("unauthorized", "Unauthorized."), statusCode: StatusCodes.Status401Unauthorized);
+
+    if (!IsValidArubaRitualQuantity(request.Quantity))
+        return Results.BadRequest(new ErrorResponse("invalid_quantity", "Quantity must match one of the ritual quantity options."));
+
+    var now = DateTimeOffset.UtcNow;
+    var entity = await db.PlayerStates.FindAsync(userId.Value);
+    if (entity is null)
+    {
+        entity = new PlayerState
+        {
+            UserId = userId.Value,
+            Version = 0,
+            State = "{}",
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.PlayerStates.Add(entity);
+        await db.SaveChangesAsync();
+    }
+
+    if (request.ExpectedVersion is not null)
+        db.Entry(entity).Property(x => x.Version).OriginalValue = request.ExpectedVersion.Value;
+
+    var wallet = ExtractWallet(entity.State);
+    var inventoryItems = ExtractInventoryItems(entity.State);
+    var availableMojo = GetInventoryItemAmount(inventoryItems, ArubaMojoItemId);
+    var mojoSpent = Math.Min(request.Quantity, availableMojo);
+    var missingMojo = Math.Max(0, request.Quantity - mojoSpent);
+    var diamondSpent = missingMojo * ArubaMissingMojoDiamondCost;
+
+    if (wallet.Diamond < diamondSpent)
+    {
+        return Results.BadRequest(new ErrorResponse(
+            "insufficient_diamond",
+            $"You need {diamondSpent:N0} diamonds or more mojo to start this ritual."));
+    }
+
+    if (mojoSpent > 0 && !TryConsumeInventoryItem(inventoryItems, ArubaMojoItemId, mojoSpent))
+    {
+        return Results.BadRequest(new ErrorResponse("insufficient_mojo", "Not enough mojo to start this ritual."));
+    }
+
+    List<InventoryStateItem> rewardItems = RollArubaRitualRewards(request.Quantity);
+    for (var index = 0; index < rewardItems.Count; index++)
+    {
+        AddOrIncrementInventoryItem(inventoryItems, rewardItems[index].ItemId, rewardItems[index].Amount);
+    }
+
+    entity.State = UpsertInventoryStateJson(
+        entity.State,
+        wallet.Gold,
+        Math.Max(0, wallet.Diamond - diamondSpent),
+        inventoryItems);
+    entity.Version += 1;
+    entity.UpdatedAt = now;
+
+    try
+    {
+        await db.SaveChangesAsync();
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        var current = await db.PlayerStates.AsNoTracking().SingleAsync(x => x.UserId == userId.Value);
+        return Results.Conflict(new ConflictResponse(current.Version, current.UpdatedAt));
+    }
+
+    var cacheKey = $"player:state:v2:{userId.Value}";
+    using var doc = JsonDocument.Parse(entity.State);
+    var stateResponse = new PlayerStateResponse(entity.Version, doc.RootElement.Clone(), entity.UpdatedAt);
+    var stateJson = System.Text.Json.JsonSerializer.Serialize(stateResponse, jsonOptionsAccessor.Value.SerializerOptions);
+    await redisMux.GetDatabase().StringSetAsync(cacheKey, stateJson, expiry: TimeSpan.FromMinutes(10));
+
+    var updatedWallet = ExtractWallet(entity.State);
+    var response = new ArubaRitualResponse(
+        request.Quantity,
+        mojoSpent,
+        diamondSpent,
+        "Captain Barak Vane returns with fresh spoils.",
+        CreateInventoryItemStackResponses(rewardItems),
+        CreateInventoryItemStackResponses(ExtractInventoryItems(entity.State)),
+        updatedWallet.Gold,
+        updatedWallet.Diamond,
         entity.Version,
         entity.UpdatedAt);
 
@@ -1107,6 +1212,60 @@ static void AddOrIncrementInventoryItem(List<InventoryStateItem> inventoryItems,
     inventoryItems.Sort(static (left, right) => CompareInventoryCatalogOrder(left.ItemId, right.ItemId));
 }
 
+static int GetInventoryItemAmount(IReadOnlyList<InventoryStateItem> inventoryItems, string itemId)
+{
+    var normalizedItemId = NormalizeInventoryItemId(itemId);
+    if (string.IsNullOrWhiteSpace(normalizedItemId) || inventoryItems == null)
+    {
+        return 0;
+    }
+
+    for (var index = 0; index < inventoryItems.Count; index++)
+    {
+        if (!string.Equals(inventoryItems[index].ItemId, normalizedItemId, StringComparison.OrdinalIgnoreCase))
+            continue;
+
+        return Math.Max(0, inventoryItems[index].Amount);
+    }
+
+    return 0;
+}
+
+static bool TryConsumeInventoryItem(List<InventoryStateItem> inventoryItems, string itemId, int amount)
+{
+    var normalizedItemId = NormalizeInventoryItemId(itemId);
+    if (string.IsNullOrWhiteSpace(normalizedItemId) || amount <= 0 || inventoryItems == null)
+    {
+        return false;
+    }
+
+    for (var index = 0; index < inventoryItems.Count; index++)
+    {
+        if (!string.Equals(inventoryItems[index].ItemId, normalizedItemId, StringComparison.OrdinalIgnoreCase))
+            continue;
+
+        if (inventoryItems[index].Amount < amount)
+        {
+            return false;
+        }
+
+        var remaining = inventoryItems[index].Amount - amount;
+        if (remaining <= 0)
+        {
+            inventoryItems.RemoveAt(index);
+        }
+        else
+        {
+            inventoryItems[index] = new InventoryStateItem(normalizedItemId, remaining);
+        }
+
+        inventoryItems.Sort(static (left, right) => CompareInventoryCatalogOrder(left.ItemId, right.ItemId));
+        return true;
+    }
+
+    return false;
+}
+
 static JsonArray CreateOwnedCannonsJsonArray(IEnumerable<string> ownedCannonIds)
 {
     var orderedIds = new List<string>();
@@ -1385,6 +1544,9 @@ static bool TryResolveInventoryCatalogEntry(string itemId, out InventoryCatalogE
         case "harpoon-250":
             entry = new InventoryCatalogEntry("harpoon-250", "250 Damage Harpoons", InventoryCatalogItemKind.Harpoon, 7500, 0, 50, 1102);
             return true;
+        case ArubaMojoItemId:
+            entry = new InventoryCatalogEntry(ArubaMojoItemId, "Mojo", InventoryCatalogItemKind.RitualCurrency, 0, 0, 1, 1190);
+            return true;
         case "black_gunpowder":
             entry = new InventoryCatalogEntry("black_gunpowder", "Black Gunpowder", InventoryCatalogItemKind.ActionItem, 1000, 0, 100, 1200);
             return true;
@@ -1395,6 +1557,60 @@ static bool TryResolveInventoryCatalogEntry(string itemId, out InventoryCatalogE
             entry = default;
             return false;
     }
+}
+
+static bool IsValidArubaRitualQuantity(int quantity)
+{
+    return quantity is 1 or 5 or 25 or 100 or 500 or 1000 or 5000;
+}
+
+static List<InventoryStateItem> RollArubaRitualRewards(int quantity)
+{
+    var rewards = new List<InventoryStateItem>(4);
+    if (quantity <= 0)
+    {
+        return rewards;
+    }
+
+    var rewardAmounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    for (var rollIndex = 0; rollIndex < quantity; rollIndex++)
+    {
+        switch (RandomNumberGenerator.GetInt32(4))
+        {
+            case 0:
+                AddRewardAmount(rewardAmounts, "standard", 400);
+                break;
+            case 1:
+                AddRewardAmount(rewardAmounts, "harpoon-25", 50);
+                break;
+            case 2:
+                AddRewardAmount(rewardAmounts, "agwes_armor_plating", 10);
+                break;
+            default:
+                AddRewardAmount(rewardAmounts, "black_gunpowder", 10);
+                break;
+        }
+    }
+
+    foreach (var reward in rewardAmounts)
+    {
+        rewards.Add(new InventoryStateItem(reward.Key, reward.Value));
+    }
+
+    rewards.Sort(static (left, right) => CompareInventoryCatalogOrder(left.ItemId, right.ItemId));
+    return rewards;
+}
+
+static void AddRewardAmount(Dictionary<string, int> rewardAmounts, string itemId, int amount)
+{
+    if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+    {
+        return;
+    }
+
+    rewardAmounts.TryGetValue(itemId, out var currentAmount);
+    var updatedAmount = (long)currentAmount + amount;
+    rewardAmounts[itemId] = updatedAmount >= int.MaxValue ? int.MaxValue : (int)updatedAmount;
 }
 
 static bool TryResolveShipCatalogEntry(string shipId, out ShipCatalogEntry entry)
@@ -1668,5 +1884,6 @@ enum InventoryCatalogItemKind
     Cannon = 1,
     CannonAmmo = 2,
     Harpoon = 3,
-    ActionItem = 4
+    ActionItem = 4,
+    RitualCurrency = 5
 }

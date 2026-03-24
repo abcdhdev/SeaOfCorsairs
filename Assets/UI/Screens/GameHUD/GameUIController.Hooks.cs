@@ -40,6 +40,11 @@ public partial class GameUIController
             UIToolkitRaycastChecker.RegisterBlockingElement(guildManagementController.OverlayRoot);
         }
 
+        if (arubaCauldronController != null && arubaCauldronController.OverlayRoot != null)
+        {
+            UIToolkitRaycastChecker.RegisterBlockingElement(arubaCauldronController.OverlayRoot);
+        }
+
         if (topMenuShieldDropdown != null)
         {
             UIToolkitRaycastChecker.RegisterBlockingElement(topMenuShieldDropdown);
@@ -101,6 +106,11 @@ public partial class GameUIController
         if (guildManagementController != null && guildManagementController.OverlayRoot != null)
         {
             UIToolkitRaycastChecker.UnregisterBlockingElement(guildManagementController.OverlayRoot);
+        }
+
+        if (arubaCauldronController != null && arubaCauldronController.OverlayRoot != null)
+        {
+            UIToolkitRaycastChecker.UnregisterBlockingElement(arubaCauldronController.OverlayRoot);
         }
 
         if (topMenuShieldDropdown != null)
