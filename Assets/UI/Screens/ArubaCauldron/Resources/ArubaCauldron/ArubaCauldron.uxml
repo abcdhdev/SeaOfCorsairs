@@ -2,7 +2,7 @@
     <Style src="project://database/Assets/UI/Core/Resources/Shared/OverlayPanel.uss?fileID=7433441132597879392&amp;guid=6b64251aafd24422b01cd1f0e6ef26f5&amp;type=3#OverlayPanel"/>
     <Style src="project://database/Assets/UI/Screens/ArubaCauldron/Resources/ArubaCauldron/ArubaCauldron.uss?fileID=7433441132597879392&amp;guid=bd28e2028fcdabc4f96d001748bdc0eb&amp;type=3#ArubaCauldron"/>
     <ui:VisualElement name="ArubaCauldronOverlay" class="window-overlay-root aruba-cauldron-overlay-root">
-        <ui:VisualElement name="ArubaCauldronPanel" class="window-panel aruba-cauldron-panel" style="top: 86px; left: 48px;">
+        <ui:VisualElement name="ArubaCauldronPanel" class="window-panel aruba-cauldron-panel">
             <ui:VisualElement name="ArubaCauldronHeader" class="window-header aruba-cauldron-topbar">
                 <ui:VisualElement class="aruba-cauldron-tab-strip">
                     <ui:Button text="Cauldron of Aruba" class="window-tab-button window-tab-button-selected aruba-cauldron-tab-button"/>

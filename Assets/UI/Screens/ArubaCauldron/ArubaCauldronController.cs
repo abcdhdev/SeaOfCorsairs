@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 public sealed class ArubaCauldronController : IDisposable
 {
+    private const string SharedPanelStyleResourcePath = "Shared/OverlayPanel";
+    private const string ArubaCauldronStyleResourcePath = "ArubaCauldron/ArubaCauldron";
     private const string ArubaCauldronUxmlResourcePath = "ArubaCauldron/ArubaCauldron";
     private const string DefaultStatusMessage = "Captain Barak Vane can transmute mojo into a fresh haul of supplies.";
     private const string DefaultRewardsHint = "Every mojo has an even chance to become one of these rewards.";
@@ -41,7 +42,7 @@ public sealed class ArubaCauldronController : IDisposable
     private ArubaCauldronRitualResultData latestResult;
     private bool areBonusMapsRendered;
     private bool isPendingRitual;
-    private bool suppressNextBackdropPointerUp;
+    private bool ignoreNextBackdropPointerUp;
     private string renderedRewardSignature = string.Empty;
 
     public ArubaCauldronController(VisualElement attachTarget, Func<Player> localPlayerProvider)
@@ -69,18 +70,24 @@ public sealed class ArubaCauldronController : IDisposable
         }
 
         // Keep the TemplateContainer as overlayRoot so the UXML-level <ui:Style>
-        // declarations stay attached.  ArubaCauldron.uss defines all its colours
-        // through :root CSS custom properties; extracting the named child via
-        // RemoveFromHierarchy() previously discarded the stylesheet binding,
-        // causing var(--aruba-*) to be undefined at runtime (while still working
-        // in UI Builder where the TemplateContainer IS the document root).
+        // declarations stay attached. ArubaCauldron.uss uses :root custom
+        // properties, which need the template's stylesheet scope to remain intact.
         TemplateContainer container = arubaTree.Instantiate();
         overlayRoot = container;
         overlayRoot.pickingMode = PickingMode.Position;
 
-        // The TemplateContainer doesn't inherit the positioning classes from
-        // the inner ArubaCauldronOverlay element, so stretch it to fill the
-        // parent the same way .window-overlay-root does.
+        StyleSheet sharedPanelStyle = Resources.Load<StyleSheet>(SharedPanelStyleResourcePath);
+        if (sharedPanelStyle != null)
+        {
+            overlayRoot.styleSheets.Add(sharedPanelStyle);
+        }
+
+        StyleSheet arubaCauldronStyle = Resources.Load<StyleSheet>(ArubaCauldronStyleResourcePath);
+        if (arubaCauldronStyle != null)
+        {
+            overlayRoot.styleSheets.Add(arubaCauldronStyle);
+        }
+
         overlayRoot.style.position = Position.Absolute;
         overlayRoot.style.top = 0;
         overlayRoot.style.right = 0;
@@ -113,14 +120,14 @@ public sealed class ArubaCauldronController : IDisposable
             return;
         }
 
-        suppressNextBackdropPointerUp = Mouse.current?.leftButton.isPressed ?? false;
-        SetVisible(true);
         Refresh();
+        ignoreNextBackdropPointerUp = true;
+        SetVisible(true);
     }
 
     public void Hide()
     {
-        suppressNextBackdropPointerUp = false;
+        ignoreNextBackdropPointerUp = false;
         SetVisible(false);
     }
 
@@ -219,6 +226,7 @@ public sealed class ArubaCauldronController : IDisposable
         renderedRewardSignature = string.Empty;
         areBonusMapsRendered = false;
         isPendingRitual = false;
+        ignoreNextBackdropPointerUp = false;
     }
 
     private void BindUiElements()
@@ -286,7 +294,6 @@ public sealed class ArubaCauldronController : IDisposable
     {
         if (overlayRoot != null)
         {
-            overlayRoot.RegisterCallback<PointerUpEvent>(OnOverlayPointerUpTrickleDown, TrickleDown.TrickleDown);
             overlayRoot.RegisterCallback<PointerUpEvent>(OnOverlayPointerUp);
         }
 
@@ -326,7 +333,6 @@ public sealed class ArubaCauldronController : IDisposable
     {
         if (overlayRoot != null)
         {
-            overlayRoot.UnregisterCallback<PointerUpEvent>(OnOverlayPointerUpTrickleDown, TrickleDown.TrickleDown);
             overlayRoot.UnregisterCallback<PointerUpEvent>(OnOverlayPointerUp);
         }
 
@@ -635,11 +641,10 @@ public sealed class ArubaCauldronController : IDisposable
         overlayRoot.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
         if (isVisible)
         {
-            SchedulePanelCentering();
+            panelDragController?.CenterInBounds();
         }
         else
         {
-            suppressNextBackdropPointerUp = false;
             panelDragController?.StopDragging();
         }
     }
@@ -658,23 +663,17 @@ public sealed class ArubaCauldronController : IDisposable
         statusLabel.EnableInClassList(StatusErrorClass, useTone && !isSuccess);
     }
 
-    private void SchedulePanelCentering()
-    {
-        if (overlayRoot == null)
-        {
-            return;
-        }
-
-        // CenterInBounds() already sets shouldCenterOnNextLayout when the
-        // panel hasn't been laid out yet, so deferred schedule calls are
-        // not necessary and caused a visible 1-2 frame flash at (0,0).
-        panelDragController?.CenterInBounds();
-    }
-
     private void OnOverlayPointerUp(PointerUpEvent evt)
     {
         if (evt.button != (int)MouseButton.LeftMouse)
         {
+            return;
+        }
+
+        if (ignoreNextBackdropPointerUp)
+        {
+            ignoreNextBackdropPointerUp = false;
+            evt.StopPropagation();
             return;
         }
 
@@ -690,20 +689,6 @@ public sealed class ArubaCauldronController : IDisposable
 
         Hide();
         evt.StopPropagation();
-    }
-    
-    private void OnOverlayPointerUpTrickleDown(PointerUpEvent evt)
-    {
-        if (evt.button != (int)MouseButton.LeftMouse || !suppressNextBackdropPointerUp)
-        {
-            return;
-        }
-
-        suppressNextBackdropPointerUp = false;
-        if (ReferenceEquals(evt.target, overlayRoot) || ReferenceEquals(evt.target, backdropElement))
-        {
-            evt.StopPropagation();
-        }
     }
 
     private static void OnPanelPointerDown(PointerDownEvent evt)
