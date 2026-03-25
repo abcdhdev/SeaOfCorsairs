@@ -648,6 +648,11 @@ public sealed class IslandBuildManager : MonoBehaviour
 
     private void HandleTurretRegistryChanged()
     {
+        if (restoreInProgress)
+        {
+            return;
+        }
+
         MarkTerrainDirty();
     }
 

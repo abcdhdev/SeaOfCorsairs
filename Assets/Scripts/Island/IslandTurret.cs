@@ -428,7 +428,6 @@ public sealed class IslandTurret : NetworkBehaviour, ICombatEntity, IDamageSourc
         if (ActiveTurretsInternal.Add(this))
         {
             RegistryChanged();
-            IslandBuildManager.Instance?.MarkTerrainDirty();
         }
     }
 
@@ -437,7 +436,6 @@ public sealed class IslandTurret : NetworkBehaviour, ICombatEntity, IDamageSourc
         if (ActiveTurretsInternal.Remove(this))
         {
             RegistryChanged();
-            IslandBuildManager.Instance?.MarkTerrainDirty();
         }
     }
 }

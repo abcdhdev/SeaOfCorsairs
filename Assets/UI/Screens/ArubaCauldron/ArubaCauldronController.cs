@@ -95,6 +95,7 @@ public sealed class ArubaCauldronController : IDisposable
         RegisterCallbacks();
         RenderBonusMaps();
         SetStatus(DefaultStatusMessage, isSuccess: false, useTone: false);
+        RenderRewards();
         SetVisible(false);
     }
 
@@ -392,7 +393,6 @@ public sealed class ArubaCauldronController : IDisposable
         }
 
         SetStatus(result.Message, result.Success, useTone: true);
-        RenderRewards();
         Refresh();
     }
 
@@ -489,12 +489,22 @@ public sealed class ArubaCauldronController : IDisposable
         }
 
         bool hasResult = latestResult != null && latestResult.Success;
-        IReadOnlyList<PlayerInventoryItemState> rewardItems = hasResult
-            ? latestResult.GetRewards()
-            : ArubaCauldronRuntime.GetPreviewRewards();
+        if (rewardsHintLabel != null)
+        {
+            rewardsHintLabel.text = hasResult ? ResultRewardsHint : DefaultRewardsHint;
+        }
+
+        if (!hasResult)
+        {
+            rewardsGrid.Clear();
+            renderedRewardSignature = string.Empty;
+            return;
+        }
+
+        IReadOnlyList<PlayerInventoryItemState> rewardItems = latestResult.GetRewards();
 
         string rewardSnapshot = PlayerInventoryState.BuildInventorySnapshot(rewardItems);
-        string targetSignature = $"{(hasResult ? "result" : "preview")}:{rewardSnapshot}";
+        string targetSignature = $"result:{rewardSnapshot}";
         if (string.Equals(renderedRewardSignature, targetSignature, StringComparison.Ordinal))
         {
             return;
@@ -502,11 +512,6 @@ public sealed class ArubaCauldronController : IDisposable
 
         renderedRewardSignature = targetSignature;
         rewardsGrid.Clear();
-
-        if (rewardsHintLabel != null)
-        {
-            rewardsHintLabel.text = hasResult ? ResultRewardsHint : DefaultRewardsHint;
-        }
 
         for (int index = 0; index < rewardItems.Count; index++)
         {
@@ -543,10 +548,6 @@ public sealed class ArubaCauldronController : IDisposable
             Label amountLabel = new Label($"{Mathf.Max(0, reward.Amount):N0}x");
             amountLabel.AddToClassList("aruba-cauldron-reward-amount");
             tile.Add(amountLabel);
-
-            Label nameLabel = new Label(ArubaCauldronRuntime.GetRewardDisplayName(reward.ItemId));
-            nameLabel.AddToClassList("aruba-cauldron-reward-name");
-            tile.Add(nameLabel);
 
             rewardsGrid.Add(tile);
         }
@@ -610,7 +611,6 @@ public sealed class ArubaCauldronController : IDisposable
         latestResult = null;
         renderedRewardSignature = string.Empty;
         SetStatus(DefaultStatusMessage, isSuccess: false, useTone: false);
-        RenderRewards();
         Refresh();
     }
 
