@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 public sealed class ArubaCauldronController : IDisposable
@@ -40,6 +41,7 @@ public sealed class ArubaCauldronController : IDisposable
     private ArubaCauldronRitualResultData latestResult;
     private bool areBonusMapsRendered;
     private bool isPendingRitual;
+    private bool suppressNextBackdropPointerUp;
     private string renderedRewardSignature = string.Empty;
 
     public ArubaCauldronController(VisualElement attachTarget, Func<Player> localPlayerProvider)
@@ -111,12 +113,14 @@ public sealed class ArubaCauldronController : IDisposable
             return;
         }
 
+        suppressNextBackdropPointerUp = Mouse.current?.leftButton.isPressed ?? false;
         SetVisible(true);
         Refresh();
     }
 
     public void Hide()
     {
+        suppressNextBackdropPointerUp = false;
         SetVisible(false);
     }
 
@@ -282,6 +286,7 @@ public sealed class ArubaCauldronController : IDisposable
     {
         if (overlayRoot != null)
         {
+            overlayRoot.RegisterCallback<PointerUpEvent>(OnOverlayPointerUpTrickleDown, TrickleDown.TrickleDown);
             overlayRoot.RegisterCallback<PointerUpEvent>(OnOverlayPointerUp);
         }
 
@@ -321,6 +326,7 @@ public sealed class ArubaCauldronController : IDisposable
     {
         if (overlayRoot != null)
         {
+            overlayRoot.UnregisterCallback<PointerUpEvent>(OnOverlayPointerUpTrickleDown, TrickleDown.TrickleDown);
             overlayRoot.UnregisterCallback<PointerUpEvent>(OnOverlayPointerUp);
         }
 
@@ -633,6 +639,7 @@ public sealed class ArubaCauldronController : IDisposable
         }
         else
         {
+            suppressNextBackdropPointerUp = false;
             panelDragController?.StopDragging();
         }
     }
@@ -683,6 +690,20 @@ public sealed class ArubaCauldronController : IDisposable
 
         Hide();
         evt.StopPropagation();
+    }
+    
+    private void OnOverlayPointerUpTrickleDown(PointerUpEvent evt)
+    {
+        if (evt.button != (int)MouseButton.LeftMouse || !suppressNextBackdropPointerUp)
+        {
+            return;
+        }
+
+        suppressNextBackdropPointerUp = false;
+        if (ReferenceEquals(evt.target, overlayRoot) || ReferenceEquals(evt.target, backdropElement))
+        {
+            evt.StopPropagation();
+        }
     }
 
     private static void OnPanelPointerDown(PointerDownEvent evt)
