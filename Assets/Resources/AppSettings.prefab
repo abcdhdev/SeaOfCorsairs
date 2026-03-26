@@ -64,13 +64,12 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
-  consoleCanvas: {fileID: 3861368940710368685, guid: eaccf287ac783bc4485d674d5998d3ab,
-    type: 3}
+  consoleCanvas: {fileID: 3861368940710368685, guid: eaccf287ac783bc4485d674d5998d3ab, type: 3}
   menuMusicClip: {fileID: 8300000, guid: 9f5c81f29c87c894687ed4871c8956ce, type: 3}
   gameplayMusicClip: {fileID: 8300000, guid: 035824488187d8e4c806a88df86d90d2, type: 3}
   combatMusicClip: {fileID: 8300000, guid: 2d5f3ba565a9c4341a26d45665576373, type: 3}
-  baseMusicVolume: 0.5
-  combatMusicVolume: 0.35
+  baseMusicVolume: 0.175
+  combatMusicVolume: 0.18
   sceneMusicFadeSeconds: 1.5
   combatFadeInSeconds: 8
   combatFadeOutSeconds: 2

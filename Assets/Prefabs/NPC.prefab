@@ -259,6 +259,8 @@ MonoBehaviour:
     type: 3}
   fireSpeed: 100
   arcHeightFactor: 0.2
+  cannonFireClip: {fileID: 8300000, guid: 0b860b0816a944f4db0e935acde8332d, type: 3}
+  cannonFireVolume: 2.2
   damage: 2
   maxHitDistance: 150
   projectileMaterialOverride: {fileID: 0}

@@ -730,6 +730,8 @@ MonoBehaviour:
   cannonballPrefab: {fileID: 0}
   fireSpeed: 10
   arcHeightFactor: 0.2
+  cannonFireClip: {fileID: 8300000, guid: 0b860b0816a944f4db0e935acde8332d, type: 3}
+  cannonFireVolume: 2.2
   projectilePrefabOverride: {fileID: 0}
   harpoonProjectileColor: {r: 0.8039216, g: 0.49803922, b: 0.19607843, a: 1}
 --- !u!114 &6685784690479133911

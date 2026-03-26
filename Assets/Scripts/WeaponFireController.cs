@@ -8,10 +8,13 @@ public class WeaponFireController : NetworkBehaviour
     [SerializeField, HideInInspector] private GameObject cannonballPrefab;
     [SerializeField, HideInInspector] private float fireSpeed = 10.0f;
     [SerializeField, HideInInspector] private float arcHeightFactor = 0.2f;
+    [SerializeField, HideInInspector] private AudioClip cannonFireClip;
+    [SerializeField, HideInInspector, Min(0f)] private float cannonFireVolume = 1f;
     [SerializeField, HideInInspector] private GameObject projectilePrefabOverride;
     [SerializeField, HideInInspector] private Color harpoonProjectileColor = new Color(0.8039216f, 0.49803922f, 0.19607843f, 1f);
 
     private PlayerAttack _playerAttack;
+    private AudioSource _fireAudioSource;
     public float FireSpeed => Mathf.Max(0.01f, fireSpeed);
 
     private PlayerAttack Attack
@@ -24,14 +27,27 @@ public class WeaponFireController : NetworkBehaviour
         }
     }
 
+    private void Awake()
+    {
+        EnsureFireAudioSource();
+        PreloadFireClip();
+    }
+
     public void ApplySettings(
         GameObject newCannonballPrefab,
         float newFireSpeed,
-        float newArcHeightFactor)
+        float newArcHeightFactor,
+        AudioClip newCannonFireClip = null)
     {
         if (newCannonballPrefab != null)
         {
             cannonballPrefab = newCannonballPrefab;
+        }
+
+        if (newCannonFireClip != null)
+        {
+            cannonFireClip = newCannonFireClip;
+            PreloadFireClip();
         }
 
         fireSpeed = Mathf.Max(0.01f, newFireSpeed);
@@ -60,6 +76,11 @@ public class WeaponFireController : NetworkBehaviour
         GameObject projectile = useHarpoonVisual
             ? HarpoonProjectileVisual.Create(transform.position, harpoonProjectileColor)
             : Instantiate(resolvedProjectilePrefab, transform.position, Quaternion.identity);
+
+        if (!useHarpoonVisual && cannonFireClip != null)
+        {
+            PlayFireSound();
+        }
 
         Vector3 startPos = transform.position;
         Vector3 lastKnownTargetPos = target.transform.position;
@@ -98,6 +119,42 @@ public class WeaponFireController : NetworkBehaviour
     private GameObject ResolveProjectilePrefab()
     {
         return projectilePrefabOverride != null ? projectilePrefabOverride : cannonballPrefab;
+    }
+
+    private void EnsureFireAudioSource()
+    {
+        if (_fireAudioSource == null)
+        {
+            _fireAudioSource = GetComponent<AudioSource>();
+        }
+
+        if (_fireAudioSource == null)
+        {
+            _fireAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        _fireAudioSource.playOnAwake = false;
+        _fireAudioSource.loop = false;
+        _fireAudioSource.spatialBlend = 1f;
+        _fireAudioSource.dopplerLevel = 0f;
+        _fireAudioSource.rolloffMode = AudioRolloffMode.Linear;
+        _fireAudioSource.minDistance = 1f;
+        _fireAudioSource.maxDistance = 250f;
+    }
+
+    private void PreloadFireClip()
+    {
+        if (cannonFireClip != null && cannonFireClip.loadState == AudioDataLoadState.Unloaded)
+        {
+            cannonFireClip.LoadAudioData();
+        }
+    }
+
+    private void PlayFireSound()
+    {
+        EnsureFireAudioSource();
+        PreloadFireClip();
+        _fireAudioSource.PlayOneShot(cannonFireClip, Mathf.Max(0f, cannonFireVolume));
     }
 
     private void OnProjectileImpact(GameObject target)
