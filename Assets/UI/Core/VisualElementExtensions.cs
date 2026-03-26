@@ -16,6 +16,8 @@ public static class VisualElementExtensions
 
 public sealed class DraggableWindowController : IDisposable
 {
+    private const bool LayoutDebugLogging = false;
+
     private readonly VisualElement boundsRoot;
     private readonly VisualElement panel;
     private readonly VisualElement handle;
@@ -23,6 +25,7 @@ public sealed class DraggableWindowController : IDisposable
 
     private bool isDragging;
     private bool shouldCenterOnNextLayout;
+    private bool skipNextBoundsClamp;
     private int dragPointerId = -1;
     private Vector2 dragStartPointerPosition;
     private Vector2 dragStartPanelPosition;
@@ -39,6 +42,11 @@ public sealed class DraggableWindowController : IDisposable
             this.boundsRoot.RegisterCallback<GeometryChangedEvent>(OnBoundsGeometryChanged);
         }
 
+        if (this.panel != null)
+        {
+            this.panel.RegisterCallback<GeometryChangedEvent>(OnPanelGeometryChanged);
+        }
+
         if (this.handle != null)
         {
             this.handle.RegisterCallback<PointerDownEvent>(OnHandlePointerDown);
@@ -46,17 +54,25 @@ public sealed class DraggableWindowController : IDisposable
             this.handle.RegisterCallback<PointerUpEvent>(OnHandlePointerUp);
             this.handle.RegisterCallback<PointerCancelEvent>(OnHandlePointerCancel);
         }
+
+        LogLayout("Constructed");
     }
 
     public bool IsDragging => isDragging;
 
     public void Dispose()
     {
+        LogLayout("Dispose");
         StopDragging();
 
         if (boundsRoot != null)
         {
             boundsRoot.UnregisterCallback<GeometryChangedEvent>(OnBoundsGeometryChanged);
+        }
+
+        if (panel != null)
+        {
+            panel.UnregisterCallback<GeometryChangedEvent>(OnPanelGeometryChanged);
         }
 
         if (handle != null)
@@ -70,6 +86,8 @@ public sealed class DraggableWindowController : IDisposable
 
     public void StopDragging()
     {
+        LogLayout($"StopDragging start pointerId={dragPointerId}");
+
         if (handle != null && dragPointerId >= 0 && handle.HasPointerCapture(dragPointerId))
         {
             handle.ReleasePointer(dragPointerId);
@@ -79,34 +97,46 @@ public sealed class DraggableWindowController : IDisposable
         dragPointerId = -1;
         dragStartPointerPosition = default;
         dragStartPanelPosition = default;
+        LogLayout("StopDragging complete");
     }
 
     public void CenterInBounds()
     {
         if (panel == null)
         {
+            LogLayout("CenterInBounds skipped because panel is null");
             return;
         }
+
+        LogLayout("CenterInBounds start");
 
         if (TryGetCenteredPosition(out Vector2 centeredPosition))
         {
             shouldCenterOnNextLayout = false;
+            // The bounds geometry event that follows a successful center can still
+            // observe stale world bounds, so ignore that one clamp pass.
+            skipNextBoundsClamp = true;
+            LogLayout($"CenterInBounds success centered={FormatVector(centeredPosition)}");
             SetPanelPosition(centeredPosition, clampToBounds: true);
             return;
         }
 
         shouldCenterOnNextLayout = true;
+        LogLayout("CenterInBounds deferred until next layout");
     }
 
     public void ClampToBounds()
     {
         if (panel == null)
         {
+            LogLayout("ClampToBounds skipped because panel is null");
             return;
         }
 
         shouldCenterOnNextLayout = false;
-        SetPanelPosition(GetCurrentPanelPosition(), clampToBounds: true);
+        Vector2 currentPanelPosition = GetCurrentPanelPosition();
+        LogLayout($"ClampToBounds using current={FormatVector(currentPanelPosition)}");
+        SetPanelPosition(currentPanelPosition, clampToBounds: true);
     }
 
     private void OnHandlePointerDown(PointerDownEvent evt)
@@ -118,6 +148,7 @@ public sealed class DraggableWindowController : IDisposable
 
         if (ignoredElement != null && ignoredElement.worldBound.Contains(evt.position))
         {
+            LogLayout($"HandlePointerDown ignored because pointer hit ignored element at {FormatVector(evt.position)}");
             return;
         }
 
@@ -126,6 +157,7 @@ public sealed class DraggableWindowController : IDisposable
         dragStartPointerPosition = (Vector2)evt.position;
         dragStartPanelPosition = GetCurrentPanelPosition();
         handle.CapturePointer(dragPointerId);
+        LogLayout($"HandlePointerDown captured pointer={dragPointerId} startPointer={FormatVector(dragStartPointerPosition)} startPanel={FormatVector(dragStartPanelPosition)}");
         evt.StopPropagation();
     }
 
@@ -137,6 +169,7 @@ public sealed class DraggableWindowController : IDisposable
         }
 
         Vector2 delta = (Vector2)evt.position - dragStartPointerPosition;
+        LogLayout($"HandlePointerMove pointer={evt.pointerId} delta={FormatVector(delta)}");
         SetPanelPosition(dragStartPanelPosition + delta, clampToBounds: true);
         evt.StopPropagation();
     }
@@ -148,6 +181,7 @@ public sealed class DraggableWindowController : IDisposable
             return;
         }
 
+        LogLayout($"HandlePointerUp pointer={evt.pointerId}");
         StopDragging();
         evt.StopPropagation();
     }
@@ -159,12 +193,21 @@ public sealed class DraggableWindowController : IDisposable
             return;
         }
 
+        LogLayout($"HandlePointerCancel pointer={evt.pointerId}");
         StopDragging();
         evt.StopPropagation();
     }
 
     private void OnBoundsGeometryChanged(GeometryChangedEvent evt)
     {
+        LogLayout($"BoundsGeometryChanged old={FormatRect(evt.oldRect)} new={FormatRect(evt.newRect)}");
+        if (skipNextBoundsClamp)
+        {
+            skipNextBoundsClamp = false;
+            LogLayout("BoundsGeometryChanged skipped because a center was just applied");
+            return;
+        }
+
         if (shouldCenterOnNextLayout)
         {
             CenterInBounds();
@@ -172,6 +215,15 @@ public sealed class DraggableWindowController : IDisposable
         }
 
         ClampToBounds();
+    }
+
+    private void OnPanelGeometryChanged(GeometryChangedEvent evt)
+    {
+        LogLayout($"PanelGeometryChanged old={FormatRect(evt.oldRect)} new={FormatRect(evt.newRect)}");
+        if (shouldCenterOnNextLayout)
+        {
+            CenterInBounds();
+        }
     }
 
     private void SetPanelPosition(Vector2 panelPosition, bool clampToBounds)
@@ -182,6 +234,7 @@ public sealed class DraggableWindowController : IDisposable
         }
 
         Vector2 targetPosition = clampToBounds ? ClampPanelPosition(panelPosition) : panelPosition;
+        LogLayout($"SetPanelPosition input={FormatVector(panelPosition)} target={FormatVector(targetPosition)} clamp={clampToBounds}");
         panel.style.right = StyleKeyword.Auto;
         panel.style.bottom = StyleKeyword.Auto;
         panel.style.left = targetPosition.x;
@@ -197,16 +250,22 @@ public sealed class DraggableWindowController : IDisposable
 
         Rect bounds = boundsRoot.worldBound;
         Rect panelBounds = panel.worldBound;
-        if (bounds.width <= 0f || bounds.height <= 0f || panelBounds.width <= 0f || panelBounds.height <= 0f)
+        if (!IsPositiveFinite(bounds.width) ||
+            !IsPositiveFinite(bounds.height) ||
+            !IsPositiveFinite(panelBounds.width) ||
+            !IsPositiveFinite(panelBounds.height))
         {
+            LogLayout($"ClampPanelPosition skipped because bounds are not ready bounds={FormatRect(bounds)} panel={FormatRect(panelBounds)}");
             return panelPosition;
         }
 
         float maxX = Mathf.Max(0f, bounds.width - panelBounds.width);
         float maxY = Mathf.Max(0f, bounds.height - panelBounds.height);
-        return new Vector2(
+        Vector2 clampedPosition = new Vector2(
             Mathf.Clamp(panelPosition.x, 0f, maxX),
             Mathf.Clamp(panelPosition.y, 0f, maxY));
+        LogLayout($"ClampPanelPosition input={FormatVector(panelPosition)} max=({FormatFloat(maxX)},{FormatFloat(maxY)}) output={FormatVector(clampedPosition)}");
+        return clampedPosition;
     }
 
     private Vector2 GetCurrentPanelPosition()
@@ -215,15 +274,28 @@ public sealed class DraggableWindowController : IDisposable
         {
             Rect bounds = boundsRoot.worldBound;
             Rect panelBounds = panel.worldBound;
-            if (bounds.width > 0f && bounds.height > 0f && panelBounds.width > 0f && panelBounds.height > 0f)
+            if (IsPositiveFinite(bounds.width) &&
+                IsPositiveFinite(bounds.height) &&
+                IsPositiveFinite(panelBounds.width) &&
+                IsPositiveFinite(panelBounds.height))
             {
-                return new Vector2(panelBounds.xMin - bounds.xMin, panelBounds.yMin - bounds.yMin);
+                Vector2 currentPosition = new Vector2(panelBounds.xMin - bounds.xMin, panelBounds.yMin - bounds.yMin);
+                LogLayout($"GetCurrentPanelPosition from world bounds={FormatVector(currentPosition)}");
+                return currentPosition;
             }
         }
 
-        return panel == null
-            ? Vector2.zero
-            : new Vector2(panel.resolvedStyle.left, panel.resolvedStyle.top);
+        if (panel == null)
+        {
+            LogLayout("GetCurrentPanelPosition fell back to zero because panel is null");
+            return Vector2.zero;
+        }
+
+        float left = SanitizeCoordinate(panel.resolvedStyle.left);
+        float top = SanitizeCoordinate(panel.resolvedStyle.top);
+        Vector2 fallbackPosition = new Vector2(left, top);
+        LogLayout($"GetCurrentPanelPosition from resolved style={FormatVector(fallbackPosition)}");
+        return fallbackPosition;
     }
 
     private bool TryGetCenteredPosition(out Vector2 centeredPosition)
@@ -231,19 +303,108 @@ public sealed class DraggableWindowController : IDisposable
         centeredPosition = Vector2.zero;
         if (boundsRoot == null || panel == null)
         {
+            LogLayout("TryGetCenteredPosition failed because boundsRoot or panel is null");
             return false;
         }
 
         Rect bounds = boundsRoot.worldBound;
         Rect panelBounds = panel.worldBound;
-        if (bounds.width <= 0f || bounds.height <= 0f || panelBounds.width <= 0f || panelBounds.height <= 0f)
+        if (!IsPositiveFinite(bounds.width) ||
+            !IsPositiveFinite(bounds.height) ||
+            !IsPositiveFinite(panelBounds.width) ||
+            !IsPositiveFinite(panelBounds.height))
         {
+            LogLayout($"TryGetCenteredPosition failed because bounds are not ready bounds={FormatRect(bounds)} panel={FormatRect(panelBounds)}");
             return false;
         }
 
         centeredPosition = new Vector2(
             Mathf.Max(0f, (bounds.width - panelBounds.width) * 0.5f),
             Mathf.Max(0f, (bounds.height - panelBounds.height) * 0.5f));
+        LogLayout($"TryGetCenteredPosition computed centered={FormatVector(centeredPosition)}");
         return true;
+    }
+
+    private static bool IsPositiveFinite(float value)
+    {
+        return !float.IsNaN(value) && !float.IsInfinity(value) && value > 0f;
+    }
+
+    private static float SanitizeCoordinate(float value)
+    {
+        return float.IsNaN(value) || float.IsInfinity(value) ? 0f : value;
+    }
+
+    private void LogLayout(string message)
+    {
+        if (!LayoutDebugLogging)
+        {
+            return;
+        }
+
+        Debug.Log($"[DraggableWindow:{GetDebugId()}] {message} | {BuildStateSummary()}");
+    }
+
+    private string GetDebugId()
+    {
+        string panelName = GetElementName(panel);
+        string boundsName = GetElementName(boundsRoot);
+        return $"{panelName}|{boundsName}";
+    }
+
+    private string BuildStateSummary()
+    {
+        return $"shouldCenter={shouldCenterOnNextLayout} dragging={isDragging} pointerId={dragPointerId} bounds={DescribeElement(boundsRoot)} panel={DescribeElement(panel)} handle={DescribeElement(handle)} ignored={DescribeElement(ignoredElement)}";
+    }
+
+    private static string DescribeElement(VisualElement element)
+    {
+        if (element == null)
+        {
+            return "<null>";
+        }
+
+        IResolvedStyle style = element.resolvedStyle;
+        return $"{element.GetType().Name}('{GetElementName(element)}') wb={FormatRect(element.worldBound)} rs=({FormatFloat(style.left)},{FormatFloat(style.top)},{FormatFloat(style.width)},{FormatFloat(style.height)},{style.display})";
+    }
+
+    private static string GetElementName(VisualElement element)
+    {
+        if (element == null)
+        {
+            return "null";
+        }
+
+        return string.IsNullOrWhiteSpace(element.name) ? element.GetType().Name : element.name;
+    }
+
+    private static string FormatRect(Rect rect)
+    {
+        return $"({FormatFloat(rect.x)},{FormatFloat(rect.y)},{FormatFloat(rect.width)},{FormatFloat(rect.height)})";
+    }
+
+    private static string FormatVector(Vector2 value)
+    {
+        return $"({FormatFloat(value.x)},{FormatFloat(value.y)})";
+    }
+
+    private static string FormatFloat(float value)
+    {
+        if (float.IsNaN(value))
+        {
+            return "NaN";
+        }
+
+        if (float.IsPositiveInfinity(value))
+        {
+            return "+Inf";
+        }
+
+        if (float.IsNegativeInfinity(value))
+        {
+            return "-Inf";
+        }
+
+        return value.ToString("0.###");
     }
 }

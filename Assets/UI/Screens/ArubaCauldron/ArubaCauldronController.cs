@@ -5,6 +5,7 @@ using UnityEngine.UIElements;
 
 public sealed class ArubaCauldronController : IDisposable
 {
+    private const bool LayoutDebugLogging = false;
     private const string SharedPanelStyleResourcePath = "Shared/OverlayPanel";
     private const string ArubaCauldronStyleResourcePath = "ArubaCauldron/ArubaCauldron";
     private const string ArubaCauldronUxmlResourcePath = "ArubaCauldron/ArubaCauldron";
@@ -62,6 +63,8 @@ public sealed class ArubaCauldronController : IDisposable
             return;
         }
 
+        LogLayout("Attach start");
+
         VisualTreeAsset arubaTree = Resources.Load<VisualTreeAsset>(ArubaCauldronUxmlResourcePath);
         if (arubaTree == null)
         {
@@ -96,16 +99,19 @@ public sealed class ArubaCauldronController : IDisposable
 
         attachTarget.Add(overlayRoot);
         overlayRoot.BlockRaycasts();
+        LogLayout("Attach after add");
 
         BindUiElements();
+        LogLayout("Attach after bind");
         PopulateQuantityChoices();
         ApplyPortraitTexture();
-        panelDragController = new DraggableWindowController(overlayRoot, panelRoot, headerRoot, closeButton);
+        panelDragController = new DraggableWindowController(backdropElement ?? overlayRoot, panelRoot, headerRoot, closeButton);
         RegisterCallbacks();
         RenderBonusMaps();
         SetStatus(DefaultStatusMessage, isSuccess: false, useTone: false);
         RenderRewards();
         SetVisible(false);
+        LogLayout("Attach complete");
     }
 
     public void Show()
@@ -120,15 +126,19 @@ public sealed class ArubaCauldronController : IDisposable
             return;
         }
 
+        LogLayout("Show before refresh");
         Refresh();
         ignoreNextBackdropPointerUp = true;
         SetVisible(true);
+        LogLayout("Show complete");
     }
 
     public void Hide()
     {
+        LogLayout("Hide start");
         ignoreNextBackdropPointerUp = false;
         SetVisible(false);
+        LogLayout("Hide complete");
     }
 
     public void Refresh()
@@ -193,6 +203,8 @@ public sealed class ArubaCauldronController : IDisposable
             return;
         }
 
+        LogLayout("Dispose start");
+
         panelDragController?.Dispose();
         panelDragController = null;
         UntrackObservedPlayer();
@@ -227,6 +239,7 @@ public sealed class ArubaCauldronController : IDisposable
         areBonusMapsRendered = false;
         isPendingRitual = false;
         ignoreNextBackdropPointerUp = false;
+        LogLayout("Dispose complete");
     }
 
     private void BindUiElements()
@@ -295,12 +308,19 @@ public sealed class ArubaCauldronController : IDisposable
         if (overlayRoot != null)
         {
             overlayRoot.RegisterCallback<PointerUpEvent>(OnOverlayPointerUp);
+            overlayRoot.RegisterCallback<GeometryChangedEvent>(OnOverlayGeometryChanged);
+        }
+
+        if (backdropElement != null)
+        {
+            backdropElement.RegisterCallback<GeometryChangedEvent>(OnBackdropGeometryChanged);
         }
 
         if (panelRoot != null)
         {
             panelRoot.RegisterCallback<PointerDownEvent>(OnPanelPointerDown);
             panelRoot.RegisterCallback<PointerUpEvent>(OnPanelPointerUp);
+            panelRoot.RegisterCallback<GeometryChangedEvent>(OnPanelGeometryChanged);
         }
 
         if (closeButton != null)
@@ -334,12 +354,19 @@ public sealed class ArubaCauldronController : IDisposable
         if (overlayRoot != null)
         {
             overlayRoot.UnregisterCallback<PointerUpEvent>(OnOverlayPointerUp);
+            overlayRoot.UnregisterCallback<GeometryChangedEvent>(OnOverlayGeometryChanged);
+        }
+
+        if (backdropElement != null)
+        {
+            backdropElement.UnregisterCallback<GeometryChangedEvent>(OnBackdropGeometryChanged);
         }
 
         if (panelRoot != null)
         {
             panelRoot.UnregisterCallback<PointerDownEvent>(OnPanelPointerDown);
             panelRoot.UnregisterCallback<PointerUpEvent>(OnPanelPointerUp);
+            panelRoot.UnregisterCallback<GeometryChangedEvent>(OnPanelGeometryChanged);
         }
 
         if (closeButton != null)
@@ -638,6 +665,7 @@ public sealed class ArubaCauldronController : IDisposable
             return;
         }
 
+        LogLayout($"SetVisible start isVisible={isVisible}");
         overlayRoot.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
         if (isVisible)
         {
@@ -647,6 +675,7 @@ public sealed class ArubaCauldronController : IDisposable
         {
             panelDragController?.StopDragging();
         }
+        LogLayout($"SetVisible complete isVisible={isVisible}");
     }
 
     private void SetStatus(string message, bool isSuccess, bool useTone)
@@ -691,6 +720,21 @@ public sealed class ArubaCauldronController : IDisposable
         evt.StopPropagation();
     }
 
+    private void OnOverlayGeometryChanged(GeometryChangedEvent evt)
+    {
+        LogLayout($"OverlayGeometryChanged old={FormatRect(evt.oldRect)} new={FormatRect(evt.newRect)}");
+    }
+
+    private void OnBackdropGeometryChanged(GeometryChangedEvent evt)
+    {
+        LogLayout($"BackdropGeometryChanged old={FormatRect(evt.oldRect)} new={FormatRect(evt.newRect)}");
+    }
+
+    private void OnPanelGeometryChanged(GeometryChangedEvent evt)
+    {
+        LogLayout($"PanelGeometryChanged old={FormatRect(evt.oldRect)} new={FormatRect(evt.newRect)}");
+    }
+
     private static void OnPanelPointerDown(PointerDownEvent evt)
     {
         evt.StopPropagation();
@@ -699,5 +743,52 @@ public sealed class ArubaCauldronController : IDisposable
     private static void OnPanelPointerUp(PointerUpEvent evt)
     {
         evt.StopPropagation();
+    }
+
+    private void LogLayout(string message)
+    {
+        if (!LayoutDebugLogging)
+        {
+            return;
+        }
+
+        Debug.Log($"[ArubaCauldronLayout] {message} | visible={IsVisible} ignoreNextBackdrop={ignoreNextBackdropPointerUp} overlay={DescribeElement(overlayRoot)} backdrop={DescribeElement(backdropElement)} panel={DescribeElement(panelRoot)}");
+    }
+
+    private static string DescribeElement(VisualElement element)
+    {
+        if (element == null)
+        {
+            return "<null>";
+        }
+
+        IResolvedStyle style = element.resolvedStyle;
+        string elementName = string.IsNullOrWhiteSpace(element.name) ? element.GetType().Name : element.name;
+        return $"{element.GetType().Name}('{elementName}') wb={FormatRect(element.worldBound)} rs=({FormatFloat(style.left)},{FormatFloat(style.top)},{FormatFloat(style.width)},{FormatFloat(style.height)},{style.display})";
+    }
+
+    private static string FormatRect(Rect rect)
+    {
+        return $"({FormatFloat(rect.x)},{FormatFloat(rect.y)},{FormatFloat(rect.width)},{FormatFloat(rect.height)})";
+    }
+
+    private static string FormatFloat(float value)
+    {
+        if (float.IsNaN(value))
+        {
+            return "NaN";
+        }
+
+        if (float.IsPositiveInfinity(value))
+        {
+            return "+Inf";
+        }
+
+        if (float.IsNegativeInfinity(value))
+        {
+            return "-Inf";
+        }
+
+        return value.ToString("0.###");
     }
 }
