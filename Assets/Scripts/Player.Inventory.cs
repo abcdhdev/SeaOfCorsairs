@@ -7,7 +7,7 @@ using UnityEngine;
 public partial class Player
 {
     // Cannonball visuals and impact timing use one fixed speed, independent of cannon range.
-    private const float FixedPlayerCannonProjectileSpeed = 16f;
+    private const float FixedPlayerCannonProjectileSpeed = 20f;
 
     private struct CurrentShipCannonCombatProfile
     {
