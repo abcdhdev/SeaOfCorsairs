@@ -114,3 +114,7 @@ backend/**/obj/
 !/Builds/
 !/Builds/LinuxServerBuild/
 !/Builds/LinuxServerBuild/Dockerfile
+
+# Local third-party package imports
+/Assets/Modern UI Pack/
+/Assets/Modern UI Pack.meta
