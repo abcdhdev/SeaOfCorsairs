@@ -85,6 +85,7 @@ public partial class GameUIController : MonoBehaviour
     private Button topMenuIslandBuildingButton;
     private Button topMenuGuildsButton;
     private Button topMenuShipButton;
+    private Button topMenuSettingsButton;
     private Button topMenuLogoutButton;
     private VisualElement activeActionItemHudRoot;
     private VisualElement activeActionItemHudBlackGunpowder;
@@ -97,6 +98,7 @@ public partial class GameUIController : MonoBehaviour
     private MarketController marketController;
     private GuildManagementController guildManagementController;
     private ArubaCauldronController arubaCauldronController;
+    private SettingsMenuController settingsMenuController;
 
     private VisualElement combatOverlayLayer;
     private VisualElement healthBox;
@@ -180,6 +182,7 @@ public partial class GameUIController : MonoBehaviour
         EnsureActionItemMenu();
         EnsureMarketSection();
         EnsureGuildManagementSection();
+        EnsureSettingsMenuSection();
         RegisterBlockingUiElements();
         BuildSourceSkills();
         BuildActionBarSlots();
@@ -224,6 +227,8 @@ public partial class GameUIController : MonoBehaviour
         guildManagementController = null;
         arubaCauldronController?.Dispose();
         arubaCauldronController = null;
+        settingsMenuController?.Dispose();
+        settingsMenuController = null;
         StopSkillDrag();
         ClearPendingSourcePress();
         TrackHealthTarget(null);
@@ -298,6 +303,7 @@ public partial class GameUIController : MonoBehaviour
         guildManagementController?.Refresh();
         shipSectionController?.Refresh();
         arubaCauldronController?.Refresh();
+        settingsMenuController?.Refresh();
         RefreshIslandEditUi();
         RefreshActionBarVisibility();
         UpdateTopMenuButtonStates();
@@ -381,6 +387,7 @@ public partial class GameUIController : MonoBehaviour
         topMenuIslandBuildingButton = root.Q<Button>("TopMenuIslandBuildingButton");
         topMenuGuildsButton = root.Q<Button>("TopMenuGuildsButton");
         topMenuShipButton = root.Q<Button>("TopMenuShipButton");
+        topMenuSettingsButton = root.Q<Button>("TopMenuSettingsButton");
         topMenuLogoutButton = root.Q<Button>("TopMenuLogoutButton");
         activeActionItemHudRoot = root.Q<VisualElement>("ActiveActionItemsRoot");
         activeActionItemHudBlackGunpowder = root.Q<VisualElement>("ActiveActionItemHudBlackGunpowder");
@@ -430,6 +437,7 @@ public partial class GameUIController : MonoBehaviour
         topMenuIslandBuildingButton = null;
         topMenuGuildsButton = null;
         topMenuShipButton = null;
+        topMenuSettingsButton = null;
         topMenuLogoutButton = null;
         activeActionItemHudRoot = null;
         activeActionItemHudBlackGunpowder = null;
@@ -438,6 +446,7 @@ public partial class GameUIController : MonoBehaviour
         isTopMenuShieldDropdownOpen = false;
         marketController = null;
         guildManagementController = null;
+        settingsMenuController = null;
         actionBarToggleButton = null;
         actionBarBody = null;
         ClearRewardNotificationState();
@@ -516,6 +525,18 @@ public partial class GameUIController : MonoBehaviour
         VisualElement attachTarget = root.Q<VisualElement>("MetaRoot") ?? root;
         arubaCauldronController = new ArubaCauldronController(attachTarget, GetLocalPlayerForMarket);
         arubaCauldronController.Attach();
+    }
+
+    private void EnsureSettingsMenuSection()
+    {
+        if (root == null || settingsMenuController != null)
+        {
+            return;
+        }
+
+        VisualElement attachTarget = root.Q<VisualElement>("MetaRoot") ?? root;
+        settingsMenuController = new SettingsMenuController(attachTarget, OnTopMenuLogoutClicked);
+        settingsMenuController.Attach();
     }
 
     private void RefreshWeaponSelectionTooltips()

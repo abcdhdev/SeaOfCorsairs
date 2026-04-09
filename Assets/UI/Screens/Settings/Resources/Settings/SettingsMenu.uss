@@ -1,0 +1,224 @@
+.settings-panel {
+    width: 920px;
+    max-width: 92%;
+    height: 610px;
+    max-height: 82%;
+}
+
+.settings-body {
+    min-height: 0;
+}
+
+.settings-category-scroll {
+    width: 210px;
+    min-width: 210px;
+}
+
+.settings-content-scroll {
+    flex-grow: 1;
+}
+
+.settings-content-scroll .unity-scroll-view__content-container {
+    flex-direction: column;
+}
+
+.settings-category-title {
+    color: rgba(243, 228, 197, 0.98);
+    -unity-font-style: bold;
+    font-size: 24px;
+}
+
+.settings-category-subtitle {
+    margin-top: 4px;
+    margin-bottom: 14px;
+    color: rgba(184, 171, 146, 0.92);
+    font-size: 13px;
+    white-space: normal;
+}
+
+.settings-section {
+    flex-direction: column;
+}
+
+.settings-card {
+    flex-direction: column;
+    padding-top: 14px;
+    padding-right: 14px;
+    padding-bottom: 14px;
+    padding-left: 14px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(95, 68, 38, 0.92);
+    border-right-color: rgba(95, 68, 38, 0.92);
+    border-bottom-color: rgba(95, 68, 38, 0.92);
+    border-left-color: rgba(95, 68, 38, 0.92);
+    background-color: rgba(8, 13, 22, 0.97);
+}
+
+.settings-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 76px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(70, 53, 30, 0.7);
+}
+
+.settings-row-last {
+    border-bottom-width: 0;
+    padding-bottom: 0;
+}
+
+.settings-row-copy {
+    flex-grow: 1;
+    margin-right: 18px;
+}
+
+.settings-row-title {
+    color: rgba(244, 229, 201, 0.98);
+    -unity-font-style: bold;
+    font-size: 15px;
+}
+
+.settings-row-description {
+    margin-top: 4px;
+    color: rgba(183, 171, 147, 0.92);
+    font-size: 12px;
+    white-space: normal;
+}
+
+.settings-dropdown,
+.settings-toggle {
+    width: 220px;
+    min-width: 220px;
+    flex-shrink: 0;
+}
+
+.settings-dropdown > .unity-base-field__label,
+.settings-toggle > .unity-base-field__label {
+    display: none;
+}
+
+.settings-dropdown > .unity-base-field__input {
+    margin-left: 0;
+    min-height: 34px;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(151, 107, 55, 0.94);
+    border-right-color: rgba(151, 107, 55, 0.94);
+    border-bottom-color: rgba(151, 107, 55, 0.94);
+    border-left-color: rgba(151, 107, 55, 0.94);
+    background-color: rgba(23, 13, 8, 0.98);
+    color: rgba(245, 226, 196, 0.98);
+}
+
+.settings-toggle {
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.settings-toggle .unity-toggle__input {
+    width: 22px;
+    height: 22px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(151, 107, 55, 0.94);
+    border-right-color: rgba(151, 107, 55, 0.94);
+    border-bottom-color: rgba(151, 107, 55, 0.94);
+    border-left-color: rgba(151, 107, 55, 0.94);
+    background-color: rgba(23, 13, 8, 0.98);
+}
+
+.settings-toggle .unity-toggle__checkmark {
+    color: rgba(243, 226, 188, 0.98);
+}
+
+.settings-session-copy {
+    color: rgba(230, 220, 197, 0.96);
+    font-size: 13px;
+    white-space: normal;
+}
+
+.settings-action-row {
+    flex-direction: row;
+    margin-top: 16px;
+    justify-content: flex-end;
+}
+
+.settings-action-button {
+    min-width: 138px;
+    height: 38px;
+    margin-left: 10px;
+    padding-right: 14px;
+    padding-left: 14px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    color: rgba(247, 235, 215, 0.98);
+    -unity-font-style: bold;
+    font-size: 12px;
+}
+
+.settings-action-button-secondary {
+    border-top-color: rgba(118, 137, 166, 0.92);
+    border-right-color: rgba(118, 137, 166, 0.92);
+    border-bottom-color: rgba(118, 137, 166, 0.92);
+    border-left-color: rgba(118, 137, 166, 0.92);
+    background-color: rgba(22, 31, 43, 0.96);
+}
+
+.settings-action-button-secondary:hover {
+    background-color: rgba(31, 44, 61, 0.98);
+}
+
+.settings-action-button-danger {
+    border-top-color: rgba(170, 89, 77, 0.92);
+    border-right-color: rgba(170, 89, 77, 0.92);
+    border-bottom-color: rgba(170, 89, 77, 0.92);
+    border-left-color: rgba(170, 89, 77, 0.92);
+    background-color: rgba(88, 29, 29, 0.97);
+}
+
+.settings-action-button-danger:hover {
+    background-color: rgba(110, 37, 37, 0.99);
+}
+
+.settings-status-label {
+    margin-top: 12px;
+    min-height: 36px;
+    padding-top: 8px;
+    padding-right: 12px;
+    padding-bottom: 8px;
+    padding-left: 12px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(88, 67, 38, 0.88);
+    border-right-color: rgba(88, 67, 38, 0.88);
+    border-bottom-color: rgba(88, 67, 38, 0.88);
+    border-left-color: rgba(88, 67, 38, 0.88);
+    background-color: rgba(10, 14, 20, 0.95);
+    color: rgba(216, 206, 185, 0.96);
+    font-size: 12px;
+    -unity-text-align: middle-left;
+}
+
+.settings-status-success {
+    color: rgba(182, 242, 184, 0.98);
+}
+
+.settings-status-error {
+    color: rgba(255, 171, 156, 0.98);
+}

@@ -136,6 +136,7 @@ namespace GameSystem
             Initialize();
             CmdArgs();
             SetRenderScale();
+            ApplyTargetFramerate();
         }
         
         private void Initialize()
@@ -213,6 +214,17 @@ namespace GameSystem
 #if !UNITY_EDITOR
             UniversalRenderPipeline.asset.renderScale = renderScale;
 #endif
+        }
+
+        private void ApplyTargetFramerate()
+        {
+            Application.targetFrameRate = targetFramerate switch
+            {
+                Framerate._30 => 30,
+                Framerate._60 => 60,
+                Framerate._120 => 120,
+                _ => 60
+            };
         }
 
         private void Update()
@@ -543,7 +555,41 @@ namespace GameSystem
 
         public void ToggleSRPBatcher(bool enableSRPBatcher)
         {
+            if (UniversalRenderPipeline.asset == null)
+            {
+                return;
+            }
+
             UniversalRenderPipeline.asset.useSRPBatcher = enableSRPBatcher;
+        }
+
+        public bool IsSrpBatcherEnabled => UniversalRenderPipeline.asset != null && UniversalRenderPipeline.asset.useSRPBatcher;
+
+        public void SetRenderResolution(RenderRes renderResolution)
+        {
+            maxRenderSize = renderResolution;
+            SetRenderScale();
+        }
+
+        public void SetDynamicResolutionEnabled(bool enabled)
+        {
+            variableResolution = enabled;
+            if (!enabled)
+            {
+                currentDynamicScale = 1f;
+                ScalableBufferManager.ResizeBuffers(1f, 1f);
+            }
+        }
+
+        public void SetTargetFramerate(Framerate framerate)
+        {
+            targetFramerate = framerate;
+            ApplyTargetFramerate();
+        }
+
+        public void SetSpeedFormat(SpeedFormat format)
+        {
+            speedFormat = format;
         }
 
         public static void LoadScene(int buildIndex, LoadSceneMode mode = LoadSceneMode.Single)

@@ -45,6 +45,11 @@ public partial class GameUIController
             UIToolkitRaycastChecker.RegisterBlockingElement(arubaCauldronController.OverlayRoot);
         }
 
+        if (settingsMenuController != null && settingsMenuController.OverlayRoot != null)
+        {
+            UIToolkitRaycastChecker.RegisterBlockingElement(settingsMenuController.OverlayRoot);
+        }
+
         if (topMenuShieldDropdown != null)
         {
             UIToolkitRaycastChecker.RegisterBlockingElement(topMenuShieldDropdown);
@@ -111,6 +116,11 @@ public partial class GameUIController
         if (arubaCauldronController != null && arubaCauldronController.OverlayRoot != null)
         {
             UIToolkitRaycastChecker.UnregisterBlockingElement(arubaCauldronController.OverlayRoot);
+        }
+
+        if (settingsMenuController != null && settingsMenuController.OverlayRoot != null)
+        {
+            UIToolkitRaycastChecker.UnregisterBlockingElement(settingsMenuController.OverlayRoot);
         }
 
         if (topMenuShieldDropdown != null)
@@ -192,6 +202,11 @@ public partial class GameUIController
             topMenuShipButton.clicked += OnTopMenuShipClicked;
         }
 
+        if (topMenuSettingsButton != null)
+        {
+            topMenuSettingsButton.clicked += OnTopMenuSettingsClicked;
+        }
+
         if (topMenuLogoutButton != null)
         {
             topMenuLogoutButton.clicked += OnTopMenuLogoutClicked;
@@ -258,6 +273,11 @@ public partial class GameUIController
         if (topMenuShipButton != null)
         {
             topMenuShipButton.clicked -= OnTopMenuShipClicked;
+        }
+
+        if (topMenuSettingsButton != null)
+        {
+            topMenuSettingsButton.clicked -= OnTopMenuSettingsClicked;
         }
 
         if (topMenuLogoutButton != null)

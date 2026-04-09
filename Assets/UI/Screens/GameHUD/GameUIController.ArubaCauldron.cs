@@ -11,6 +11,7 @@ public partial class GameUIController
         SetTopMenuShieldDropdownVisible(false);
         CloseGuildManagement();
         CloseMarket();
+        CloseSettingsMenu();
         shipSectionController?.Hide();
         CloseAmmoMenu();
         CloseHarpoonMenu();

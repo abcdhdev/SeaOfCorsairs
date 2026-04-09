@@ -1,0 +1,92 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="SettingsMenuOverlay" class="window-overlay-root settings-overlay-root">
+        <ui:VisualElement name="SettingsMenuPanel" class="window-panel settings-panel">
+            <ui:VisualElement name="SettingsMenuHeader" class="window-header settings-header">
+                <ui:VisualElement class="window-title-block">
+                    <ui:Label text="Settings" class="window-title"/>
+                    <ui:Label text="Captain controls for graphics, gameplay readouts, and session actions." class="window-subtitle"/>
+                </ui:VisualElement>
+                <ui:Button name="SettingsMenuCloseButton" text="X" class="window-close-button"/>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="window-body settings-body">
+                <ui:ScrollView class="window-category-scroll settings-category-scroll" mode="Vertical">
+                    <ui:VisualElement name="SettingsCategoryList" class="window-category-list"/>
+                </ui:ScrollView>
+
+                <ui:ScrollView name="SettingsContentScrollView" class="window-items-scroll settings-content-scroll" mode="Vertical">
+                    <ui:Label name="SettingsCategoryTitleLabel" text="Display" class="settings-category-title"/>
+                    <ui:Label name="SettingsCategorySubtitleLabel" text="Tune rendering quality, frame rate, and performance controls for this client." class="settings-category-subtitle"/>
+
+                    <ui:VisualElement name="SettingsDisplaySection" class="settings-section">
+                        <ui:VisualElement class="settings-card">
+                            <ui:VisualElement class="settings-row">
+                                <ui:VisualElement class="settings-row-copy">
+                                    <ui:Label text="Graphics Quality" class="settings-row-title"/>
+                                    <ui:Label text="Switch the active quality preset used by Unity rendering and post-processing." class="settings-row-description"/>
+                                </ui:VisualElement>
+                                <ui:DropdownField name="SettingsQualityDropdown" class="settings-dropdown"/>
+                            </ui:VisualElement>
+
+                            <ui:VisualElement class="settings-row">
+                                <ui:VisualElement class="settings-row-copy">
+                                    <ui:Label text="Target Frame Rate" class="settings-row-title"/>
+                                    <ui:Label text="Caps the client frame rate target for this session." class="settings-row-description"/>
+                                </ui:VisualElement>
+                                <ui:DropdownField name="SettingsFramerateDropdown" class="settings-dropdown"/>
+                            </ui:VisualElement>
+
+                            <ui:VisualElement class="settings-row">
+                                <ui:VisualElement class="settings-row-copy">
+                                    <ui:Label text="Render Size Cap" class="settings-row-title"/>
+                                    <ui:Label text="Limits the maximum internal render resolution used by the camera pipeline." class="settings-row-description"/>
+                                </ui:VisualElement>
+                                <ui:DropdownField name="SettingsRenderResolutionDropdown" class="settings-dropdown"/>
+                            </ui:VisualElement>
+
+                            <ui:VisualElement class="settings-row">
+                                <ui:VisualElement class="settings-row-copy">
+                                    <ui:Label text="Dynamic Resolution" class="settings-row-title"/>
+                                    <ui:Label text="Allows the client to scale render resolution up or down to chase the frame-rate target." class="settings-row-description"/>
+                                </ui:VisualElement>
+                                <ui:Toggle name="SettingsDynamicResolutionToggle" class="settings-toggle" value="false"/>
+                            </ui:VisualElement>
+
+                            <ui:VisualElement class="settings-row settings-row-last">
+                                <ui:VisualElement class="settings-row-copy">
+                                    <ui:Label text="SRP Batcher" class="settings-row-title"/>
+                                    <ui:Label text="Toggles the Scriptable Render Pipeline batcher for compatible materials." class="settings-row-description"/>
+                                </ui:VisualElement>
+                                <ui:Toggle name="SettingsSrpBatcherToggle" class="settings-toggle" value="true"/>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement name="SettingsGameplaySection" class="settings-section">
+                        <ui:VisualElement class="settings-card">
+                            <ui:VisualElement class="settings-row settings-row-last">
+                                <ui:VisualElement class="settings-row-copy">
+                                    <ui:Label text="Speed Units" class="settings-row-title"/>
+                                    <ui:Label text="Choose whether sailing speed is shown in miles per hour or kilometers per hour." class="settings-row-description"/>
+                                </ui:VisualElement>
+                                <ui:DropdownField name="SettingsSpeedFormatDropdown" class="settings-dropdown"/>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement name="SettingsSessionSection" class="settings-section">
+                        <ui:VisualElement class="settings-card">
+                            <ui:Label text="Return to your voyage when you are done, or sign out to leave the current backend session." class="settings-session-copy"/>
+                            <ui:VisualElement class="settings-action-row">
+                                <ui:Button name="SettingsReturnToSeaButton" text="Return to Sea" class="settings-action-button settings-action-button-secondary"/>
+                                <ui:Button name="SettingsSignOutButton" text="Sign Out" class="settings-action-button settings-action-button-danger"/>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:ScrollView>
+            </ui:VisualElement>
+
+            <ui:Label name="SettingsStatusLabel" text="Adjust display and gameplay preferences for this sailing session." class="settings-status-label"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
