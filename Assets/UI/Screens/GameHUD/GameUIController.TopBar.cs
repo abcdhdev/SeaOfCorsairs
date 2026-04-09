@@ -209,6 +209,7 @@ public partial class GameUIController
     private void OnTopMenuBagClicked()
     {
         SetTopMenuShieldDropdownVisible(false);
+        CloseWorldMap();
         CloseGuildManagement();
         CloseArubaCauldron();
         CloseSettingsMenu();
@@ -220,6 +221,7 @@ public partial class GameUIController
     private void OnTopMenuShipClicked()
     {
         SetTopMenuShieldDropdownVisible(false);
+        CloseWorldMap();
         CloseGuildManagement();
         CloseArubaCauldron();
         CloseSettingsMenu();
@@ -231,6 +233,7 @@ public partial class GameUIController
     private void OnTopMenuLogoutClicked()
     {
         SetTopMenuShieldDropdownVisible(false);
+        CloseWorldMap();
         CloseGuildManagement();
         CloseArubaCauldron();
         CloseSettingsMenu();
@@ -241,6 +244,7 @@ public partial class GameUIController
 
     private void OnTopMenuShieldClicked()
     {
+        CloseWorldMap();
         CloseMarket();
         CloseArubaCauldron();
         CloseSettingsMenu();
@@ -255,6 +259,7 @@ public partial class GameUIController
     private void OnTopMenuIslandBuildingClicked()
     {
         SetTopMenuShieldDropdownVisible(false);
+        CloseWorldMap();
         CloseGuildManagement();
         CloseArubaCauldron();
         CloseSettingsMenu();
@@ -270,6 +275,7 @@ public partial class GameUIController
     private void OnTopMenuGuildsClicked()
     {
         SetTopMenuShieldDropdownVisible(false);
+        CloseWorldMap();
         CloseArubaCauldron();
         CloseSettingsMenu();
         CloseMarket();
@@ -285,6 +291,7 @@ public partial class GameUIController
     private void OnTopMenuSettingsClicked()
     {
         SetTopMenuShieldDropdownVisible(false);
+        CloseWorldMap();
         CloseGuildManagement();
         CloseArubaCauldron();
         CloseMarket();

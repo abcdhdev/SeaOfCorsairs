@@ -51,7 +51,7 @@ public static class CombatTargetingUtility
             }
 
             GameObject candidate = targetable.TargetGameObject;
-            if (candidate == null || candidate == requester)
+            if (candidate == null || candidate == requester || !IsValidTargetForRequester(requester, candidate))
             {
                 continue;
             }
@@ -71,6 +71,11 @@ public static class CombatTargetingUtility
 
     public static bool IsTargetableCollider(Collider hitCollider)
     {
+        return IsTargetableCollider(hitCollider, null);
+    }
+
+    public static bool IsTargetableCollider(Collider hitCollider, GameObject requester)
+    {
         if (hitCollider == null)
         {
             return false;
@@ -81,7 +86,8 @@ public static class CombatTargetingUtility
         {
             if (parentBehaviours[index] is ITargetable targetable && targetable.CanBeTargeted)
             {
-                return targetable.TargetGameObject != null;
+                GameObject target = targetable.TargetGameObject;
+                return target != null && IsValidTargetForRequester(requester, target);
             }
         }
 
@@ -253,8 +259,6 @@ public static class CombatTargetingUtility
             return false;
         }
 
-        // Use one strict rule for every target: the click ray must intersect the target's
-        // rendered/collider bounds (with only a small padding for playability).
         Bounds expandedBounds = targetBounds;
         float selectionPadding = Mathf.Max(0.35f, minimumSelectionRadius * 0.2f);
         expandedBounds.Expand(selectionPadding * 2f);
@@ -266,5 +270,25 @@ public static class CombatTargetingUtility
 
         distanceAlongRay = hitDistance;
         return true;
+    }
+
+    private static bool IsValidTargetForRequester(GameObject requester, GameObject candidate)
+    {
+        if (candidate == null || requester == null)
+        {
+            return true;
+        }
+
+        if (!WorldMapMembershipUtility.TryGetMapId(requester, out string requesterMapId))
+        {
+            return true;
+        }
+
+        if (!WorldMapMembershipUtility.TryGetMapId(candidate, out string candidateMapId))
+        {
+            return false;
+        }
+
+        return string.Equals(requesterMapId, candidateMapId, System.StringComparison.OrdinalIgnoreCase);
     }
 }

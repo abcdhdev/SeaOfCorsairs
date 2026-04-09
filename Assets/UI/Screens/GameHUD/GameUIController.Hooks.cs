@@ -65,6 +65,8 @@ public partial class GameUIController
             UIToolkitRaycastChecker.RegisterBlockingElement(deadOverlayRoot);
         }
 
+        RegisterWorldMapBlockingUiElements();
+
         if (cameraZoomRoot != null)
         {
             UIToolkitRaycastChecker.RegisterBlockingElement(cameraZoomRoot);
@@ -137,6 +139,8 @@ public partial class GameUIController
         {
             UIToolkitRaycastChecker.UnregisterBlockingElement(deadOverlayRoot);
         }
+
+        UnregisterWorldMapBlockingUiElements();
 
         if (cameraZoomRoot != null)
         {
@@ -212,6 +216,8 @@ public partial class GameUIController
             topMenuLogoutButton.clicked += OnTopMenuLogoutClicked;
         }
 
+        RegisterWorldMapCallbacks();
+
         if (root != null)
         {
             root.RegisterCallback<PointerMoveEvent>(OnRootPointerMove);
@@ -284,6 +290,8 @@ public partial class GameUIController
         {
             topMenuLogoutButton.clicked -= OnTopMenuLogoutClicked;
         }
+
+        UnregisterWorldMapCallbacks();
 
         if (root != null)
         {

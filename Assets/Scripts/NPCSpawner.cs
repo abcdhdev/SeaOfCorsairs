@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 
 /// <summary>
@@ -73,19 +74,27 @@ public class NPCSpawner : NetworkBehaviour
     private GameObject resolvedNpcNetworkPrefab;
     private bool waterSurfaceDataCached;
     private float cachedWaterSurfaceY = float.NaN;
+    private bool definitionsRegistered;
 
     private void Awake()
     {
         if (Instance != null && Instance != this)
         {
-            Debug.LogWarning("NPCSpawner: Multiple instances detected. Using the most recently initialized instance.");
+            Debug.LogWarning("NPCSpawner: Multiple instances detected. Legacy Instance access will point at the most recently initialized spawner. Use owner-spawner references or NpcDefinitionRegistry for multi-map-safe behavior.");
         }
 
         Instance = this;
+        RegisterDefinitions();
+    }
+
+    private void OnEnable()
+    {
+        RegisterDefinitions();
     }
 
     public override void OnDestroy()
     {
+        UnregisterDefinitions();
         ClearSpawnSlots();
 
         if (Instance == this)
@@ -94,6 +103,11 @@ public class NPCSpawner : NetworkBehaviour
         }
 
         base.OnDestroy();
+    }
+
+    private void OnDisable()
+    {
+        UnregisterDefinitions();
     }
 
     public override void OnNetworkSpawn()
@@ -365,6 +379,7 @@ public class NPCSpawner : NetworkBehaviour
         }
 
         GameObject npc = Instantiate(resolvedNpcNetworkPrefab, spawnPosition, slot.HomeRotation);
+        SceneManager.MoveGameObjectToScene(npc, gameObject.scene);
         if (!npc.TryGetComponent(out NPC npcComponent) || !npc.TryGetComponent(out NetworkObject networkObject))
         {
             Debug.LogError("NPCSpawner: NPC prefab must contain NPC and NetworkObject components.");
@@ -372,7 +387,13 @@ public class NPCSpawner : NetworkBehaviour
             return false;
         }
 
-        npcComponent.BindSpawnSlot(slot.SlotId, slot.HomePosition, slot.HomeRotation);
+        npcComponent.BindSpawnSlot(this, slot.SlotId, slot.HomePosition, slot.HomeRotation);
+        if (WorldMapManager.Instance != null &&
+            WorldMapManager.Instance.TryGetMapId(this, out string mapId))
+        {
+            npcComponent.SetWorldMapIdFromServer(mapId);
+        }
+
         ApplyWaterlineOffset(npc, spawnPosition);
 
         networkObject.Spawn();
@@ -869,6 +890,11 @@ public class NPCSpawner : NetworkBehaviour
                     continue;
                 }
 
+                if (!WorldMapSceneActivityUtility.IsRelevantPlayerForScopedMap(this, player))
+                {
+                    continue;
+                }
+
                 if ((player.transform.position - spawnPosition).sqrMagnitude <= clearanceSqrDistance)
                 {
                     return false;
@@ -906,6 +932,11 @@ public class NPCSpawner : NetworkBehaviour
         {
             Player player = players[i];
             if (player == null || !player.IsSpawned || player.IsDead)
+            {
+                continue;
+            }
+
+            if (!WorldMapSceneActivityUtility.IsRelevantPlayerForScopedMap(this, player))
             {
                 continue;
             }
@@ -1040,11 +1071,35 @@ public class NPCSpawner : NetworkBehaviour
 
     private void OnValidate()
     {
+        RegisterDefinitions();
+
         if (npcNetworkPrefab == null)
         {
             return;
         }
 
         IsValidNpcNetworkPrefab(npcNetworkPrefab, true);
+    }
+
+    private void RegisterDefinitions()
+    {
+        if (definitionsRegistered)
+        {
+            return;
+        }
+
+        NpcDefinitionRegistry.Register(npcDefinitions);
+        definitionsRegistered = true;
+    }
+
+    private void UnregisterDefinitions()
+    {
+        if (!definitionsRegistered)
+        {
+            return;
+        }
+
+        NpcDefinitionRegistry.Unregister(npcDefinitions);
+        definitionsRegistered = false;
     }
 }

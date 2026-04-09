@@ -1,4 +1,5 @@
 using System;
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -25,6 +26,10 @@ public sealed class Monster : NetworkBehaviour, ICombatEntity, IDamageSourceRece
         500,
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
+    private readonly NetworkVariable<FixedString32Bytes> networkWorldMapId = new(
+        default,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
 
     private MonsterSpawner ownerSpawner;
     private int spawnSlotId = -1;
@@ -39,6 +44,7 @@ public sealed class Monster : NetworkBehaviour, ICombatEntity, IDamageSourceRece
     public bool CanBeTargeted => IsSpawned && isActiveAndEnabled && CurrentHealth > 0;
     public int MaxHealth => Mathf.Max(1, maxHealth);
     public int CurrentHealth => networkHealth.Value;
+    public string CurrentWorldMapId => WorldMapCatalog.NormalizeMapId(networkWorldMapId.Value.ToString());
     public NpcReward Reward => reward;
     public int SpawnSlotId => spawnSlotId;
 
@@ -49,10 +55,26 @@ public sealed class Monster : NetworkBehaviour, ICombatEntity, IDamageSourceRece
         collectedReward = false;
     }
 
+    public void SetWorldMapIdFromServer(string mapId)
+    {
+        if (!IsServer)
+        {
+            return;
+        }
+
+        networkWorldMapId.Value = new FixedString32Bytes(WorldMapCatalog.NormalizeMapId(mapId));
+    }
+
     private bool collectedReward;
 
     private void Awake()
     {
+        if (TryGetComponent(out NetworkObject networkObject))
+        {
+            networkObject.SpawnWithObservers = true;
+            networkObject.CheckObjectVisibility = clientId => FogOfWarNetworkVisibilityController.ShouldMonsterBeVisibleToClient(this, clientId);
+        }
+
         EnsureWorldNameplate();
         ApplyNameplateSettings();
         networkHealth.OnValueChanged += OnNetworkHealthChanged;
@@ -69,6 +91,7 @@ public sealed class Monster : NetworkBehaviour, ICombatEntity, IDamageSourceRece
     {
         base.OnNetworkSpawn();
         CombatTargetingUtility.Register(this);
+        FogOfWarNetworkVisibilityController.Register(this);
 
         if (IsServer)
         {
@@ -80,6 +103,7 @@ public sealed class Monster : NetworkBehaviour, ICombatEntity, IDamageSourceRece
 
     public override void OnNetworkDespawn()
     {
+        FogOfWarNetworkVisibilityController.Unregister(this);
         CombatTargetingUtility.Unregister(this);
         base.OnNetworkDespawn();
     }

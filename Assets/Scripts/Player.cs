@@ -225,6 +225,7 @@ public partial class Player : NetworkBehaviour, ICombatEntity, IDamageSourceRece
         m_ownedShipIdsCsv.OnValueChanged += OnOwnedShipIdsChanged;
         m_selectedShipId.OnValueChanged += OnSelectedShipIdChanged;
         m_networkActionItem.OnValueChanged += OnActiveActionItemsChangedInternal;
+        InitializeWorldMapSubscriptions();
 
         OnPlayerNameChanged(default, m_playerName.Value);
         OnGuildAbbreviationChanged(default, m_networkGuildAbbreviation.Value);
@@ -246,6 +247,7 @@ public partial class Player : NetworkBehaviour, ICombatEntity, IDamageSourceRece
         m_ownedShipIdsCsv.OnValueChanged -= OnOwnedShipIdsChanged;
         m_selectedShipId.OnValueChanged -= OnSelectedShipIdChanged;
         m_networkActionItem.OnValueChanged -= OnActiveActionItemsChangedInternal;
+        DisposeWorldMapSubscriptions();
         base.OnDestroy();
     }
 
@@ -936,6 +938,7 @@ public partial class Player : NetworkBehaviour, ICombatEntity, IDamageSourceRece
         if (IsServer)
         {
             m_networkHealth.Value = m_maxHealth;
+            InitializeWorldMapOnNetworkSpawn();
         }
 
         // Register with PlayerManager
@@ -971,6 +974,7 @@ public partial class Player : NetworkBehaviour, ICombatEntity, IDamageSourceRece
 
     public override void OnNetworkDespawn()
     {
+        HandleWorldMapNetworkDespawn();
         CombatTargetingUtility.Unregister(this);
 
         if (IsServer)
@@ -1193,9 +1197,9 @@ public partial class Player : NetworkBehaviour, ICombatEntity, IDamageSourceRece
         }
     }
 
-    private static bool TryGetSpawnTransform(out Vector3 spawnPosition, out Quaternion spawnRotation)
+    private bool TryGetSpawnTransform(out Vector3 spawnPosition, out Quaternion spawnRotation)
     {
-        return SpawnPointResolver.TryGetPlayerSpawnTransform(out spawnPosition, out spawnRotation);
+        return TryGetWorldMapSpawnTransform(out spawnPosition, out spawnRotation);
     }
 
     #endregion

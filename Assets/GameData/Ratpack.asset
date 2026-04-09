@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7f2ba1d7758eb7d4292f3d50e3ef6f8c, type: 3}
   m_Name: Ratpack
   m_EditorClassIdentifier: Assembly-CSharp::NpcDefinition
+  stableId: 5685d5c2e568e6843a2eafcde8563c6e
   npcName: Ratpack
   visualPrefab: {fileID: 8051440183812902891, guid: 77671f89f7710ff4788907b2afebac42,
     type: 3}

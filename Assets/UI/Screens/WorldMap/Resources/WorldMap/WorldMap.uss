@@ -1,0 +1,144 @@
+.world-map-overlay-root {
+    background-color: rgba(6, 8, 12, 0.42);
+}
+
+.world-map-panel {
+    left: 50%;
+    top: 84px;
+    width: 780px;
+    height: auto;
+    max-width: 94%;
+    max-height: 88%;
+    padding-right: 16px;
+    padding-bottom: 16px;
+    padding-left: 16px;
+    background-color: rgb(74, 49, 24);
+    border-top-color: rgb(196, 132, 52);
+    border-right-color: rgb(196, 132, 52);
+    border-bottom-color: rgb(196, 132, 52);
+    border-left-color: rgb(196, 132, 52);
+    translate: -390px 0;
+}
+
+.world-map-header {
+    background-color: rgba(67, 12, 14, 0.96);
+    border-bottom-color: rgba(119, 74, 24, 0.96);
+}
+
+.world-map-header:hover {
+    background-color: rgba(76, 18, 20, 0.96);
+}
+
+.world-map-title {
+    color: rgb(245, 224, 177);
+}
+
+.world-map-subtitle {
+    color: rgba(235, 215, 181, 0.82);
+}
+
+.world-map-header-right {
+    flex-direction: row;
+    align-items: center;
+    column-gap: 12px;
+}
+
+.world-map-current-map-label {
+    color: rgba(247, 225, 186, 0.98);
+    -unity-font-style: bold;
+    font-size: 13px;
+}
+
+.world-map-close-button {
+    background-color: rgba(48, 15, 17, 0.98);
+}
+
+.world-map-body {
+    padding-top: 8px;
+    padding-right: 4px;
+    padding-bottom: 2px;
+    padding-left: 4px;
+    background-color: rgba(170, 145, 108, 0.92);
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgba(98, 65, 28, 0.92);
+    border-right-color: rgba(98, 65, 28, 0.92);
+    border-bottom-color: rgba(98, 65, 28, 0.92);
+    border-left-color: rgba(98, 65, 28, 0.92);
+}
+
+.world-map-grid {
+    flex-direction: column;
+    row-gap: 0;
+}
+
+.world-map-grid-row {
+    flex-direction: row;
+    column-gap: 0;
+}
+
+.world-map-tile {
+    width: 184px;
+    min-width: 184px;
+    height: 92px;
+    min-height: 92px;
+    padding-top: 10px;
+    padding-right: 12px;
+    padding-bottom: 10px;
+    padding-left: 12px;
+    background-color: rgba(216, 199, 169, 0.86);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(42, 24, 10, 0.96);
+    border-right-color: rgba(42, 24, 10, 0.96);
+    border-bottom-color: rgba(42, 24, 10, 0.96);
+    border-left-color: rgba(42, 24, 10, 0.96);
+}
+
+.world-map-tile-header {
+    color: rgba(64, 54, 45, 0.96);
+    -unity-font-style: bold;
+    font-size: 14px;
+    -unity-text-align: upper-left;
+}
+
+.world-map-tile-icon {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    width: 28px;
+    height: 28px;
+    -unity-background-scale-mode: scale-to-fit;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.world-map-tile-id {
+    flex-grow: 1;
+    align-self: stretch;
+    color: rgba(66, 31, 12, 0.98);
+    -unity-font-style: bold;
+    font-size: 28px;
+    -unity-text-align: middle-center;
+}
+
+.world-map-tile.world-map-tile-current {
+    background-color: rgba(214, 180, 70, 0.94);
+}
+
+.world-map-tile.world-map-tile-current .world-map-tile-id {
+    color: rgba(49, 26, 11, 0.98);
+}
+
+.world-map-empty-state {
+    color: rgba(58, 33, 15, 0.96);
+    -unity-font-style: bold;
+    font-size: 14px;
+    padding-top: 18px;
+    padding-bottom: 18px;
+    -unity-text-align: middle-center;
+}

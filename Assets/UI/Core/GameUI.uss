@@ -1054,12 +1054,83 @@
     background-color: rgb(3, 141, 33);
 }
 
-.minimap-root {
+.minimap-cluster-root {
     position: absolute;
     top: var(--minimap-offset-top);
     right: 16px;
+    flex-direction: row;
+    align-items: flex-start;
+    column-gap: 12px;
+}
+
+.minimap-root {
+    position: relative;
     width: 236px;
     align-items: stretch;
+}
+
+.minimap-world-map-button {
+    width: 88px;
+    min-width: 88px;
+    min-height: 104px;
+    margin-top: 18px;
+    padding-top: 12px;
+    padding-right: 10px;
+    padding-bottom: 12px;
+    padding-left: 10px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    row-gap: 8px;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgba(210, 130, 22, 0.95);
+    border-right-color: rgba(210, 130, 22, 0.95);
+    border-bottom-color: rgba(210, 130, 22, 0.95);
+    border-left-color: rgba(210, 130, 22, 0.95);
+    background-color: rgba(18, 11, 4, 0.94);
+}
+
+.minimap-world-map-button:hover {
+    background-color: rgba(45, 24, 7, 0.98);
+}
+
+.minimap-world-map-button.minimap-world-map-button-active {
+    background-color: rgba(71, 41, 9, 0.98);
+    border-top-color: rgba(236, 193, 88, 0.98);
+    border-right-color: rgba(236, 193, 88, 0.98);
+    border-bottom-color: rgba(236, 193, 88, 0.98);
+    border-left-color: rgba(236, 193, 88, 0.98);
+}
+
+.minimap-world-map-button > .unity-button__text {
+    display: none;
+}
+
+.minimap-world-map-button-icon {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    background-image: url("project://database/Assets/UI/Art/Icons/TopBar/topbar_compass.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.minimap-world-map-button-label {
+    color: rgba(248, 222, 171, 0.98);
+    -unity-font-style: bold;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    -unity-text-align: middle-center;
+    white-space: normal;
 }
 
 .minimap-frame {
@@ -1204,6 +1275,46 @@
     font-size: 12px;
     -unity-font-style: bold;
     -unity-text-align: middle-left;
+}
+
+.world-map-travel-prompt-root {
+    position: absolute;
+    top: 70px;
+    left: 0;
+    right: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.world-map-travel-prompt-button {
+    min-width: 220px;
+    min-height: 42px;
+    padding-top: 8px;
+    padding-right: 18px;
+    padding-bottom: 8px;
+    padding-left: 18px;
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-left-radius: 999px;
+    border-bottom-right-radius: 999px;
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgba(219, 176, 77, 0.96);
+    border-right-color: rgba(219, 176, 77, 0.96);
+    border-bottom-color: rgba(219, 176, 77, 0.96);
+    border-left-color: rgba(219, 176, 77, 0.96);
+    background-color: rgba(33, 15, 6, 0.96);
+    color: rgba(249, 230, 196, 0.98);
+    -unity-font-style: bold;
+    font-size: 14px;
+    -unity-text-align: middle-center;
+}
+
+.world-map-travel-prompt-button:hover {
+    background-color: rgba(58, 26, 9, 0.98);
 }
 
 .camera-zoom-root {

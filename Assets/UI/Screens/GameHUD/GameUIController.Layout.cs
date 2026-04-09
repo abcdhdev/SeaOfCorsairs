@@ -4,6 +4,7 @@ using UnityEngine.UIElements;
 public partial class GameUIController
 {
     private const string TopBarMountName = "TopBarMount";
+    private const string WorldMapTravelPromptMountName = "WorldMapTravelPromptMount";
     private const string ActiveActionItemsMountName = "ActiveActionItemsMount";
     private const string MinimapMountName = "MinimapMount";
     private const string CoordinateRulerMountName = "CoordinateRulerMount";
@@ -13,6 +14,7 @@ public partial class GameUIController
     private const string DeadOverlayMountName = "DeadOverlayMount";
 
     private const string TopBarFragmentPath = "GameHUD/Fragments/TopBar";
+    private const string WorldMapTravelPromptFragmentPath = "GameHUD/Fragments/WorldMapTravelPrompt";
     private const string ActiveActionItemsFragmentPath = "GameHUD/Fragments/ActiveActionItems";
     private const string MinimapFragmentPath = "GameHUD/Fragments/Minimap";
     private const string CoordinateRulerFragmentPath = "GameHUD/Fragments/CoordinateRuler";
@@ -29,6 +31,7 @@ public partial class GameUIController
         }
 
         EnsureFragmentMounted(TopBarMountName, "TopMenuBar", TopBarFragmentPath);
+        EnsureFragmentMounted(WorldMapTravelPromptMountName, "WorldMapTravelPromptRoot", WorldMapTravelPromptFragmentPath);
         EnsureFragmentMounted(ActiveActionItemsMountName, "ActiveActionItemsRoot", ActiveActionItemsFragmentPath);
         EnsureFragmentMounted(MinimapMountName, "MinimapRoot", MinimapFragmentPath);
         EnsureFragmentMounted(CoordinateRulerMountName, "CoordinateRulerRoot", CoordinateRulerFragmentPath);

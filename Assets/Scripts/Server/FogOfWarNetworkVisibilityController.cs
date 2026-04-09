@@ -5,7 +5,8 @@ using UnityEngine;
 
 /// <summary>
 /// Server-side observer manager that keeps hidden entities simulated on the server
-/// while only networking players and NPCs revealed by fog-of-war.
+/// while only networking players, NPCs, monsters, and reward boxes to the clients
+/// that are allowed to observe them.
 /// </summary>
 public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
 {
@@ -18,8 +19,12 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
 
     private readonly HashSet<Player> trackedPlayers = new();
     private readonly HashSet<NPC> trackedNpcs = new();
+    private readonly HashSet<Monster> trackedMonsters = new();
+    private readonly HashSet<SeaRewardBox> trackedRewardBoxes = new();
     private readonly List<Player> playerSnapshot = new(16);
     private readonly List<NPC> npcSnapshot = new(64);
+    private readonly List<Monster> monsterSnapshot = new(64);
+    private readonly List<SeaRewardBox> rewardBoxSnapshot = new(64);
     private Coroutine refreshLoop;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -89,6 +94,60 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
         s_instance.trackedNpcs.Remove(npc);
     }
 
+    public static void Register(Monster monster)
+    {
+        if (monster == null)
+        {
+            return;
+        }
+
+        EnsureInstance();
+        if (s_instance == null)
+        {
+            return;
+        }
+
+        s_instance.trackedMonsters.Add(monster);
+        s_instance.RefreshVisibilityNow();
+    }
+
+    public static void Unregister(Monster monster)
+    {
+        if (s_instance == null || monster == null)
+        {
+            return;
+        }
+
+        s_instance.trackedMonsters.Remove(monster);
+    }
+
+    public static void Register(SeaRewardBox rewardBox)
+    {
+        if (rewardBox == null)
+        {
+            return;
+        }
+
+        EnsureInstance();
+        if (s_instance == null)
+        {
+            return;
+        }
+
+        s_instance.trackedRewardBoxes.Add(rewardBox);
+        s_instance.RefreshVisibilityNow();
+    }
+
+    public static void Unregister(SeaRewardBox rewardBox)
+    {
+        if (s_instance == null || rewardBox == null)
+        {
+            return;
+        }
+
+        s_instance.trackedRewardBoxes.Remove(rewardBox);
+    }
+
     public static bool ShouldPlayerBeVisibleToClient(Player targetPlayer, ulong clientId)
     {
         if (targetPlayer == null || targetPlayer.NetworkObject == null)
@@ -107,6 +166,16 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
     public static bool ShouldNpcBeVisibleToClient(NPC targetNpc, ulong clientId)
     {
         return ShouldNpcBeVisibleToViewer(targetNpc, ResolveViewer(clientId));
+    }
+
+    public static bool ShouldMonsterBeVisibleToClient(Monster targetMonster, ulong clientId)
+    {
+        return ShouldComponentBeVisibleToViewer(targetMonster, ResolveViewer(clientId));
+    }
+
+    public static bool ShouldRewardBoxBeVisibleToClient(SeaRewardBox rewardBox, ulong clientId)
+    {
+        return ShouldComponentBeVisibleToViewer(rewardBox, ResolveViewer(clientId));
     }
 
     private static void EnsureInstance()
@@ -177,6 +246,8 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
     {
         trackedPlayers.RemoveWhere(player => player == null || player.NetworkObject == null || !player.NetworkObject.IsSpawned);
         trackedNpcs.RemoveWhere(npc => npc == null || npc.NetworkObject == null || !npc.NetworkObject.IsSpawned);
+        trackedMonsters.RemoveWhere(monster => monster == null || monster.NetworkObject == null || !monster.NetworkObject.IsSpawned);
+        trackedRewardBoxes.RemoveWhere(rewardBox => rewardBox == null || rewardBox.NetworkObject == null || !rewardBox.NetworkObject.IsSpawned);
 
         playerSnapshot.Clear();
         foreach (Player player in trackedPlayers)
@@ -188,6 +259,18 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
         foreach (NPC npc in trackedNpcs)
         {
             npcSnapshot.Add(npc);
+        }
+
+        monsterSnapshot.Clear();
+        foreach (Monster monster in trackedMonsters)
+        {
+            monsterSnapshot.Add(monster);
+        }
+
+        rewardBoxSnapshot.Clear();
+        foreach (SeaRewardBox rewardBox in trackedRewardBoxes)
+        {
+            rewardBoxSnapshot.Add(rewardBox);
         }
 
         for (int viewerIndex = 0; viewerIndex < playerSnapshot.Count; viewerIndex++)
@@ -222,6 +305,30 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
 
                 bool shouldBeVisible = ShouldNpcBeVisibleToViewer(targetNpc, viewer);
                 SyncVisibility(targetNpc.NetworkObject, viewerClientId, shouldBeVisible);
+            }
+
+            for (int monsterIndex = 0; monsterIndex < monsterSnapshot.Count; monsterIndex++)
+            {
+                Monster targetMonster = monsterSnapshot[monsterIndex];
+                if (targetMonster == null || targetMonster.NetworkObject == null || !targetMonster.NetworkObject.IsSpawned)
+                {
+                    continue;
+                }
+
+                bool shouldBeVisible = ShouldComponentBeVisibleToViewer(targetMonster, viewer);
+                SyncVisibility(targetMonster.NetworkObject, viewerClientId, shouldBeVisible);
+            }
+
+            for (int rewardBoxIndex = 0; rewardBoxIndex < rewardBoxSnapshot.Count; rewardBoxIndex++)
+            {
+                SeaRewardBox rewardBox = rewardBoxSnapshot[rewardBoxIndex];
+                if (rewardBox == null || rewardBox.NetworkObject == null || !rewardBox.NetworkObject.IsSpawned)
+                {
+                    continue;
+                }
+
+                bool shouldBeVisible = ShouldComponentBeVisibleToViewer(rewardBox, viewer);
+                SyncVisibility(rewardBox.NetworkObject, viewerClientId, shouldBeVisible);
             }
         }
     }
@@ -278,6 +385,11 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
             return false;
         }
 
+        if (!WorldMapMembershipUtility.AreInSameMap(targetPlayer, viewer))
+        {
+            return false;
+        }
+
         return targetPlayer == viewer || IsWithinRevealRadius(viewer.transform.position, targetPlayer.transform.position);
     }
 
@@ -293,7 +405,27 @@ public sealed class FogOfWarNetworkVisibilityController : MonoBehaviour
             return false;
         }
 
+        if (!WorldMapMembershipUtility.AreInSameMap(targetNpc, viewer))
+        {
+            return false;
+        }
+
         return IsWithinRevealRadius(viewer.transform.position, targetNpc.transform.position);
+    }
+
+    private static bool ShouldComponentBeVisibleToViewer(Component targetComponent, Player viewer)
+    {
+        if (targetComponent == null)
+        {
+            return false;
+        }
+
+        if (viewer == null || viewer.NetworkObject == null || !viewer.NetworkObject.IsSpawned || viewer.IsDead)
+        {
+            return false;
+        }
+
+        return WorldMapMembershipUtility.AreInSameMap(targetComponent, viewer);
     }
 
     private static bool IsWithinRevealRadius(Vector3 viewerPosition, Vector3 targetPosition)

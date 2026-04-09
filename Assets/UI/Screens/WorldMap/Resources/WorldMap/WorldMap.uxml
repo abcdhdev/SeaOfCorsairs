@@ -1,0 +1,21 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/Core/Resources/Shared/OverlayPanel.uss?fileID=7433441132597879392&amp;guid=6b64251aafd24422b01cd1f0e6ef26f5&amp;type=3#OverlayPanel"/>
+    <Style src="project://database/Assets/UI/Screens/WorldMap/Resources/WorldMap/WorldMap.uss?fileID=7433441132597879392&amp;guid=0ca0e65e40ce46ca99817e3fc177463b&amp;type=3#WorldMap"/>
+    <ui:VisualElement name="WorldMapOverlay" class="window-overlay-root world-map-overlay-root">
+        <ui:VisualElement name="WorldMapPanel" class="window-panel world-map-panel">
+            <ui:VisualElement name="WorldMapHeader" class="window-header world-map-header">
+                <ui:VisualElement class="window-title-block">
+                    <ui:Label text="World Map" class="window-title world-map-title"/>
+                    <ui:Label text="Cross between maps from the sea lane markers at each edge." class="window-subtitle world-map-subtitle"/>
+                </ui:VisualElement>
+                <ui:VisualElement class="world-map-header-right">
+                    <ui:Label name="WorldMapCurrentMapLabel" text="Current map: 1-1" class="world-map-current-map-label"/>
+                    <ui:Button name="WorldMapCloseButton" text="X" class="window-close-button world-map-close-button"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="world-map-body">
+                <ui:VisualElement name="WorldMapGrid" class="world-map-grid"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

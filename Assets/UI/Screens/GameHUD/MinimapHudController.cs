@@ -81,6 +81,7 @@ public sealed class MinimapHudController : MonoBehaviour
     private bool uiReady;
     private float nextActorRefreshAt;
     private float nextUiBindAttemptAt;
+    private string appliedWorldMapId = string.Empty;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void InstallOnSceneLoad()
@@ -173,6 +174,7 @@ public sealed class MinimapHudController : MonoBehaviour
             TryResolveLocalPlayer();
         }
 
+        RefreshWorldMapContext();
         TryResolveBoundsFromNavMeshSurface();
 
         if (Time.unscaledTime >= nextActorRefreshAt)
@@ -376,6 +378,11 @@ public sealed class MinimapHudController : MonoBehaviour
                     continue;
                 }
 
+                if (!ShouldIncludeActor(player))
+                {
+                    continue;
+                }
+
                 UpsertMarker(player, MarkerKind.Player, playerMarkerSize);
             }
         }
@@ -387,6 +394,11 @@ public sealed class MinimapHudController : MonoBehaviour
             {
                 NPC npc = npcs[i];
                 if (npc == null || !npc.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                if (!ShouldIncludeActor(npc))
                 {
                     continue;
                 }
@@ -597,6 +609,7 @@ public sealed class MinimapHudController : MonoBehaviour
             TryResolveLocalPlayer();
         }
 
+        RefreshWorldMapContext();
         TryResolveBoundsFromNavMeshSurface();
 
         Camera gameplayCamera = ResolveGameplayCamera();
@@ -1005,6 +1018,7 @@ public sealed class MinimapHudController : MonoBehaviour
     {
         Transform playerTransform = player != null ? player.transform : null;
         localPlayer = IsSceneTransformUsable(playerTransform) ? playerTransform : null;
+        nextActorRefreshAt = 0f;
     }
 
     private void OnTrackedPlayersChanged(Player _)
@@ -1037,5 +1051,62 @@ public sealed class MinimapHudController : MonoBehaviour
         return candidate != null &&
                candidate.gameObject.scene.IsValid() &&
                candidate.gameObject.scene.isLoaded;
+    }
+
+    private void RefreshWorldMapContext()
+    {
+        if (!WorldMapMembershipUtility.TryGetMapId(localPlayer, out string localMapId))
+        {
+            appliedWorldMapId = string.Empty;
+            return;
+        }
+
+        if (string.Equals(appliedWorldMapId, localMapId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        appliedWorldMapId = localMapId;
+        nextActorRefreshAt = 0f;
+
+        if (WorldMapManager.Instance != null &&
+            WorldMapManager.Instance.TryGetLoadedScene(localMapId, out WorldMapSceneAuthoring sceneAuthoring))
+        {
+            Bounds bounds = sceneAuthoring.GetPlayableBoundsWorld();
+            mapWorldMin = new Vector2(bounds.min.x, bounds.min.z);
+            mapWorldMax = new Vector2(bounds.max.x, bounds.max.z);
+            waypointBoundsInitialized = true;
+        }
+
+        Texture2D minimapTexture = null;
+        if (WorldMapManager.Instance != null &&
+            WorldMapManager.Instance.TryGetMinimapTexture(localMapId, out minimapTexture) &&
+            minimapTexture != null &&
+            minimapRender != null)
+        {
+            minimapRender.style.backgroundImage = Background.FromTexture2D(minimapTexture);
+        }
+        else
+        {
+            ApplyMapTexture();
+        }
+
+        UpdateMapLabels();
+    }
+
+    private bool ShouldIncludeActor(Component actor)
+    {
+        if (actor == null)
+        {
+            return false;
+        }
+
+        if (!WorldMapMembershipUtility.TryGetMapId(localPlayer, out string localMapId))
+        {
+            return true;
+        }
+
+        return WorldMapMembershipUtility.TryGetMapId(actor, out string actorMapId) &&
+               string.Equals(localMapId, actorMapId, System.StringComparison.OrdinalIgnoreCase);
     }
 }

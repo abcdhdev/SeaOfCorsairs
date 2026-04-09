@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public sealed class SeaRewardBoxSpawner : MonoBehaviour
 {
@@ -26,6 +27,7 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
     [SerializeField, Min(0.5f)] private float respawnDelaySeconds = 15f;
     [SerializeField, Min(0.25f)] private float respawnRetryIntervalSeconds = 2f;
     [SerializeField, Min(0f)] private float spawnClearanceRadius = 12f;
+    [SerializeField] private bool pauseSpawningWhenMapEmpty = true;
 
     private readonly Dictionary<int, SpawnSlotRuntime> spawnSlots = new();
     private bool serverInitialized;
@@ -45,6 +47,10 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
             {
                 ClearSpawnSlots();
                 serverInitialized = false;
+            }
+            else if (pauseSpawningWhenMapEmpty && !WorldMapSceneActivityUtility.HasActivePlayersOnMap(this))
+            {
+                SuspendActiveSpawns();
             }
 
             return;
@@ -77,7 +83,7 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
             StopCoroutine(slot.RespawnCoroutine);
         }
 
-        slot.RespawnCoroutine = StartCoroutine(RespawnSlotAfterDelay(slot, Mathf.Max(0.5f, respawnDelaySeconds)));
+        slot.RespawnCoroutine = StartCoroutine(RespawnSlotAfterDelay(slot, Mathf.Max(0.5f, respawnDelaySeconds), rewardBox));
     }
 
     private void TryInitializeServerState()
@@ -131,6 +137,11 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
             return false;
         }
 
+        if (pauseSpawningWhenMapEmpty && !WorldMapSceneActivityUtility.HasActivePlayersOnMap(this))
+        {
+            return false;
+        }
+
         Vector3 center = spawnCenter != null ? spawnCenter.position : transform.position;
         if (!SeaSpawnSurfaceUtility.TryGetRandomWaterNavMeshPosition(
                 center,
@@ -149,6 +160,7 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
         }
 
         GameObject instance = Instantiate(boxNetworkPrefab, spawnPosition, Quaternion.identity);
+        SceneManager.MoveGameObjectToScene(instance, gameObject.scene);
         SeaSpawnSurfaceUtility.ApplyWaterlineOffset(instance, spawnPosition, additionalWaterlineOffset);
 
         if (!instance.TryGetComponent(out SeaRewardBox rewardBox) || !instance.TryGetComponent(out NetworkObject networkObject))
@@ -166,8 +178,13 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
         return true;
     }
 
-    private IEnumerator RespawnSlotAfterDelay(SpawnSlotRuntime slot, float delaySeconds)
+    private IEnumerator RespawnSlotAfterDelay(SpawnSlotRuntime slot, float delaySeconds, SeaRewardBox previousBox = null)
     {
+        if (previousBox != null && previousBox.NetworkObject != null && previousBox.NetworkObject.IsSpawned)
+        {
+            previousBox.NetworkObject.Despawn(true);
+        }
+
         if (delaySeconds > 0f)
         {
             yield return new WaitForSeconds(delaySeconds);
@@ -203,6 +220,11 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
                     continue;
                 }
 
+                if (!WorldMapSceneActivityUtility.IsRelevantPlayerForScopedMap(this, player))
+                {
+                    continue;
+                }
+
                 if ((player.transform.position - spawnPosition).sqrMagnitude <= clearanceSqrDistance)
                 {
                     return false;
@@ -224,6 +246,21 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
         }
 
         return true;
+    }
+
+    private void SuspendActiveSpawns()
+    {
+        foreach (SpawnSlotRuntime slot in spawnSlots.Values)
+        {
+            if (slot == null || slot.ActiveBox == null || slot.RespawnCoroutine != null)
+            {
+                continue;
+            }
+
+            SeaRewardBox activeBox = slot.ActiveBox;
+            slot.ActiveBox = null;
+            slot.RespawnCoroutine = StartCoroutine(RespawnSlotAfterDelay(slot, Mathf.Max(0.25f, respawnRetryIntervalSeconds), activeBox));
+        }
     }
 
     private void ClearSpawnSlots()

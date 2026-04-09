@@ -8,6 +8,90 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/MainScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_1-1.unity
+    guid: 8ba7916366aa459db22f4263012ba8ad
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_1-2.unity
+    guid: d786dc64dd47475aaac26bd6111b7166
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_2-1.unity
+    guid: 1934e9949bc84f5387ea69b10acdbb23
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_2-2.unity
+    guid: 2b00f36fafbf41aabe75d306df42279d
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_3-1.unity
+    guid: d006e479e6124a37be4f1d1892c8e5b8
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_3-2.unity
+    guid: 82a2f96b5cdc4f1696cbefeca94d2dd0
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_4-1.unity
+    guid: 3e65213e83104ec3b9688c82a3f21995
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_4-2.unity
+    guid: 5538ee0cb1584cceabec95f9e7730d6b
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_5-1.unity
+    guid: 4af75e0124b64cdfb34863c0252736f7
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_5-2.unity
+    guid: 93efcf06dd034a6b8f7c7d47a17f4a45
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_6-1.unity
+    guid: 8a8d298009a9474fa385d8f7fdf60db0
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_6-2.unity
+    guid: f7c3805a7f894201b09387897ebad4f4
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_7-1.unity
+    guid: abf482fb2efc484fbd1e0d79bf225d5f
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_7-2.unity
+    guid: a2f5e015314b44f3a2e8269c9fd4c343
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_8-1.unity
+    guid: 9b5d5a70afa14579be21df3b98f05bae
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_8-2.unity
+    guid: 339facc10fa24991868a5fd204eac9a0
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_9-1.unity
+    guid: c370bf4f9f964ead9536d0ad19527dc0
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_9-2.unity
+    guid: b83df336c8404df19f6de8ad2add00ed
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_10-1.unity
+    guid: 5fe7dc8665454b728f7b701e04d4b705
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_10-2.unity
+    guid: a64f4e090e9f4caba9c2ab2d599c140d
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_11-1.unity
+    guid: cb7a8cd3481e4a6fab5d117ceb732809
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_11-2.unity
+    guid: 90c135d81bdf4529b1f13601095faf21
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_12-1.unity
+    guid: 64618377b69340a688f6ba6fea25fde4
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_12-2.unity
+    guid: 5d11dd1b4e7248d192a3f11bd551ca53
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_13-1.unity
+    guid: 2f252e5cf81e4b8eb11a9ca99033a3df
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_13-2.unity
+    guid: dbc40f5122594dcb80ce9fdd00eefcf1
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_14-1.unity
+    guid: 308a7b221fae4c0b87870ed7b0b6a6a9
+  - enabled: 1
+    path: Assets/Scenes/WorldMaps/Map_14-2.unity
+    guid: f1a387563ba64cd9b9c4f4acf8619768
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 7b4fcf7b27bda11488d54953888c4277, type: 2}
     com.unity.input.settings: {fileID: 11400000, guid: 082aa352fc6bd2440993d9e26835c459, type: 2}

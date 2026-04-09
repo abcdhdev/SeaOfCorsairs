@@ -25,6 +25,12 @@ public sealed class SeaRewardBox : NetworkBehaviour, ISeaEntity
 
     private void Awake()
     {
+        if (TryGetComponent(out NetworkObject networkObject))
+        {
+            networkObject.SpawnWithObservers = true;
+            networkObject.CheckObjectVisibility = clientId => FogOfWarNetworkVisibilityController.ShouldRewardBoxBeVisibleToClient(this, clientId);
+        }
+
         if (TryGetComponent(out Collider collider))
         {
             collider.isTrigger = true;
@@ -35,6 +41,18 @@ public sealed class SeaRewardBox : NetworkBehaviour, ISeaEntity
             rigidbody.isKinematic = true;
             rigidbody.useGravity = false;
         }
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        FogOfWarNetworkVisibilityController.Register(this);
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        FogOfWarNetworkVisibilityController.Unregister(this);
+        base.OnNetworkDespawn();
     }
 
     private void OnTriggerEnter(Collider other)

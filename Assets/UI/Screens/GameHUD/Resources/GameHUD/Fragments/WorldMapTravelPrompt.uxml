@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="WorldMapTravelPromptRoot" class="world-map-travel-prompt-root">
+        <ui:Button name="WorldMapTravelPromptButton" text="Sail to 1-2" class="world-map-travel-prompt-button"/>
+    </ui:VisualElement>
+</ui:UXML>

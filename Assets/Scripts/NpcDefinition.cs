@@ -1,9 +1,15 @@
 using Unity.Netcode;
 using UnityEngine;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 [CreateAssetMenu(fileName = "NpcDefinition", menuName = "Sea Wars/NPC Definition")]
 public class NpcDefinition : ScriptableObject
 {
+    [SerializeField, HideInInspector] private string stableId = string.Empty;
+
     [Header("Identity")]
     [SerializeField] private string npcName = "Raider";
     [SerializeField] private GameObject visualPrefab;
@@ -19,6 +25,7 @@ public class NpcDefinition : ScriptableObject
     [SerializeField] private NpcReward reward;
 
     public string NpcName => npcName;
+    public string StableId => NormalizeStableId(stableId);
     public GameObject VisualPrefab => visualPrefab;
     public int Health => Mathf.Max(1, health);
     public int Damage => Mathf.Max(0, damage);
@@ -29,9 +36,37 @@ public class NpcDefinition : ScriptableObject
 
     private void OnValidate()
     {
+        SyncStableId();
+
         if (visualPrefab != null && visualPrefab.TryGetComponent(out NetworkObject _))
         {
             Debug.LogWarning($"NpcDefinition '{name}': visualPrefab '{visualPrefab.name}' has a NetworkObject. Assign a visual-only prefab/model.", this);
         }
+    }
+
+    public static string NormalizeStableId(string value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : value.Trim().ToLowerInvariant();
+    }
+
+    private void SyncStableId()
+    {
+        stableId = NormalizeStableId(stableId);
+
+#if UNITY_EDITOR
+        string assetPath = AssetDatabase.GetAssetPath(this);
+        if (string.IsNullOrWhiteSpace(assetPath))
+        {
+            return;
+        }
+
+        string assetGuid = AssetDatabase.AssetPathToGUID(assetPath);
+        if (!string.IsNullOrWhiteSpace(assetGuid))
+        {
+            stableId = NormalizeStableId(assetGuid);
+        }
+#endif
     }
 }

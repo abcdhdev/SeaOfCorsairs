@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public sealed class MonsterSpawner : MonoBehaviour
 {
@@ -26,6 +27,7 @@ public sealed class MonsterSpawner : MonoBehaviour
     [SerializeField, Min(0.5f)] private float respawnDelaySeconds = 30f;
     [SerializeField, Min(0.25f)] private float respawnRetryIntervalSeconds = 2f;
     [SerializeField, Min(0f)] private float spawnClearanceRadius = 16f;
+    [SerializeField] private bool pauseSpawningWhenMapEmpty = true;
 
     private readonly Dictionary<int, SpawnSlotRuntime> spawnSlots = new();
     private bool serverInitialized;
@@ -45,6 +47,10 @@ public sealed class MonsterSpawner : MonoBehaviour
             {
                 ClearSpawnSlots();
                 serverInitialized = false;
+            }
+            else if (pauseSpawningWhenMapEmpty && !WorldMapSceneActivityUtility.HasActivePlayersOnMap(this))
+            {
+                SuspendActiveSpawns();
             }
 
             return;
@@ -131,6 +137,11 @@ public sealed class MonsterSpawner : MonoBehaviour
             return false;
         }
 
+        if (pauseSpawningWhenMapEmpty && !WorldMapSceneActivityUtility.HasActivePlayersOnMap(this))
+        {
+            return false;
+        }
+
         Vector3 center = spawnCenter != null ? spawnCenter.position : transform.position;
         if (!SeaSpawnSurfaceUtility.TryGetRandomWaterNavMeshPosition(
                 center,
@@ -149,6 +160,7 @@ public sealed class MonsterSpawner : MonoBehaviour
         }
 
         GameObject instance = Instantiate(monsterNetworkPrefab, spawnPosition, Quaternion.identity);
+        SceneManager.MoveGameObjectToScene(instance, gameObject.scene);
         SeaSpawnSurfaceUtility.ApplyWaterlineOffset(instance, spawnPosition, additionalWaterlineOffset);
 
         if (!instance.TryGetComponent(out Monster monster) || !instance.TryGetComponent(out NetworkObject networkObject))
@@ -159,6 +171,12 @@ public sealed class MonsterSpawner : MonoBehaviour
         }
 
         monster.BindSpawnSlot(this, slot.SlotId);
+        if (WorldMapManager.Instance != null &&
+            WorldMapManager.Instance.TryGetMapId(this, out string mapId))
+        {
+            monster.SetWorldMapIdFromServer(mapId);
+        }
+
         networkObject.Spawn();
 
         slot.ActiveMonster = monster;
@@ -209,6 +227,11 @@ public sealed class MonsterSpawner : MonoBehaviour
                     continue;
                 }
 
+                if (!WorldMapSceneActivityUtility.IsRelevantPlayerForScopedMap(this, player))
+                {
+                    continue;
+                }
+
                 if ((player.transform.position - spawnPosition).sqrMagnitude <= clearanceSqrDistance)
                 {
                     return false;
@@ -230,6 +253,21 @@ public sealed class MonsterSpawner : MonoBehaviour
         }
 
         return true;
+    }
+
+    private void SuspendActiveSpawns()
+    {
+        foreach (SpawnSlotRuntime slot in spawnSlots.Values)
+        {
+            if (slot == null || slot.ActiveMonster == null || slot.RespawnCoroutine != null)
+            {
+                continue;
+            }
+
+            Monster activeMonster = slot.ActiveMonster;
+            slot.ActiveMonster = null;
+            slot.RespawnCoroutine = StartCoroutine(RespawnSlotAfterDelay(slot, Mathf.Max(0.25f, respawnRetryIntervalSeconds), activeMonster));
+        }
     }
 
     private void ClearSpawnSlots()

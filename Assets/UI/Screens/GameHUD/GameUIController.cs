@@ -183,6 +183,7 @@ public partial class GameUIController : MonoBehaviour
         EnsureMarketSection();
         EnsureGuildManagementSection();
         EnsureSettingsMenuSection();
+        EnsureWorldMapSection();
         RegisterBlockingUiElements();
         BuildSourceSkills();
         BuildActionBarSlots();
@@ -229,6 +230,7 @@ public partial class GameUIController : MonoBehaviour
         arubaCauldronController = null;
         settingsMenuController?.Dispose();
         settingsMenuController = null;
+        DisposeWorldMapUi();
         StopSkillDrag();
         ClearPendingSourcePress();
         TrackHealthTarget(null);
@@ -304,6 +306,7 @@ public partial class GameUIController : MonoBehaviour
         shipSectionController?.Refresh();
         arubaCauldronController?.Refresh();
         settingsMenuController?.Refresh();
+        RefreshWorldMapUi();
         RefreshIslandEditUi();
         RefreshActionBarVisibility();
         UpdateTopMenuButtonStates();
@@ -393,6 +396,7 @@ public partial class GameUIController : MonoBehaviour
         activeActionItemHudBlackGunpowder = root.Q<VisualElement>("ActiveActionItemHudBlackGunpowder");
         activeActionItemHudSpacer = root.Q<VisualElement>("ActiveActionItemHudSpacer");
         activeActionItemHudAgwesArmorPlating = root.Q<VisualElement>("ActiveActionItemHudAgwesArmorPlating");
+        BindWorldMapUiElements();
         BindCoordinateRulerElements();
         if (topMenuShieldDropdown != null)
         {
@@ -443,6 +447,7 @@ public partial class GameUIController : MonoBehaviour
         activeActionItemHudBlackGunpowder = null;
         activeActionItemHudSpacer = null;
         activeActionItemHudAgwesArmorPlating = null;
+        ClearWorldMapUiElementReferences();
         isTopMenuShieldDropdownOpen = false;
         marketController = null;
         guildManagementController = null;

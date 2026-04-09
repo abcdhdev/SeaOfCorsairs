@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.AI;
@@ -37,6 +38,15 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server
     );
+    private NetworkVariable<FixedString64Bytes> m_networkDefinitionStableId = new(
+        default,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+    private NetworkVariable<FixedString32Bytes> m_networkWorldMapId = new(
+        default,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
 
     [Header("Repair Settings")]
     [SerializeField] public float repairRate = 2.0f;
@@ -46,6 +56,7 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
     private WeaponFireController npcWeaponFireController;
     private PlayerAttack playerAttack;
     private NPCMovement movement;
+    private NPCSpawner ownerSpawner;
     private int spawnSlotId = -1;
     private Vector3 homePosition;
     private Quaternion homeRotation = Quaternion.identity;
@@ -71,14 +82,16 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
     public string DisplayName => ResolveDisplayName();
     public GameObject TargetGameObject => gameObject;
     public bool CanBeTargeted => IsSpawned && isActiveAndEnabled && CurrentHealth > 0;
+    public string CurrentWorldMapId => WorldMapCatalog.NormalizeMapId(m_networkWorldMapId.Value.ToString());
     public int SpawnSlotId => spawnSlotId;
     public Vector3 HomePosition => hasHomeAnchor ? homePosition : transform.position;
     public Quaternion HomeRotation => hasHomeAnchor ? homeRotation : transform.rotation;
 
     public static event Action<Player, NPC, NpcReward> RewardGranted = delegate { };
 
-    public void BindSpawnSlot(int slotId, Vector3 slotHomePosition, Quaternion slotHomeRotation)
+    public void BindSpawnSlot(NPCSpawner spawner, int slotId, Vector3 slotHomePosition, Quaternion slotHomeRotation)
     {
+        ownerSpawner = spawner;
         spawnSlotId = slotId;
         homePosition = slotHomePosition;
         homeRotation = slotHomeRotation;
@@ -88,8 +101,8 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 
     public void SetDefinition(NpcDefinition definition)
     {
-        int definitionIndex = NPCSpawner.Instance != null
-            ? NPCSpawner.Instance.GetDefinitionIndex(definition)
+        int definitionIndex = ownerSpawner != null
+            ? ownerSpawner.GetDefinitionIndex(definition)
             : UnsetDefinitionIndex;
         SetDefinitionFromServer(definitionIndex, definition);
     }
@@ -107,6 +120,7 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 
         npcDefinition = definition;
         m_networkDefinitionIndex.Value = definitionIndex;
+        m_networkDefinitionStableId.Value = new FixedString64Bytes(definition != null ? definition.StableId : string.Empty);
         ApplyGameplayConfig();
 
         if (IsSpawned)
@@ -125,6 +139,16 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
                 1,
                 MaxHealth);
         }
+    }
+
+    public void SetWorldMapIdFromServer(string mapId)
+    {
+        if (!IsServer)
+        {
+            return;
+        }
+
+        m_networkWorldMapId.Value = new FixedString32Bytes(WorldMapCatalog.NormalizeMapId(mapId));
     }
 
     public bool TryMarkBoarded()
@@ -172,6 +196,7 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
 
         m_networkHealth.OnValueChanged -= OnNetworkHealthChanged;
         m_networkDefinitionIndex.OnValueChanged -= OnNetworkDefinitionIndexChanged;
+        m_networkDefinitionStableId.OnValueChanged -= OnNetworkDefinitionStableIdChanged;
         if (movement != null)
         {
             movement.LeashExceeded -= OnLeashExceeded;
@@ -218,9 +243,10 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
         base.OnNetworkSpawn();
         CombatTargetingUtility.Register(this);
         m_networkDefinitionIndex.OnValueChanged += OnNetworkDefinitionIndexChanged;
+        m_networkDefinitionStableId.OnValueChanged += OnNetworkDefinitionStableIdChanged;
 
         // Clients resolve visual/combat definition from synchronized index.
-        ApplyDefinitionFromNetworkIndex(m_networkDefinitionIndex.Value);
+        ApplyDefinitionFromNetworkState(m_networkDefinitionIndex.Value, m_networkDefinitionStableId.Value.ToString());
 
         // Initialize health on server
         if (IsServer)
@@ -247,30 +273,38 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
         }
 
         m_networkDefinitionIndex.OnValueChanged -= OnNetworkDefinitionIndexChanged;
+        m_networkDefinitionStableId.OnValueChanged -= OnNetworkDefinitionStableIdChanged;
         base.OnNetworkDespawn();
     }
 
     private void OnNetworkDefinitionIndexChanged(int previousIndex, int currentIndex)
     {
-        ApplyDefinitionFromNetworkIndex(currentIndex);
+        ApplyDefinitionFromNetworkState(currentIndex, m_networkDefinitionStableId.Value.ToString());
     }
 
-    private void ApplyDefinitionFromNetworkIndex(int definitionIndex)
+    private void OnNetworkDefinitionStableIdChanged(FixedString64Bytes previousStableId, FixedString64Bytes currentStableId)
+    {
+        ApplyDefinitionFromNetworkState(m_networkDefinitionIndex.Value, currentStableId.ToString());
+    }
+
+    private void ApplyDefinitionFromNetworkState(int definitionIndex, string stableId)
     {
         if (IsServer || definitionIndex < 0)
         {
             return;
         }
 
-        NpcDefinition resolvedDefinition = NPCSpawner.Instance != null
-            ? NPCSpawner.Instance.ResolveDefinitionByIndex(definitionIndex)
-            : null;
+        NpcDefinition resolvedDefinition = null;
+        if (!string.IsNullOrWhiteSpace(stableId))
+        {
+            NpcDefinitionRegistry.TryResolve(stableId, out resolvedDefinition);
+        }
 
         if (resolvedDefinition == null)
         {
-            if (resolveDefinitionCoroutine == null)
+            if (!string.IsNullOrWhiteSpace(stableId) && resolveDefinitionCoroutine == null)
             {
-                resolveDefinitionCoroutine = StartCoroutine(ResolveDefinitionWhenSpawnerReady(definitionIndex));
+                resolveDefinitionCoroutine = StartCoroutine(ResolveDefinitionWhenRegistered(stableId, definitionIndex));
             }
 
             return;
@@ -291,15 +325,22 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
         ApplyGameplayConfig();
     }
 
-    private IEnumerator ResolveDefinitionWhenSpawnerReady(int definitionIndex)
+    private IEnumerator ResolveDefinitionWhenRegistered(string stableId, int definitionIndex)
     {
-        while (NPCSpawner.Instance == null)
+        stableId = NpcDefinition.NormalizeStableId(stableId);
+        if (string.IsNullOrWhiteSpace(stableId))
+        {
+            resolveDefinitionCoroutine = null;
+            yield break;
+        }
+
+        while (!NpcDefinitionRegistry.TryResolve(stableId, out _))
         {
             yield return null;
         }
 
         resolveDefinitionCoroutine = null;
-        ApplyDefinitionFromNetworkIndex(definitionIndex);
+        ApplyDefinitionFromNetworkState(definitionIndex, stableId);
     }
 
     #region Combat System
@@ -500,9 +541,9 @@ public class NPC : NetworkBehaviour, ICombatEntity, IDamageSourceReceiver
         AwardKillReward(damageSource);
         NotifyDeathClientRpc();
 
-        if (NPCSpawner.Instance != null && spawnSlotId >= 0)
+        if (ownerSpawner != null && spawnSlotId >= 0)
         {
-            NPCSpawner.Instance.NotifyNpcDeath(this);
+            ownerSpawner.NotifyNpcDeath(this);
         }
         else
         {

@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7f2ba1d7758eb7d4292f3d50e3ef6f8c, type: 3}
   m_Name: RedCorsair
   m_EditorClassIdentifier: Assembly-CSharp::NpcDefinition
+  stableId: e0b4d2e9a8a4d0843b2e88267671fca7
   npcName: RedCorsair
   visualPrefab: {fileID: 4369135738504390201, guid: d05cb2ce51da60e4097cc158aaa23974,
     type: 3}

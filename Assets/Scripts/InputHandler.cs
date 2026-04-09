@@ -305,7 +305,7 @@ public class InputHandler : MonoBehaviour
                 return true;
             }
 
-            if (CombatTargetingUtility.IsTargetableCollider(hitCollider))
+            if (CombatTargetingUtility.IsTargetableCollider(hitCollider, _player))
             {
                 return false;
             }
@@ -388,7 +388,7 @@ public class InputHandler : MonoBehaviour
                 return;
             }
 
-            if (CombatTargetingUtility.IsTargetableCollider(hit.collider))
+            if (CombatTargetingUtility.IsTargetableCollider(hit.collider, _player))
             {
                 continue;
             }

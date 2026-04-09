@@ -492,6 +492,16 @@ public class PlayerAttack : NetworkBehaviour
             return false;
         }
 
+        if (WorldMapMembershipUtility.TryGetMapId(this, out string attackerMapId))
+        {
+            if (!WorldMapMembershipUtility.TryGetMapId(target, out string targetMapId) ||
+                !string.Equals(attackerMapId, targetMapId, StringComparison.OrdinalIgnoreCase))
+            {
+                failureReason = "target is in another map";
+                return false;
+            }
+        }
+
         if (!combatEntity.CanBeTargeted)
         {
             failureReason = "target cannot be targeted";
