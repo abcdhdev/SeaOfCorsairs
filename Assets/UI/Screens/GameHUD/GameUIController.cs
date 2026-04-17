@@ -307,6 +307,7 @@ public partial class GameUIController : MonoBehaviour
         arubaCauldronController?.Refresh();
         settingsMenuController?.Refresh();
         RefreshWorldMapUi();
+        HandleWorldMapDebugInput();
         RefreshIslandEditUi();
         RefreshActionBarVisibility();
         UpdateTopMenuButtonStates();

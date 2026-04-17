@@ -3,7 +3,7 @@
 }
 
 .world-map-panel {
-    left: 50%;
+    left: 64px;
     top: 84px;
     width: 780px;
     height: auto;
@@ -17,7 +17,6 @@
     border-right-color: rgb(196, 132, 52);
     border-bottom-color: rgb(196, 132, 52);
     border-left-color: rgb(196, 132, 52);
-    translate: -390px 0;
 }
 
 .world-map-header {

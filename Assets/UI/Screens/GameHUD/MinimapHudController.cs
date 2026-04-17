@@ -51,6 +51,9 @@ public sealed class MinimapHudController : MonoBehaviour
     [SerializeField] private Color viewportBorderColor = new Color(0.98f, 0.95f, 0.55f, 0.92f);
     [SerializeField, Min(0.5f)] private float viewportBorderWidth = 1.8f;
 
+    [Header("Minimap Navigation")]
+    [SerializeField] private IsometricCameraController cameraControllerOverride;
+
     [Header("Markers")]
     [SerializeField, Range(0f, 0.35f)] private float edgePadding = 0.08f;
     [SerializeField, Min(0f)] private float markerWorldYOffset = 1f;
@@ -64,6 +67,7 @@ public sealed class MinimapHudController : MonoBehaviour
 
     private VisualElement hudRoot;
     private VisualElement minimapRoot;
+    private VisualElement minimapMask;
     private VisualElement minimapRender;
     private VisualElement minimapMarkerLayer;
     private VisualElement minimapCenterReticle;
@@ -76,6 +80,8 @@ public sealed class MinimapHudController : MonoBehaviour
     private readonly Vector2[] viewportOutlinePoints = new Vector2[4];
 
     private Transform localPlayer;
+    private IsometricCameraController cachedCameraController;
+    private int minimapDragPointerId = -1;
     private bool waypointBoundsInitialized;
     private bool viewportOutlineVisible;
     private bool uiReady;
@@ -230,13 +236,14 @@ public sealed class MinimapHudController : MonoBehaviour
 
         hudRoot = root.Q<VisualElement>("HudRoot");
         minimapRoot = root.Q<VisualElement>("MinimapRoot");
+        minimapMask = root.Q<VisualElement>("MinimapMask");
         minimapRender = root.Q<VisualElement>("MinimapRender");
         minimapMarkerLayer = root.Q<VisualElement>("MinimapMarkerLayer");
         minimapCenterReticle = root.Q<VisualElement>("MinimapCenterReticle");
         minimapModeLabel = root.Q<Label>("MinimapModeLabel");
         minimapZoomLabel = root.Q<Label>("MinimapZoomLabel");
 
-        if (hudRoot == null || minimapRoot == null || minimapRender == null)
+        if (hudRoot == null || minimapRoot == null || minimapMask == null || minimapRender == null)
         {
             return;
         }
@@ -257,6 +264,7 @@ public sealed class MinimapHudController : MonoBehaviour
 
         EnsureViewportOutlineElement();
         ConfigureCenterReticleRuntimeStyle();
+        RegisterMinimapInputCallbacks();
         UIToolkitRaycastChecker.RegisterBlockingElement(minimapRoot);
 
         UpdateMapLabels();
@@ -320,6 +328,128 @@ public sealed class MinimapHudController : MonoBehaviour
         minimapViewportBorder.AddToClassList("minimap-viewport-border");
         minimapViewportBorder.generateVisualContent += OnGenerateViewportOutline;
         minimapMarkerLayer.Insert(0, minimapViewportBorder);
+    }
+
+    private void RegisterMinimapInputCallbacks()
+    {
+        if (minimapMask == null)
+        {
+            return;
+        }
+
+        UnregisterMinimapInputCallbacks();
+        minimapMask.pickingMode = PickingMode.Position;
+        minimapMask.RegisterCallback<PointerDownEvent>(OnMinimapPointerDown);
+        minimapMask.RegisterCallback<PointerMoveEvent>(OnMinimapPointerMove);
+        minimapMask.RegisterCallback<PointerUpEvent>(OnMinimapPointerUp);
+        minimapMask.RegisterCallback<PointerCancelEvent>(OnMinimapPointerCancel);
+    }
+
+    private void UnregisterMinimapInputCallbacks()
+    {
+        if (minimapMask == null)
+        {
+            return;
+        }
+
+        minimapMask.UnregisterCallback<PointerDownEvent>(OnMinimapPointerDown);
+        minimapMask.UnregisterCallback<PointerMoveEvent>(OnMinimapPointerMove);
+        minimapMask.UnregisterCallback<PointerUpEvent>(OnMinimapPointerUp);
+        minimapMask.UnregisterCallback<PointerCancelEvent>(OnMinimapPointerCancel);
+    }
+
+    private void OnMinimapPointerDown(PointerDownEvent evt)
+    {
+        if (!Application.isPlaying || evt.button != 0 || minimapMask == null)
+        {
+            return;
+        }
+
+        minimapDragPointerId = evt.pointerId;
+        minimapMask.CapturePointer(minimapDragPointerId);
+        CenterCameraViewportAtMinimapPointer(evt.position);
+        evt.StopPropagation();
+    }
+
+    private void OnMinimapPointerMove(PointerMoveEvent evt)
+    {
+        if (!Application.isPlaying || evt.pointerId != minimapDragPointerId)
+        {
+            return;
+        }
+
+        CenterCameraViewportAtMinimapPointer(evt.position);
+        evt.StopPropagation();
+    }
+
+    private void OnMinimapPointerUp(PointerUpEvent evt)
+    {
+        if (evt.pointerId != minimapDragPointerId)
+        {
+            return;
+        }
+
+        StopMinimapDrag();
+        evt.StopPropagation();
+    }
+
+    private void OnMinimapPointerCancel(PointerCancelEvent evt)
+    {
+        if (evt.pointerId != minimapDragPointerId)
+        {
+            return;
+        }
+
+        StopMinimapDrag();
+        evt.StopPropagation();
+    }
+
+    private void StopMinimapDrag()
+    {
+        if (minimapDragPointerId < 0)
+        {
+            return;
+        }
+
+        if (minimapMask != null && minimapMask.HasPointerCapture(minimapDragPointerId))
+        {
+            minimapMask.ReleasePointer(minimapDragPointerId);
+        }
+
+        minimapDragPointerId = -1;
+    }
+
+    private void CenterCameraViewportAtMinimapPointer(Vector2 panelPosition)
+    {
+        if (minimapMask == null)
+        {
+            return;
+        }
+
+        float width = minimapMask.resolvedStyle.width;
+        float height = minimapMask.resolvedStyle.height;
+        if (width <= 1f || height <= 1f)
+        {
+            return;
+        }
+
+        RefreshWorldMapContext();
+        TryResolveBoundsFromNavMeshSurface();
+
+        Vector2 localPosition = minimapMask.WorldToLocal(panelPosition);
+        Vector2 normalized = new Vector2(
+            Mathf.Clamp01(localPosition.x / width),
+            Mathf.Clamp01(1f - (localPosition.y / height)));
+        Vector3 worldPoint = MapNormalizedToWorld(normalized, GetViewportProjectionHeight());
+
+        IsometricCameraController cameraController = ResolveCameraController();
+        if (cameraController == null)
+        {
+            return;
+        }
+
+        cameraController.CenterViewportOnWorldPoint(worldPoint);
+        UpdateMarkerPositions();
     }
 
     private void OnGenerateViewportOutline(MeshGenerationContext context)
@@ -757,6 +887,32 @@ public sealed class MinimapHudController : MonoBehaviour
         return null;
     }
 
+    private IsometricCameraController ResolveCameraController()
+    {
+        if (cameraControllerOverride != null && cameraControllerOverride.isActiveAndEnabled)
+        {
+            return cameraControllerOverride;
+        }
+
+        if (cachedCameraController != null && cachedCameraController.isActiveAndEnabled)
+        {
+            return cachedCameraController;
+        }
+
+        Camera gameplayCamera = ResolveGameplayCamera();
+        if (gameplayCamera != null)
+        {
+            cachedCameraController = gameplayCamera.GetComponentInParent<IsometricCameraController>();
+            if (cachedCameraController != null && cachedCameraController.isActiveAndEnabled)
+            {
+                return cachedCameraController;
+            }
+        }
+
+        cachedCameraController = FindFirstObjectByType<IsometricCameraController>();
+        return cachedCameraController != null && cachedCameraController.isActiveAndEnabled ? cachedCameraController : null;
+    }
+
     private static bool IsGameplayCameraUsable(Camera camera)
     {
         return camera != null && camera.isActiveAndEnabled && camera.targetTexture == null;
@@ -797,6 +953,21 @@ public sealed class MinimapHudController : MonoBehaviour
         }
 
         return new Vector2(normalizedX, normalizedY);
+    }
+
+    private Vector3 MapNormalizedToWorld(Vector2 normalized, float worldY)
+    {
+        float minX = Mathf.Min(mapWorldMin.x, mapWorldMax.x);
+        float maxX = Mathf.Max(mapWorldMin.x, mapWorldMax.x);
+        float minZ = Mathf.Min(mapWorldMin.y, mapWorldMax.y);
+        float maxZ = Mathf.Max(mapWorldMin.y, mapWorldMax.y);
+
+        float normalizedX = invertMapX ? 1f - normalized.x : normalized.x;
+        float normalizedZ = invertMapY ? 1f - normalized.y : normalized.y;
+        return new Vector3(
+            Mathf.Lerp(minX, maxX, Mathf.Clamp01(normalizedX)),
+            worldY,
+            Mathf.Lerp(minZ, maxZ, Mathf.Clamp01(normalizedZ)));
     }
 
     private static Vector2 NormalizedToMapUiPosition(Vector2 normalized, float width, float height)
@@ -974,6 +1145,9 @@ public sealed class MinimapHudController : MonoBehaviour
 
     private void UnhookUiCallbacks()
     {
+        StopMinimapDrag();
+        UnregisterMinimapInputCallbacks();
+
         if (minimapRoot != null)
         {
             UIToolkitRaycastChecker.UnregisterBlockingElement(minimapRoot);
@@ -989,11 +1163,13 @@ public sealed class MinimapHudController : MonoBehaviour
         viewportOutlineVisible = false;
 
         minimapRoot = null;
+        minimapMask = null;
         minimapRender = null;
         minimapMarkerLayer = null;
         minimapCenterReticle = null;
         minimapModeLabel = null;
         minimapZoomLabel = null;
+        cachedCameraController = null;
         hudRoot = null;
     }
 

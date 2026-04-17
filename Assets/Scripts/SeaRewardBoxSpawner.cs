@@ -22,6 +22,7 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
     [SerializeField, Min(0.1f)] private float navMeshSampleDistance = 3f;
     [SerializeField] private Transform spawnCenter;
     [SerializeField, Min(0f)] private float additionalWaterlineOffset = 0.15f;
+    [SerializeField] private bool requireWorldMapScope = true;
 
     [Header("Respawn Settings")]
     [SerializeField, Min(0.5f)] private float respawnDelaySeconds = 15f;
@@ -31,6 +32,7 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
 
     private readonly Dictionary<int, SpawnSlotRuntime> spawnSlots = new();
     private bool serverInitialized;
+    private bool missingWorldMapScopeWarningLogged;
     private int walkableAreaMask;
 
     private void OnEnable()
@@ -105,6 +107,12 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
             return;
         }
 
+        if (requireWorldMapScope && !TryResolveWorldMapId(out _))
+        {
+            LogMissingWorldMapScopeWarning();
+            return;
+        }
+
         walkableAreaMask = SeaSpawnSurfaceUtility.ResolveWalkableAreaMask();
         InitializeSpawnSlots();
         serverInitialized = true;
@@ -135,6 +143,17 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
         if (slot == null || boxNetworkPrefab == null)
         {
             return false;
+        }
+
+        if (!TryResolveWorldMapId(out string mapId))
+        {
+            if (requireWorldMapScope)
+            {
+                LogMissingWorldMapScopeWarning();
+                return false;
+            }
+
+            mapId = string.Empty;
         }
 
         if (pauseSpawningWhenMapEmpty && !WorldMapSceneActivityUtility.HasActivePlayersOnMap(this))
@@ -171,6 +190,11 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
         }
 
         rewardBox.BindSpawnSlot(this, slot.SlotId);
+        if (!string.IsNullOrWhiteSpace(mapId))
+        {
+            rewardBox.SetWorldMapIdFromServer(mapId);
+        }
+
         networkObject.Spawn();
 
         slot.ActiveBox = rewardBox;
@@ -311,5 +335,22 @@ public sealed class SeaRewardBoxSpawner : MonoBehaviour
         {
             Prefab = prefab
         });
+    }
+
+    private bool TryResolveWorldMapId(out string mapId)
+    {
+        return WorldMapMembershipUtility.TryGetMapId(this, out mapId) &&
+               !string.IsNullOrWhiteSpace(mapId);
+    }
+
+    private void LogMissingWorldMapScopeWarning()
+    {
+        if (missingWorldMapScopeWarningLogged)
+        {
+            return;
+        }
+
+        missingWorldMapScopeWarningLogged = true;
+        Debug.LogWarning("SeaRewardBoxSpawner: Spawner is not inside a WorldMapSceneAuthoring scene. Move it under a map scene root or disable requireWorldMapScope.", this);
     }
 }

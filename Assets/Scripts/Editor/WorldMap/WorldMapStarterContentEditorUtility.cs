@@ -1,33 +1,144 @@
 #if UNITY_EDITOR
-using Unity.Netcode;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public static class WorldMapStarterContentEditorUtility
 {
-    private const string NpcSpawnerPrefabPath = "Assets/Prefabs/Bak/NPCSpawner.prefab";
-    private const string MonsterPrefabPath = "Assets/Prefabs/Monster.prefab";
-    private const string RewardBoxPrefabPath = "Assets/Prefabs/Box.prefab";
-    private const string GroundMaterialPath = "Assets/Materials/Terrain.mat";
-    private const string PropMaterialPath = "Assets/Procedural Worlds/Packages - Install/Asset Samples/Procedural Worlds/Content Resources/PW_Stone_01/PW_Stone_01.mat";
+    private const string LegacyMenuPath = "Tools/World Map/Populate All Catalog Map Scenes With Starter Content";
+    private const string MenuPath = "Tools/World Map/Populate All Catalog Map Scenes From MainScene Template";
+    private const string DefaultTemplateMapId = "1-1";
+    private const string ScopedMapIdPropertyName = "mapId";
+
+    private static readonly string[] LegacyGeneratedRootNames =
+    {
+        "EnvironmentRoot",
+        "PropsRoot",
+        "SpawnRoot"
+    };
+
+    private sealed class PopulationSourceContext
+    {
+        public Scene SourceScene;
+        public string SourceMapId = DefaultTemplateMapId;
+        public List<GameObject> SourceRoots = new();
+        public bool OpenedSourceScene;
+    }
+
+    [MenuItem(LegacyMenuPath)]
+    [MenuItem(MenuPath)]
+    private static void PopulateAllCatalogMapScenesMenu()
+    {
+        WorldMapCatalog catalog = AssetDatabase.LoadAssetAtPath<WorldMapCatalog>(WorldMapEditorSceneUtility.DefaultCatalogPath);
+        int updatedSceneCount = PopulateCatalogMapScenes(catalog);
+        Debug.Log($"WorldMapStarterContent: Applied MainScene template content to {updatedSceneCount} catalog map scene(s).", catalog);
+    }
 
     public static int PopulateLoadedMapScenes()
     {
-        int updatedSceneCount = 0;
-        WorldMapSceneAuthoring[] authoringRoots = Object.FindObjectsByType<WorldMapSceneAuthoring>(FindObjectsSortMode.None);
-        for (int index = 0; index < authoringRoots.Length; index++)
+        CaptureSceneState(out string activeScenePath, out HashSet<string> initiallyLoadedScenePaths);
+        if (!TryCreatePopulationSourceContext(
+                AssetDatabase.LoadAssetAtPath<WorldMapCatalog>(WorldMapEditorSceneUtility.DefaultCatalogPath),
+                initiallyLoadedScenePaths,
+                out PopulationSourceContext sourceContext))
         {
-            WorldMapSceneAuthoring authoring = authoringRoots[index];
-            if (authoring == null ||
-                !authoring.gameObject.scene.IsValid() ||
-                !authoring.gameObject.scene.isLoaded)
-            {
-                continue;
-            }
+            RestoreEditorSceneState(activeScenePath, initiallyLoadedScenePaths, null);
+            return 0;
+        }
 
-            PopulateScene(authoring);
-            updatedSceneCount += 1;
+        int updatedSceneCount = 0;
+        try
+        {
+            WorldMapSceneAuthoring[] authoringRoots = UnityEngine.Object.FindObjectsByType<WorldMapSceneAuthoring>(FindObjectsSortMode.None);
+            Array.Sort(authoringRoots, CompareAuthoringRoots);
+            for (int index = 0; index < authoringRoots.Length; index++)
+            {
+                WorldMapSceneAuthoring authoring = authoringRoots[index];
+                if (authoring == null ||
+                    !authoring.gameObject.scene.IsValid() ||
+                    !authoring.gameObject.scene.isLoaded)
+                {
+                    continue;
+                }
+
+                PopulateScene(authoring, sourceContext);
+                updatedSceneCount += 1;
+            }
+        }
+        finally
+        {
+            RestoreEditorSceneState(activeScenePath, initiallyLoadedScenePaths, sourceContext);
+            AssetDatabase.SaveAssets();
+        }
+
+        return updatedSceneCount;
+    }
+
+    public static int PopulateCatalogMapScenes(WorldMapCatalog catalog)
+    {
+        if (catalog == null || catalog.Maps == null)
+        {
+            Debug.LogWarning("WorldMapStarterContent: No WorldMapCatalog was supplied.");
+            return 0;
+        }
+
+        CaptureSceneState(out string activeScenePath, out HashSet<string> initiallyLoadedScenePaths);
+        if (!TryCreatePopulationSourceContext(catalog, initiallyLoadedScenePaths, out PopulationSourceContext sourceContext))
+        {
+            RestoreEditorSceneState(activeScenePath, initiallyLoadedScenePaths, null);
+            return 0;
+        }
+
+        int updatedSceneCount = 0;
+        try
+        {
+            IReadOnlyList<WorldMapDefinition> maps = catalog.Maps;
+            for (int index = 0; index < maps.Count; index++)
+            {
+                WorldMapDefinition definition = maps[index];
+                string scenePath = definition?.Scene?.ScenePath;
+                if (string.IsNullOrWhiteSpace(scenePath))
+                {
+                    continue;
+                }
+
+                Scene mapScene = SceneManager.GetSceneByPath(scenePath);
+                bool openedForPopulation = false;
+                if (!mapScene.IsValid() || !mapScene.isLoaded)
+                {
+                    mapScene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
+                    openedForPopulation = true;
+                }
+
+                if (!TryFindAuthoringRoot(mapScene, out WorldMapSceneAuthoring authoring))
+                {
+                    Debug.LogWarning($"WorldMapStarterContent: Scene '{scenePath}' has no WorldMapSceneAuthoring root.");
+                    if (openedForPopulation)
+                    {
+                        EditorSceneManager.CloseScene(mapScene, true);
+                    }
+
+                    continue;
+                }
+
+                PopulateScene(authoring, sourceContext);
+                EditorSceneManager.SaveScene(mapScene);
+                updatedSceneCount += 1;
+
+                if (openedForPopulation && !initiallyLoadedScenePaths.Contains(scenePath))
+                {
+                    EditorSceneManager.CloseScene(mapScene, true);
+                }
+            }
+        }
+        finally
+        {
+            RestoreEditorSceneState(activeScenePath, initiallyLoadedScenePaths, sourceContext);
+            AssetDatabase.SaveAssets();
         }
 
         return updatedSceneCount;
@@ -35,252 +146,484 @@ public static class WorldMapStarterContentEditorUtility
 
     public static void PopulateScene(WorldMapSceneAuthoring authoring)
     {
-        if (authoring == null)
+        CaptureSceneState(out string activeScenePath, out HashSet<string> initiallyLoadedScenePaths);
+        if (!TryCreatePopulationSourceContext(
+                AssetDatabase.LoadAssetAtPath<WorldMapCatalog>(WorldMapEditorSceneUtility.DefaultCatalogPath),
+                initiallyLoadedScenePaths,
+                out PopulationSourceContext sourceContext))
+        {
+            RestoreEditorSceneState(activeScenePath, initiallyLoadedScenePaths, null);
+            return;
+        }
+
+        try
+        {
+            PopulateScene(authoring, sourceContext);
+            AssetDatabase.SaveAssets();
+        }
+        finally
+        {
+            RestoreEditorSceneState(activeScenePath, initiallyLoadedScenePaths, sourceContext);
+        }
+    }
+
+    private static void PopulateScene(WorldMapSceneAuthoring authoring, PopulationSourceContext sourceContext)
+    {
+        if (authoring == null || sourceContext == null)
         {
             return;
         }
 
-        Transform root = authoring.transform;
-        Material groundMaterial = AssetDatabase.LoadAssetAtPath<Material>(GroundMaterialPath);
-        Material propMaterial = AssetDatabase.LoadAssetAtPath<Material>(PropMaterialPath);
+        EnsureAnchor(authoring.transform, "NorthArrivalAnchor", new Vector3(0f, 0f, 216f), Quaternion.Euler(0f, 180f, 0f));
+        EnsureAnchor(authoring.transform, "EastArrivalAnchor", new Vector3(216f, 0f, 0f), Quaternion.Euler(0f, -90f, 0f));
+        EnsureAnchor(authoring.transform, "SouthArrivalAnchor", new Vector3(0f, 0f, -216f), Quaternion.identity);
+        EnsureAnchor(authoring.transform, "WestArrivalAnchor", new Vector3(-216f, 0f, 0f), Quaternion.Euler(0f, 90f, 0f));
+        EnsureAnchor(authoring.transform, "RespawnAnchor", Vector3.zero, Quaternion.identity);
 
-        EnsureAnchor(root, "NorthArrivalAnchor", new Vector3(0f, 0f, 216f), Quaternion.Euler(0f, 180f, 0f));
-        EnsureAnchor(root, "EastArrivalAnchor", new Vector3(216f, 0f, 0f), Quaternion.Euler(0f, -90f, 0f));
-        EnsureAnchor(root, "SouthArrivalAnchor", new Vector3(0f, 0f, -216f), Quaternion.identity);
-        EnsureAnchor(root, "WestArrivalAnchor", new Vector3(-216f, 0f, 0f), Quaternion.Euler(0f, 90f, 0f));
-        EnsureAnchor(root, "RespawnAnchor", Vector3.zero, Quaternion.identity);
+        authoring.RefreshEditorState();
+        string targetMapId = string.IsNullOrWhiteSpace(authoring.MapId)
+            ? WorldMapCatalog.NormalizeMapId(authoring.gameObject.scene.name.Replace("Map_", string.Empty))
+            : authoring.MapId;
 
-        GameObject environmentRoot = EnsureEmptyChild(root, "EnvironmentRoot", Vector3.zero);
-        GameObject propsRoot = EnsureEmptyChild(root, "PropsRoot", Vector3.zero);
-        GameObject spawnRoot = EnsureEmptyChild(root, "SpawnRoot", Vector3.zero);
+        ClearExistingTemplateRoots(authoring.transform, sourceContext.SourceRoots);
+        string terrainDataFolderPath = RecreateGeneratedTerrainDataFolder(authoring.gameObject.scene.path);
 
-        EnsureVisualPrimitive(environmentRoot.transform, "StarterIslandBase", PrimitiveType.Cube, new Vector3(0f, -7f, 0f), Quaternion.identity, new Vector3(96f, 10f, 96f), groundMaterial);
-        EnsureVisualPrimitive(environmentRoot.transform, "StarterIslandShelf", PrimitiveType.Cube, new Vector3(0f, -3f, 22f), Quaternion.identity, new Vector3(132f, 2f, 168f), groundMaterial);
+        for (int index = 0; index < sourceContext.SourceRoots.Count; index++)
+        {
+            GameObject sourceRoot = sourceContext.SourceRoots[index];
+            if (sourceRoot == null)
+            {
+                continue;
+            }
 
-        EnsureVisualPrimitive(propsRoot.transform, "StarterRockNorth", PrimitiveType.Cube, new Vector3(54f, 8f, 78f), Quaternion.Euler(0f, 24f, 0f), new Vector3(14f, 18f, 12f), propMaterial);
-        EnsureVisualPrimitive(propsRoot.transform, "StarterRockWest", PrimitiveType.Cube, new Vector3(-72f, 5f, -38f), Quaternion.Euler(0f, -18f, 0f), new Vector3(18f, 12f, 18f), propMaterial);
-        EnsureVisualPrimitive(propsRoot.transform, "StarterJettyEast", PrimitiveType.Cube, new Vector3(86f, 1f, 6f), Quaternion.Euler(0f, 12f, 0f), new Vector3(26f, 2f, 8f), propMaterial);
-        EnsureVisualPrimitive(propsRoot.transform, "StarterJettyWest", PrimitiveType.Cube, new Vector3(-90f, 1f, -12f), Quaternion.Euler(0f, -16f, 0f), new Vector3(22f, 2f, 8f), propMaterial);
+            GameObject clone = CloneTemplateRootIntoScene(sourceRoot, authoring.transform, authoring.gameObject.scene);
+            if (clone == null)
+            {
+                continue;
+            }
 
-        GameObject monsterSpawnCenter = EnsureEmptyChild(spawnRoot.transform, "MonsterSpawnCenter", new Vector3(72f, 0f, 74f));
-        GameObject rewardSpawnCenter = EnsureEmptyChild(spawnRoot.transform, "RewardSpawnCenter", new Vector3(-84f, 0f, 46f));
-        GameObject playerSpawnPoint = EnsureEmptyChild(spawnRoot.transform, "PlayerSpawnPoint", Vector3.zero);
-        EnsureComponent<PlayerSpawnPoint>(playerSpawnPoint);
-
-        NPCSpawner npcSpawner = EnsureNpcSpawner(spawnRoot.transform);
-        MonsterSpawner monsterSpawner = EnsureComponent<MonsterSpawner>(EnsureEmptyChild(spawnRoot.transform, "MonsterSpawner", new Vector3(64f, 0f, 68f)));
-        SeaRewardBoxSpawner rewardBoxSpawner = EnsureComponent<SeaRewardBoxSpawner>(EnsureEmptyChild(spawnRoot.transform, "RewardBoxSpawner", new Vector3(-76f, 0f, 42f)));
-
-        EnsureNpcSpawnPoint(npcSpawner.transform, "NpcSpawnPoint_A", new Vector3(-32f, 0f, 18f));
-        EnsureNpcSpawnPoint(npcSpawner.transform, "NpcSpawnPoint_B", new Vector3(-10f, 0f, 42f));
-        EnsureNpcSpawnPoint(npcSpawner.transform, "NpcSpawnPoint_C", new Vector3(18f, 0f, 12f));
-
-        ConfigureMonsterSpawner(monsterSpawner, monsterSpawnCenter.transform);
-        ConfigureRewardBoxSpawner(rewardBoxSpawner, rewardSpawnCenter.transform);
-        ConfigureNpcSpawner(npcSpawner);
+            RetargetScopedMapIds(clone, targetMapId);
+            DuplicateTerrainDataAssets(clone, targetMapId, terrainDataFolderPath);
+        }
 
         authoring.RefreshEditorState();
         EditorUtility.SetDirty(authoring);
         EditorSceneManager.MarkSceneDirty(authoring.gameObject.scene);
     }
 
-    private static void ConfigureNpcSpawner(NPCSpawner npcSpawner)
+    private static bool TryCreatePopulationSourceContext(
+        WorldMapCatalog catalog,
+        HashSet<string> initiallyLoadedScenePaths,
+        out PopulationSourceContext sourceContext)
     {
-        if (npcSpawner == null)
+        sourceContext = null;
+        string sourceScenePath = WorldMapEditorSceneUtility.MainScenePath;
+        if (string.IsNullOrWhiteSpace(sourceScenePath) || AssetDatabase.LoadAssetAtPath<SceneAsset>(sourceScenePath) == null)
+        {
+            Debug.LogWarning($"WorldMapStarterContent: Could not locate source scene '{sourceScenePath}'.");
+            return false;
+        }
+
+        Scene sourceScene = SceneManager.GetSceneByPath(sourceScenePath);
+        bool openedSourceScene = false;
+        if (!sourceScene.IsValid() || !sourceScene.isLoaded)
+        {
+            sourceScene = EditorSceneManager.OpenScene(sourceScenePath, OpenSceneMode.Additive);
+            openedSourceScene = true;
+        }
+
+        string sourceMapId = ResolveSourceMapId(catalog);
+        List<GameObject> sourceRoots = CollectTemplateSourceRoots(sourceScene, sourceMapId);
+        if (sourceRoots.Count == 0)
+        {
+            Debug.LogWarning(
+                $"WorldMapStarterContent: MainScene has no scoped content roots for map '{sourceMapId}'. " +
+                "Add WorldMapContentScope to the authored template roots in MainScene before populating map scenes.");
+
+            if (openedSourceScene && !initiallyLoadedScenePaths.Contains(sourceScenePath))
+            {
+                EditorSceneManager.CloseScene(sourceScene, true);
+            }
+
+            return false;
+        }
+
+        sourceContext = new PopulationSourceContext
+        {
+            SourceScene = sourceScene,
+            SourceMapId = sourceMapId,
+            SourceRoots = sourceRoots,
+            OpenedSourceScene = openedSourceScene
+        };
+
+        return true;
+    }
+
+    private static void CaptureSceneState(out string activeScenePath, out HashSet<string> initiallyLoadedScenePaths)
+    {
+        Scene activeScene = EditorSceneManager.GetActiveScene();
+        activeScenePath = activeScene.IsValid() ? activeScene.path : string.Empty;
+        initiallyLoadedScenePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (int sceneIndex = 0; sceneIndex < EditorSceneManager.sceneCount; sceneIndex++)
+        {
+            Scene loadedScene = EditorSceneManager.GetSceneAt(sceneIndex);
+            if (loadedScene.IsValid() && loadedScene.isLoaded && !string.IsNullOrWhiteSpace(loadedScene.path))
+            {
+                initiallyLoadedScenePaths.Add(loadedScene.path);
+            }
+        }
+    }
+
+    private static void RestoreEditorSceneState(
+        string activeScenePath,
+        HashSet<string> initiallyLoadedScenePaths,
+        PopulationSourceContext sourceContext)
+    {
+        if (sourceContext != null &&
+            sourceContext.OpenedSourceScene &&
+            sourceContext.SourceScene.IsValid() &&
+            sourceContext.SourceScene.isLoaded &&
+            !initiallyLoadedScenePaths.Contains(sourceContext.SourceScene.path))
+        {
+            EditorSceneManager.CloseScene(sourceContext.SourceScene, true);
+        }
+
+        if (string.IsNullOrWhiteSpace(activeScenePath))
         {
             return;
         }
 
-        SerializedObject serializedObject = new SerializedObject(npcSpawner);
-        SetFloat(serializedObject, "spawnRadius", 140f);
-        SetInt(serializedObject, "spawnCount", 3);
-        SetFloat(serializedObject, "navMeshSampleDistance", 3f);
-        SetBool(serializedObject, "preferAuthoredSpawnPoints", true);
-        SetBool(serializedObject, "includeChildSpawnPoints", true);
-        SetFloat(serializedObject, "additionalWaterlineOffset", 0.1f);
-        serializedObject.ApplyModifiedPropertiesWithoutUndo();
-        EditorUtility.SetDirty(npcSpawner);
+        Scene restoredActiveScene = SceneManager.GetSceneByPath(activeScenePath);
+        if (restoredActiveScene.IsValid() && restoredActiveScene.isLoaded)
+        {
+            EditorSceneManager.SetActiveScene(restoredActiveScene);
+        }
     }
 
-    private static void ConfigureMonsterSpawner(MonsterSpawner monsterSpawner, Transform spawnCenter)
+    private static string ResolveSourceMapId(WorldMapCatalog catalog)
     {
-        if (monsterSpawner == null)
+        string sourceMapId = catalog != null ? catalog.StartingMapId : string.Empty;
+        if (string.IsNullOrWhiteSpace(sourceMapId))
         {
-            return;
+            sourceMapId = DefaultTemplateMapId;
         }
 
-        SerializedObject serializedObject = new SerializedObject(monsterSpawner);
-        SetObjectReference(serializedObject, "monsterNetworkPrefab", AssetDatabase.LoadAssetAtPath<GameObject>(MonsterPrefabPath));
-        SetInt(serializedObject, "spawnCount", 2);
-        SetFloat(serializedObject, "spawnRadius", 150f);
-        SetFloat(serializedObject, "navMeshSampleDistance", 3f);
-        SetObjectReference(serializedObject, "spawnCenter", spawnCenter);
-        SetFloat(serializedObject, "additionalWaterlineOffset", 0.1f);
-        SetFloat(serializedObject, "respawnDelaySeconds", 30f);
-        SetFloat(serializedObject, "respawnRetryIntervalSeconds", 2f);
-        SetFloat(serializedObject, "spawnClearanceRadius", 16f);
-        SetBool(serializedObject, "pauseSpawningWhenMapEmpty", true);
-        serializedObject.ApplyModifiedPropertiesWithoutUndo();
-        EditorUtility.SetDirty(monsterSpawner);
+        return WorldMapCatalog.NormalizeMapId(sourceMapId);
     }
 
-    private static void ConfigureRewardBoxSpawner(SeaRewardBoxSpawner rewardBoxSpawner, Transform spawnCenter)
+    private static List<GameObject> CollectTemplateSourceRoots(Scene sourceScene, string sourceMapId)
     {
-        if (rewardBoxSpawner == null)
+        var roots = new List<GameObject>();
+        WorldMapContentScope[] contentScopes = UnityEngine.Object.FindObjectsByType<WorldMapContentScope>(FindObjectsSortMode.None);
+        for (int index = 0; index < contentScopes.Length; index++)
         {
-            return;
+            WorldMapContentScope contentScope = contentScopes[index];
+            if (contentScope == null ||
+                contentScope.gameObject.scene != sourceScene ||
+                contentScope.GetComponentInParent<WorldMapSceneAuthoring>() != null ||
+                !string.Equals(contentScope.MapId, sourceMapId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            WorldMapContentScope parentScope = contentScope.transform.parent != null
+                ? contentScope.transform.parent.GetComponentInParent<WorldMapContentScope>()
+                : null;
+            if (parentScope != null && !ReferenceEquals(parentScope, contentScope))
+            {
+                continue;
+            }
+
+            roots.Add(contentScope.gameObject);
         }
 
-        SerializedObject serializedObject = new SerializedObject(rewardBoxSpawner);
-        SetObjectReference(serializedObject, "boxNetworkPrefab", AssetDatabase.LoadAssetAtPath<GameObject>(RewardBoxPrefabPath));
-        SetInt(serializedObject, "spawnCount", 4);
-        SetFloat(serializedObject, "spawnRadius", 150f);
-        SetFloat(serializedObject, "navMeshSampleDistance", 3f);
-        SetObjectReference(serializedObject, "spawnCenter", spawnCenter);
-        SetFloat(serializedObject, "additionalWaterlineOffset", 0.15f);
-        SetFloat(serializedObject, "respawnDelaySeconds", 15f);
-        SetFloat(serializedObject, "respawnRetryIntervalSeconds", 2f);
-        SetFloat(serializedObject, "spawnClearanceRadius", 12f);
-        SetBool(serializedObject, "pauseSpawningWhenMapEmpty", true);
-        serializedObject.ApplyModifiedPropertiesWithoutUndo();
-        EditorUtility.SetDirty(rewardBoxSpawner);
+        roots.Sort((left, right) =>
+        {
+            int siblingComparison = left.transform.GetSiblingIndex().CompareTo(right.transform.GetSiblingIndex());
+            return siblingComparison != 0
+                ? siblingComparison
+                : string.Compare(left.name, right.name, StringComparison.OrdinalIgnoreCase);
+        });
+
+        return roots;
     }
 
-    private static NPCSpawner EnsureNpcSpawner(Transform parent)
+    private static void ClearExistingTemplateRoots(Transform authoringRoot, IReadOnlyList<GameObject> sourceRoots)
     {
-        NPCSpawner existingSpawner = parent.GetComponentInChildren<NPCSpawner>(true);
-        if (existingSpawner != null)
+        var namesToReplace = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int index = 0; index < LegacyGeneratedRootNames.Length; index++)
         {
-            return existingSpawner;
+            namesToReplace.Add(LegacyGeneratedRootNames[index]);
         }
 
-        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(NpcSpawnerPrefabPath);
-        GameObject instance = null;
-        if (prefab != null)
+        for (int index = 0; index < sourceRoots.Count; index++)
         {
-            instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent.gameObject.scene);
-            instance.transform.SetParent(parent, false);
-            instance.name = "NPCSpawner";
+            GameObject sourceRoot = sourceRoots[index];
+            if (sourceRoot != null)
+            {
+                namesToReplace.Add(sourceRoot.name);
+            }
+        }
+
+        for (int childIndex = authoringRoot.childCount - 1; childIndex >= 0; childIndex--)
+        {
+            Transform child = authoringRoot.GetChild(childIndex);
+            if (child == null || !namesToReplace.Contains(child.name))
+            {
+                continue;
+            }
+
+            Undo.DestroyObjectImmediate(child.gameObject);
+        }
+    }
+
+    private static string RecreateGeneratedTerrainDataFolder(string scenePath)
+    {
+        if (string.IsNullOrWhiteSpace(scenePath))
+        {
+            return string.Empty;
+        }
+
+        string sceneDirectory = NormalizeAssetPath(Path.GetDirectoryName(scenePath));
+        string folderName = $"{Path.GetFileNameWithoutExtension(scenePath)}_TerrainData";
+        if (string.IsNullOrWhiteSpace(sceneDirectory))
+        {
+            return string.Empty;
+        }
+
+        string folderPath = $"{sceneDirectory}/{folderName}";
+        if (AssetDatabase.IsValidFolder(folderPath))
+        {
+            string[] guids = AssetDatabase.FindAssets(string.Empty, new[] { folderPath });
+            var assetPaths = new List<string>(guids.Length);
+            for (int index = 0; index < guids.Length; index++)
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(guids[index]);
+                if (!string.IsNullOrWhiteSpace(assetPath) &&
+                    !string.Equals(assetPath, folderPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    assetPaths.Add(assetPath);
+                }
+            }
+
+            assetPaths.Sort((left, right) => string.Compare(right, left, StringComparison.OrdinalIgnoreCase));
+            for (int index = 0; index < assetPaths.Count; index++)
+            {
+                AssetDatabase.DeleteAsset(assetPaths[index]);
+            }
         }
         else
         {
-            instance = EnsureEmptyChild(parent, "NPCSpawner", Vector3.zero);
-            EnsureComponent<NetworkObject>(instance);
-            EnsureComponent<NPCSpawner>(instance);
+            EnsureFolder(sceneDirectory, folderName);
         }
 
-        instance.transform.localPosition = new Vector3(-14f, 0f, 24f);
-        instance.transform.localRotation = Quaternion.identity;
-        instance.transform.localScale = Vector3.one;
-        return instance.GetComponent<NPCSpawner>();
+        return folderPath;
     }
 
-    private static NpcSpawnPoint EnsureNpcSpawnPoint(Transform parent, string name, Vector3 localPosition)
+    private static GameObject CloneTemplateRootIntoScene(GameObject sourceRoot, Transform targetParent, Scene targetScene)
     {
-        GameObject point = EnsureEmptyChild(parent, name, localPosition);
-        NpcSpawnPoint spawnPoint = EnsureComponent<NpcSpawnPoint>(point);
-        EditorUtility.SetDirty(spawnPoint);
-        return spawnPoint;
+        GameObject clone = UnityEngine.Object.Instantiate(sourceRoot);
+        clone.name = sourceRoot.name;
+        EditorSceneManager.MoveGameObjectToScene(clone, targetScene);
+        clone.transform.SetParent(targetParent, false);
+        Undo.RegisterCreatedObjectUndo(clone, $"Populate {clone.name}");
+        return clone;
+    }
+
+    private static void RetargetScopedMapIds(GameObject root, string targetMapId)
+    {
+        WorldMapContentScope[] contentScopes = root.GetComponentsInChildren<WorldMapContentScope>(true);
+        for (int index = 0; index < contentScopes.Length; index++)
+        {
+            WorldMapContentScope contentScope = contentScopes[index];
+            if (contentScope == null)
+            {
+                continue;
+            }
+
+            SerializedObject serializedObject = new SerializedObject(contentScope);
+            SerializedProperty mapIdProperty = serializedObject.FindProperty(ScopedMapIdPropertyName);
+            if (mapIdProperty == null)
+            {
+                continue;
+            }
+
+            mapIdProperty.stringValue = targetMapId;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(contentScope);
+        }
+    }
+
+    private static void DuplicateTerrainDataAssets(GameObject root, string targetMapId, string terrainDataFolderPath)
+    {
+        if (root == null || string.IsNullOrWhiteSpace(terrainDataFolderPath))
+        {
+            return;
+        }
+
+        var clonedTerrainData = new Dictionary<TerrainData, TerrainData>();
+
+        Terrain[] terrains = root.GetComponentsInChildren<Terrain>(true);
+        for (int index = 0; index < terrains.Length; index++)
+        {
+            Terrain terrain = terrains[index];
+            if (terrain == null || terrain.terrainData == null)
+            {
+                continue;
+            }
+
+            TerrainData duplicatedTerrainData = GetOrCreateTerrainDataClone(
+                terrain.terrainData,
+                terrain.name,
+                targetMapId,
+                terrainDataFolderPath,
+                clonedTerrainData);
+
+            terrain.terrainData = duplicatedTerrainData;
+            EditorUtility.SetDirty(terrain);
+        }
+
+        TerrainCollider[] colliders = root.GetComponentsInChildren<TerrainCollider>(true);
+        for (int index = 0; index < colliders.Length; index++)
+        {
+            TerrainCollider collider = colliders[index];
+            if (collider == null || collider.terrainData == null)
+            {
+                continue;
+            }
+
+            TerrainData duplicatedTerrainData = GetOrCreateTerrainDataClone(
+                collider.terrainData,
+                collider.name,
+                targetMapId,
+                terrainDataFolderPath,
+                clonedTerrainData);
+
+            collider.terrainData = duplicatedTerrainData;
+            EditorUtility.SetDirty(collider);
+        }
+    }
+
+    private static TerrainData GetOrCreateTerrainDataClone(
+        TerrainData sourceTerrainData,
+        string terrainObjectName,
+        string targetMapId,
+        string terrainDataFolderPath,
+        Dictionary<TerrainData, TerrainData> clonedTerrainData)
+    {
+        if (clonedTerrainData.TryGetValue(sourceTerrainData, out TerrainData existingClone) && existingClone != null)
+        {
+            return existingClone;
+        }
+
+        string sourceTerrainDataPath = AssetDatabase.GetAssetPath(sourceTerrainData);
+        string baseFileName = $"{SanitizeFileName(targetMapId)}_{SanitizeFileName(terrainObjectName)}.asset";
+        string targetTerrainDataPath = AssetDatabase.GenerateUniqueAssetPath($"{terrainDataFolderPath}/{baseFileName}");
+
+        if (!string.IsNullOrWhiteSpace(sourceTerrainDataPath))
+        {
+            AssetDatabase.CopyAsset(sourceTerrainDataPath, targetTerrainDataPath);
+        }
+        else
+        {
+            TerrainData duplicatedTerrainData = UnityEngine.Object.Instantiate(sourceTerrainData);
+            duplicatedTerrainData.name = $"{targetMapId}_{terrainObjectName}";
+            AssetDatabase.CreateAsset(duplicatedTerrainData, targetTerrainDataPath);
+        }
+
+        TerrainData loadedTerrainData = AssetDatabase.LoadAssetAtPath<TerrainData>(targetTerrainDataPath);
+        clonedTerrainData[sourceTerrainData] = loadedTerrainData;
+        return loadedTerrainData;
+    }
+
+    private static int CompareAuthoringRoots(WorldMapSceneAuthoring left, WorldMapSceneAuthoring right)
+    {
+        string leftPath = left != null ? left.gameObject.scene.path : string.Empty;
+        string rightPath = right != null ? right.gameObject.scene.path : string.Empty;
+        return string.Compare(leftPath, rightPath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryFindAuthoringRoot(Scene scene, out WorldMapSceneAuthoring authoring)
+    {
+        authoring = null;
+        if (!scene.IsValid() || !scene.isLoaded)
+        {
+            return false;
+        }
+
+        WorldMapSceneAuthoring[] authoringRoots = UnityEngine.Object.FindObjectsByType<WorldMapSceneAuthoring>(FindObjectsSortMode.None);
+        for (int index = 0; index < authoringRoots.Length; index++)
+        {
+            WorldMapSceneAuthoring candidate = authoringRoots[index];
+            if (candidate == null || candidate.gameObject.scene != scene)
+            {
+                continue;
+            }
+
+            authoring = candidate;
+            return true;
+        }
+
+        return false;
     }
 
     private static Transform EnsureAnchor(Transform parent, string name, Vector3 localPosition, Quaternion localRotation)
     {
-        GameObject anchor = EnsureEmptyChild(parent, name, localPosition);
+        Transform existing = parent.Find(name);
+        GameObject anchor = existing != null ? existing.gameObject : new GameObject(name);
+        if (existing == null)
+        {
+            anchor.transform.SetParent(parent, false);
+        }
+
+        anchor.transform.localPosition = localPosition;
         anchor.transform.localRotation = localRotation;
         anchor.transform.localScale = Vector3.one;
+        anchor.SetActive(true);
         return anchor.transform;
     }
 
-    private static GameObject EnsureEmptyChild(Transform parent, string name, Vector3 localPosition)
+    private static void EnsureFolder(string parentPath, string folderName)
     {
-        Transform existing = parent.Find(name);
-        GameObject result = existing != null ? existing.gameObject : new GameObject(name);
-        if (existing == null)
+        string normalizedParentPath = NormalizeAssetPath(parentPath);
+        if (string.IsNullOrWhiteSpace(normalizedParentPath))
         {
-            result.transform.SetParent(parent, false);
+            return;
         }
 
-        result.transform.localPosition = localPosition;
-        result.transform.localRotation = Quaternion.identity;
-        result.transform.localScale = Vector3.one;
-        result.SetActive(true);
-        return result;
-    }
-
-    private static GameObject EnsureVisualPrimitive(Transform parent, string name, PrimitiveType primitiveType, Vector3 localPosition, Quaternion localRotation, Vector3 localScale, Material sharedMaterial)
-    {
-        Transform existing = parent.Find(name);
-        GameObject visual = existing != null ? existing.gameObject : GameObject.CreatePrimitive(primitiveType);
-        if (existing == null)
+        string folderPath = $"{normalizedParentPath}/{folderName}";
+        if (!AssetDatabase.IsValidFolder(folderPath))
         {
-            visual.name = name;
-            visual.transform.SetParent(parent, false);
-        }
-
-        Collider collider = visual.GetComponent<Collider>();
-        if (collider != null)
-        {
-            Object.DestroyImmediate(collider);
-        }
-
-        visual.transform.localPosition = localPosition;
-        visual.transform.localRotation = localRotation;
-        visual.transform.localScale = localScale;
-
-        Renderer renderer = visual.GetComponent<Renderer>();
-        if (renderer != null && sharedMaterial != null)
-        {
-            renderer.sharedMaterial = sharedMaterial;
-        }
-
-        return visual;
-    }
-
-    private static T EnsureComponent<T>(GameObject gameObject) where T : Component
-    {
-        T component = gameObject.GetComponent<T>();
-        if (component == null)
-        {
-            component = gameObject.AddComponent<T>();
-        }
-
-        return component;
-    }
-
-    private static void SetObjectReference(SerializedObject serializedObject, string propertyName, Object value)
-    {
-        SerializedProperty property = serializedObject.FindProperty(propertyName);
-        if (property != null)
-        {
-            property.objectReferenceValue = value;
+            AssetDatabase.CreateFolder(normalizedParentPath, folderName);
         }
     }
 
-    private static void SetFloat(SerializedObject serializedObject, string propertyName, float value)
+    private static string NormalizeAssetPath(string path)
     {
-        SerializedProperty property = serializedObject.FindProperty(propertyName);
-        if (property != null)
-        {
-            property.floatValue = value;
-        }
+        return string.IsNullOrWhiteSpace(path)
+            ? string.Empty
+            : path.Replace('\\', '/');
     }
 
-    private static void SetInt(SerializedObject serializedObject, string propertyName, int value)
+    private static string SanitizeFileName(string value)
     {
-        SerializedProperty property = serializedObject.FindProperty(propertyName);
-        if (property != null)
+        if (string.IsNullOrWhiteSpace(value))
         {
-            property.intValue = value;
+            return "Terrain";
         }
-    }
 
-    private static void SetBool(SerializedObject serializedObject, string propertyName, bool value)
-    {
-        SerializedProperty property = serializedObject.FindProperty(propertyName);
-        if (property != null)
+        char[] invalidCharacters = Path.GetInvalidFileNameChars();
+        var sanitized = value.Trim().ToCharArray();
+        for (int index = 0; index < sanitized.Length; index++)
         {
-            property.boolValue = value;
+            if (Array.IndexOf(invalidCharacters, sanitized[index]) >= 0 || sanitized[index] == '/')
+            {
+                sanitized[index] = '_';
+            }
         }
+
+        return new string(sanitized);
     }
 }
 #endif

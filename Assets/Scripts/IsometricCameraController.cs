@@ -118,6 +118,34 @@ public class IsometricCameraController : MonoBehaviour
         transform.position = ClampToPlayableArea(target.position + followOffset);
     }
 
+    public void CenterViewportOnWorldPoint(Vector3 worldPoint)
+    {
+        ResolveMovementBounds();
+
+        Camera targetCamera = ResolveZoomCamera();
+        Vector3 nextPosition = transform.position;
+        if (targetCamera != null)
+        {
+            Plane projectionPlane = new Plane(Vector3.up, new Vector3(0f, worldPoint.y, 0f));
+            if (TryProjectViewportPointToPlane(targetCamera, projectionPlane, 0.5f, 0.5f, out Vector3 currentCenter))
+            {
+                Vector3 delta = worldPoint - currentCenter;
+                nextPosition += new Vector3(delta.x, 0f, delta.z);
+            }
+            else
+            {
+                nextPosition = new Vector3(worldPoint.x + followOffset.x, nextPosition.y, worldPoint.z + followOffset.z);
+            }
+        }
+        else
+        {
+            nextPosition = new Vector3(worldPoint.x + followOffset.x, nextPosition.y, worldPoint.z + followOffset.z);
+        }
+
+        isFollowing = false;
+        transform.position = ClampToPlayableArea(nextPosition);
+    }
+
     public float MinZoom => Mathf.Min(minFieldOfView, maxFieldOfView);
     public float MaxZoom => Mathf.Max(minFieldOfView, maxFieldOfView);
 

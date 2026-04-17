@@ -57,7 +57,7 @@ public sealed class Monster : NetworkBehaviour, ICombatEntity, IDamageSourceRece
 
     public void SetWorldMapIdFromServer(string mapId)
     {
-        if (!IsServer)
+        if (!IsServer && (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer))
         {
             return;
         }

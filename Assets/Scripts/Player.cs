@@ -1156,17 +1156,7 @@ public partial class Player : NetworkBehaviour, ICombatEntity, IDamageSourceRece
 
         if (TryGetSpawnTransform(out Vector3 spawnPosition, out Quaternion spawnRotation))
         {
-            if (TryGetComponent(out NavMeshAgent navMeshAgent) && navMeshAgent.enabled)
-            {
-                navMeshAgent.ResetPath();
-                navMeshAgent.Warp(spawnPosition);
-            }
-            else
-            {
-                transform.position = spawnPosition;
-            }
-
-            transform.rotation = spawnRotation;
+            TeleportServerToWorldMapPosition(spawnPosition, spawnRotation);
         }
 
         m_networkIsDead.Value = false;

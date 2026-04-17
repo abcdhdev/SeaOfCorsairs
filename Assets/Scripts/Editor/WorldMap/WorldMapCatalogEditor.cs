@@ -46,6 +46,11 @@ public sealed class WorldMapCatalogEditor : Editor
             ValidateCatalogAndLoadedScenes(catalog);
         }
 
+        if (GUILayout.Button("Open World Map Editor Window"))
+        {
+            WorldMapEditorWindow.OpenWindow();
+        }
+
         if (GUILayout.Button("Open MainScene + Selected Map Scene"))
         {
             OpenSelectedMapScene(catalog, includeNeighbors: false);
@@ -56,10 +61,10 @@ public sealed class WorldMapCatalogEditor : Editor
             OpenSelectedMapScene(catalog, includeNeighbors: true);
         }
 
-        if (GUILayout.Button("Populate Loaded Map Scenes With Starter Content"))
+        if (GUILayout.Button("Populate Loaded Map Scenes From MainScene Template"))
         {
             int updatedSceneCount = WorldMapStarterContentEditorUtility.PopulateLoadedMapScenes();
-            Debug.Log($"WorldMapCatalog: Applied starter content to {updatedSceneCount} loaded map scene(s).", catalog);
+            Debug.Log($"WorldMapCatalog: Applied MainScene template content to {updatedSceneCount} loaded map scene(s).", catalog);
         }
 
         if (GUILayout.Button("Ping Selected Map Entry Or Loaded Root"))
@@ -82,33 +87,12 @@ public sealed class WorldMapCatalogEditor : Editor
             return;
         }
 
-        EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity", OpenSceneMode.Single);
-        EditorSceneManager.OpenScene(selectedDefinition.Scene.ScenePath, OpenSceneMode.Additive);
-
-        if (!includeNeighbors)
-        {
-            return;
-        }
-
-        MapTransitionDirection[] directions =
-        {
-            MapTransitionDirection.North,
-            MapTransitionDirection.East,
-            MapTransitionDirection.South,
-            MapTransitionDirection.West
-        };
-
-        for (int index = 0; index < directions.Length; index++)
-        {
-            if (!catalog.TryGetAdjacent(selectedDefinition.MapId, directions[index], out WorldMapDefinition adjacent) ||
-                adjacent?.Scene == null ||
-                !adjacent.Scene.HasScenePath)
-            {
-                continue;
-            }
-
-            EditorSceneManager.OpenScene(adjacent.Scene.ScenePath, OpenSceneMode.Additive);
-        }
+        WorldMapEditorSceneUtility.OpenMapForEditing(
+            catalog,
+            selectedDefinition,
+            includeMainScene: true,
+            includeNeighbors,
+            replaceCurrentSceneSetup: true);
     }
 
     private void DrawSelectedMapPicker(WorldMapCatalog catalog)
@@ -118,7 +102,7 @@ public sealed class WorldMapCatalogEditor : Editor
             return;
         }
 
-        string[] mapOptions = BuildMapOptions(catalog);
+        string[] mapOptions = WorldMapEditorSceneUtility.BuildMapOptions(catalog);
         selectedMapIndex = Mathf.Clamp(selectedMapIndex, 0, mapOptions.Length - 1);
         selectedMapIndex = EditorGUILayout.Popup("Selected Map", selectedMapIndex, mapOptions);
     }
@@ -198,21 +182,9 @@ public sealed class WorldMapCatalogEditor : Editor
             return;
         }
 
-        WorldMapSceneAuthoring[] authoringRoots = FindObjectsByType<WorldMapSceneAuthoring>(FindObjectsSortMode.None);
-        for (int index = 0; index < authoringRoots.Length; index++)
+        if (WorldMapEditorSceneUtility.SelectLoadedMapRoot(selectedDefinition.MapId))
         {
-            WorldMapSceneAuthoring authoring = authoringRoots[index];
-            if (authoring == null)
-            {
-                continue;
-            }
-
-            if (string.Equals(authoring.MapId, selectedDefinition.MapId, System.StringComparison.OrdinalIgnoreCase))
-            {
-                EditorGUIUtility.PingObject(authoring.gameObject);
-                Selection.activeGameObject = authoring.gameObject;
-                return;
-            }
+            return;
         }
 
         SceneAsset sceneAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(selectedDefinition.Scene.ScenePath);
@@ -223,31 +195,9 @@ public sealed class WorldMapCatalogEditor : Editor
         }
     }
 
-    private static string[] BuildMapOptions(WorldMapCatalog catalog)
-    {
-        string[] options = new string[catalog.Maps.Count];
-        for (int index = 0; index < catalog.Maps.Count; index++)
-        {
-            WorldMapDefinition definition = catalog.Maps[index];
-            string mapId = definition != null ? definition.MapId : "missing";
-            string sceneName = definition?.Scene != null && definition.Scene.HasScenePath
-                ? definition.Scene.SceneName
-                : "No Scene";
-            options[index] = $"{mapId} ({sceneName})";
-        }
-
-        return options;
-    }
-
     private static WorldMapDefinition GetSelectedDefinition(WorldMapCatalog catalog, int selectedIndex)
     {
-        if (catalog == null || catalog.Maps == null || catalog.Maps.Count == 0)
-        {
-            return null;
-        }
-
-        int clampedIndex = Mathf.Clamp(selectedIndex, 0, catalog.Maps.Count - 1);
-        return catalog.Maps[clampedIndex];
+        return WorldMapEditorSceneUtility.GetDefinitionAt(catalog, selectedIndex);
     }
 }
 #endif

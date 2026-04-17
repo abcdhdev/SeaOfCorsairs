@@ -3444,6 +3444,7 @@ GameObject:
   m_Component:
   - component: {fileID: 58793061}
   - component: {fileID: 58793062}
+  - component: {fileID: 58793063}
   m_Layer: 0
   m_Name: PlayerSpawnPoint
   m_TagString: Untagged
@@ -3478,6 +3479,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f03409030b850c4ba9d2b34c23ad9ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerSpawnPoint
+--- !u!114 &58793063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 58793060}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5e3762ec8134e4ca3609a8657a8479f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldMapContentScope
+  mapId: 1-1
 --- !u!1 &74340486
 GameObject:
   m_ObjectHideFlags: 0
@@ -7334,30 +7348,6 @@ MonoBehaviour:
   m_clearSpawnsToggleProbes: 0
   m_clearSpawnsFor: 0
   m_clearSpawnsFrom: 0
---- !u!114 &180144632
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cba17d399ab86974c8ef9551f6e8f8d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: GaiaCore::Gaia.NoiseSettings
-  transformSettings:
-    translation: {x: 500, y: 200, z: 350}
-    scale: {x: 7.8125, y: 1, z: 7.8125}
-    rotation: {x: 0, y: 0, z: 0}
-    flipScaleX: 0
-    flipScaleY: 0
-    flipScaleZ: 0
-  domainSettings:
-    noiseTypeName: Perlin
-    fractalTypeName: Fbm
-    noiseTypeParams: 
-    fractalTypeParams: '{"warpOffsets":{"x":0.0,"y":0.0,"z":0.0,"w":0.0},"octavesMinMax":{"x":0.0,"y":16.0},"amplitudeMinMax":{"x":0.0,"y":1.0},"frequencyMinMax":{"x":0.0,"y":2.0},"lacunarityMinMax":{"x":0.0,"y":4.0},"persistenceMinMax":{"x":0.0,"y":1.0},"warpIterationsMinMax":{"x":0.0,"y":8.0},"warpStrengthMinMax":{"x":-2.0,"y":2.0},"octaves":8.0,"amplitude":0.38199999928474429,"frequency":1.0,"persistence":0.5,"lacunarity":1.5,"warpIterations":0.0,"warpStrength":1.0,"warpEnabled":false,"warpExpanded":true}'
 --- !u!1 &190737549
 GameObject:
   m_ObjectHideFlags: 0
@@ -7368,6 +7358,7 @@ GameObject:
   m_Component:
   - component: {fileID: 190737551}
   - component: {fileID: 190737550}
+  - component: {fileID: 190737552}
   m_Layer: 5
   m_Name: UIDocument
   m_TagString: Untagged
@@ -7413,6 +7404,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &190737552
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 190737549}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b987748c7167541c7be359b052530b17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DoNotDestroy
 --- !u!1 &191253150
 GameObject:
   m_ObjectHideFlags: 0
@@ -8982,6 +8985,7 @@ GameObject:
   m_Component:
   - component: {fileID: 242014622}
   - component: {fileID: 242014623}
+  - component: {fileID: 242014624}
   m_Layer: 0
   m_Name: Gaia Terrains
   m_TagString: Untagged
@@ -9025,6 +9029,19 @@ MonoBehaviour:
   m_IgnoreFromBuild: 0
   m_ApplyToChildren: 1
   m_AffectedAgents: ffffffff
+--- !u!114 &242014624
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 242014620}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5e3762ec8134e4ca3609a8657a8479f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldMapContentScope
+  mapId: 1-1
 --- !u!21 &255875039
 Material:
   serializedVersion: 8
@@ -15360,7 +15377,10 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8339096636901001305, guid: 3537402cb555e244a91165074dca20d4, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1649013084}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3593258676665491872, guid: 3537402cb555e244a91165074dca20d4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1214927556}
   m_SourcePrefab: {fileID: 100100000, guid: 3537402cb555e244a91165074dca20d4, type: 3}
 --- !u!1 &591544082
 GameObject:
@@ -16348,7 +16368,7 @@ Transform:
   m_GameObject: {fileID: 764007710}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 4.9387703, z: 0}
+  m_LocalPosition: {x: 0, y: 4.75, z: 0}
   m_LocalScale: {x: 7, y: 9.5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -26280,6 +26300,7 @@ GameObject:
   m_Component:
   - component: {fileID: 783252366}
   - component: {fileID: 783252365}
+  - component: {fileID: 783252367}
   m_Layer: 0
   m_Name: BoxSpawner
   m_TagString: Untagged
@@ -26305,9 +26326,11 @@ MonoBehaviour:
   navMeshSampleDistance: 3
   spawnCenter: {fileID: 0}
   additionalWaterlineOffset: 0.15
+  requireWorldMapScope: 1
   respawnDelaySeconds: 15
   respawnRetryIntervalSeconds: 2
   spawnClearanceRadius: 12
+  pauseSpawningWhenMapEmpty: 1
 --- !u!4 &783252366
 Transform:
   m_ObjectHideFlags: 0
@@ -26323,6 +26346,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &783252367
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 783252364}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5e3762ec8134e4ca3609a8657a8479f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldMapContentScope
+  mapId: 1-1
 --- !u!4 &791407363 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8339096636901001305, guid: 3537402cb555e244a91165074dca20d4, type: 3}
@@ -28377,6 +28413,7 @@ GameObject:
   m_Component:
   - component: {fileID: 994057006}
   - component: {fileID: 994057005}
+  - component: {fileID: 994057007}
   m_Layer: 0
   m_Name: MonsterSpawner
   m_TagString: Untagged
@@ -28402,9 +28439,11 @@ MonoBehaviour:
   navMeshSampleDistance: 3
   spawnCenter: {fileID: 0}
   additionalWaterlineOffset: 0.1
+  requireWorldMapScope: 1
   respawnDelaySeconds: 30
   respawnRetryIntervalSeconds: 2
   spawnClearanceRadius: 16
+  pauseSpawningWhenMapEmpty: 1
 --- !u!4 &994057006
 Transform:
   m_ObjectHideFlags: 0
@@ -28420,6 +28459,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &994057007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 994057004}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5e3762ec8134e4ca3609a8657a8479f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldMapContentScope
+  mapId: 1-1
 --- !u!114 &1012376367
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -29407,8 +29459,28 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 781755007923549935, guid: f446dd614df8c50459d662e3b86cae6f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1021497052}
   m_SourcePrefab: {fileID: 100100000, guid: f446dd614df8c50459d662e3b86cae6f, type: 3}
+--- !u!1 &1021497051 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 781755007923549935, guid: f446dd614df8c50459d662e3b86cae6f, type: 3}
+  m_PrefabInstance: {fileID: 1021497050}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1021497052
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1021497051}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b987748c7167541c7be359b052530b17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DoNotDestroy
 --- !u!1 &1036872915
 GameObject:
   m_ObjectHideFlags: 0
@@ -35032,6 +35104,24 @@ MonoBehaviour:
   respawnBlockedDistance: 50
   overrideRespawnJitterRadius: 0
   respawnJitterRadius: 12
+--- !u!1 &1214927553 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3593258676665491872, guid: 3537402cb555e244a91165074dca20d4, type: 3}
+  m_PrefabInstance: {fileID: 588181097}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1214927556
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1214927553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5e3762ec8134e4ca3609a8657a8479f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldMapContentScope
+  mapId: 1-1
 --- !u!114 &1259745287
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -35685,6 +35775,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2598354506897584755, guid: 3ecffa78d53746448b35bbb9341352be, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1277723301}
+    - targetCorrespondingSourceObject: {fileID: 2598354506897584755, guid: 3ecffa78d53746448b35bbb9341352be, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1277723302}
   m_SourcePrefab: {fileID: 100100000, guid: 3ecffa78d53746448b35bbb9341352be, type: 3}
 --- !u!1 &1277723300 stripped
 GameObject:
@@ -35721,6 +35814,7 @@ MonoBehaviour:
   viewportProjectionHeight: 0
   viewportBorderColor: {r: 0.98, g: 0.95, b: 0.55, a: 0.92}
   viewportBorderWidth: 1.8
+  cameraControllerOverride: {fileID: 0}
   edgePadding: 0.08
   markerWorldYOffset: 1
   playerMarkerSize: 11
@@ -35728,6 +35822,18 @@ MonoBehaviour:
   actorRefreshInterval: 0.6
   showPlayers: 1
   showNpcs: 1
+--- !u!114 &1277723302
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1277723300}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b987748c7167541c7be359b052530b17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DoNotDestroy
 --- !u!1 &1302968584
 GameObject:
   m_ObjectHideFlags: 0
@@ -38247,7 +38353,7 @@ MonoBehaviour:
       m_warpIterations: 0
       m_warpStrength: 1
       m_warpOffset: {x: 0, y: 0, z: 0, w: 0}
-    m_noiseSettings: {fileID: 180144632}
+    m_noiseSettings: {fileID: 1810480963}
     m_noiseToolSettings:
       worldHeightRemap: {x: 0, y: 0}
       coordSpace: 0
@@ -40518,8 +40624,28 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3594494488815086760, guid: 481f854f045e1ca449c03abb2c65e604, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1459275147}
   m_SourcePrefab: {fileID: 100100000, guid: 481f854f045e1ca449c03abb2c65e604, type: 3}
+--- !u!1 &1459275146 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3594494488815086760, guid: 481f854f045e1ca449c03abb2c65e604, type: 3}
+  m_PrefabInstance: {fileID: 1459275145}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1459275147
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1459275146}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b987748c7167541c7be359b052530b17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DoNotDestroy
 --- !u!1 &1461772104
 GameObject:
   m_ObjectHideFlags: 0
@@ -52858,8 +52984,28 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8239001718347193732, guid: ba00ee222095edd42a5ef78141b1b78a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1770687185}
   m_SourcePrefab: {fileID: 100100000, guid: ba00ee222095edd42a5ef78141b1b78a, type: 3}
+--- !u!1 &1770687184 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8239001718347193732, guid: ba00ee222095edd42a5ef78141b1b78a, type: 3}
+  m_PrefabInstance: {fileID: 1770687183}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1770687185
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1770687184}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b987748c7167541c7be359b052530b17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DoNotDestroy
 --- !u!114 &1775854590
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -54302,6 +54448,8 @@ MonoBehaviour:
   navMeshSurface: {fileID: 0}
   rebuildWhenTriangulationIsEmpty: 1
   logWhenBuilt: 1
+  fitToLoadedWorldMapScenes: 1
+  worldMapBoundsPadding: 0
 --- !u!65 &1796478650
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -54370,6 +54518,30 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1810480963
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cba17d399ab86974c8ef9551f6e8f8d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: GaiaCore::Gaia.NoiseSettings
+  transformSettings:
+    translation: {x: 500, y: 200, z: 350}
+    scale: {x: 7.8125, y: 1, z: 7.8125}
+    rotation: {x: 0, y: 0, z: 0}
+    flipScaleX: 0
+    flipScaleY: 0
+    flipScaleZ: 0
+  domainSettings:
+    noiseTypeName: Perlin
+    fractalTypeName: Fbm
+    noiseTypeParams: 
+    fractalTypeParams: '{"warpOffsets":{"x":0.0,"y":0.0,"z":0.0,"w":0.0},"octavesMinMax":{"x":0.0,"y":16.0},"amplitudeMinMax":{"x":0.0,"y":1.0},"frequencyMinMax":{"x":0.0,"y":2.0},"lacunarityMinMax":{"x":0.0,"y":4.0},"persistenceMinMax":{"x":0.0,"y":1.0},"warpIterationsMinMax":{"x":0.0,"y":8.0},"warpStrengthMinMax":{"x":-2.0,"y":2.0},"octaves":8.0,"amplitude":0.38199999928474429,"frequency":1.0,"persistence":0.5,"lacunarity":1.5,"warpIterations":0.0,"warpStrength":1.0,"warpEnabled":false,"warpExpanded":true}'
 --- !u!1 &1814351237
 GameObject:
   m_ObjectHideFlags: 0
@@ -61173,6 +61345,7 @@ GameObject:
   - component: {fileID: 1952405930}
   - component: {fileID: 1952405929}
   - component: {fileID: 1952405928}
+  - component: {fileID: 1952405931}
   m_Layer: 0
   m_Name: CaptainBarakVaneMarker
   m_TagString: Untagged
@@ -61236,6 +61409,19 @@ Transform:
   - {fileID: 764007711}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1952405931
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1952405927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5e3762ec8134e4ca3609a8657a8479f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldMapContentScope
+  mapId: 1-1
 --- !u!1 &1955125264
 GameObject:
   m_ObjectHideFlags: 0
@@ -63394,6 +63580,9 @@ MonoBehaviour:
   catalog: {fileID: 11400000, guid: 2ef3078a58b04ae3a8172392059d9b03, type: 2}
   startingMapId: 1-1
   loadCatalogScenesAtRuntime: 1
+  preferNetcodeSceneManagement: 1
+  useAdditiveClientSynchronization: 1
+  keepNonNetworkScenesLoadedOnClients: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

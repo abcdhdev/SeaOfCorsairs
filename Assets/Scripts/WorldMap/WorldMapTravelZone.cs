@@ -31,9 +31,16 @@ public sealed class WorldMapTravelZone
             return false;
         }
 
-        Vector3 localPosition = root.InverseTransformPoint(worldPosition);
-        Bounds bounds = new(center, size);
-        return bounds.Contains(localPosition);
+        return ContainsLocal(root.InverseTransformPoint(worldPosition));
+    }
+
+    public bool ContainsLocal(Vector3 localPosition)
+    {
+        Vector3 extents = size * 0.5f;
+        return localPosition.x >= center.x - extents.x &&
+               localPosition.x <= center.x + extents.x &&
+               localPosition.z >= center.z - extents.z &&
+               localPosition.z <= center.z + extents.z;
     }
 
     public Vector3 GetWorldCenter(Transform root)

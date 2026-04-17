@@ -15,6 +15,9 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
     [SerializeField] private Vector3 playableBoundsCenter = Vector3.zero;
     [SerializeField] private Vector3 playableBoundsSize = new(512f, 20f, 512f);
 
+    [Header("Runtime Space")]
+    [SerializeField] private bool useSharedGameplaySpace;
+
     [Header("Travel Settings")]
     [SerializeField, Min(1f)] private float edgePromptThreshold = 30f;
     [SerializeField, Min(1f)] private float arrivalInset = 40f;
@@ -50,6 +53,11 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
     public IReadOnlyList<MonsterSpawner> MonsterSpawners => monsterSpawners;
     public IReadOnlyList<SeaRewardBoxSpawner> RewardBoxSpawners => rewardBoxSpawners;
 
+    private readonly Dictionary<Renderer, bool> localRendererEnabledStates = new();
+    private readonly Dictionary<Behaviour, bool> localBehaviourEnabledStates = new();
+    private bool localSceneContentVisibilityInitialized;
+    private bool localSceneContentVisible = true;
+
     private void OnEnable()
     {
         if (Application.isPlaying)
@@ -76,6 +84,11 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
 
     public Bounds GetPlayableBoundsWorld()
     {
+        if (useSharedGameplaySpace)
+        {
+            return GetPlayableBoundsGameplayLocal();
+        }
+
         Matrix4x4 matrix = Matrix4x4.TRS(transform.position, transform.rotation, transform.lossyScale);
         Vector3 worldCenter = matrix.MultiplyPoint3x4(playableBoundsCenter);
         Vector3 worldAxisX = Abs(matrix.MultiplyVector(Vector3.right * playableBoundsSize.x));
@@ -83,6 +96,51 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
         Vector3 worldAxisZ = Abs(matrix.MultiplyVector(Vector3.forward * playableBoundsSize.z));
         Vector3 worldSize = worldAxisX + worldAxisY + worldAxisZ;
         return new Bounds(worldCenter, worldSize);
+    }
+
+    public Vector3 WorldToGameplayLocal(Vector3 worldPosition)
+    {
+        return useSharedGameplaySpace
+            ? worldPosition
+            : transform.InverseTransformPoint(worldPosition);
+    }
+
+    public Vector3 GameplayLocalToWorld(Vector3 localPosition)
+    {
+        return useSharedGameplaySpace
+            ? localPosition
+            : transform.TransformPoint(localPosition);
+    }
+
+    public Quaternion GameplayLocalToWorldRotation(Quaternion localRotation)
+    {
+        return useSharedGameplaySpace
+            ? localRotation
+            : transform.rotation * localRotation;
+    }
+
+    public bool IsWithinPlayableBounds(Vector3 worldPosition, float padding = 0f)
+    {
+        Bounds localBounds = GetPlayableBoundsGameplayLocal();
+        float resolvedPadding = ResolvePlayableBoundsPadding(localBounds, padding);
+        Vector3 localPosition = WorldToGameplayLocal(worldPosition);
+
+        return localPosition.x >= localBounds.min.x + resolvedPadding &&
+               localPosition.x <= localBounds.max.x - resolvedPadding &&
+               localPosition.z >= localBounds.min.z + resolvedPadding &&
+               localPosition.z <= localBounds.max.z - resolvedPadding;
+    }
+
+    public Vector3 ClampWorldPositionToPlayableBounds(Vector3 worldPosition, float padding = 0f)
+    {
+        Bounds localBounds = GetPlayableBoundsGameplayLocal();
+        float resolvedPadding = ResolvePlayableBoundsPadding(localBounds, padding);
+        Vector3 localPosition = WorldToGameplayLocal(worldPosition);
+
+        localPosition.x = Mathf.Clamp(localPosition.x, localBounds.min.x + resolvedPadding, localBounds.max.x - resolvedPadding);
+        localPosition.z = Mathf.Clamp(localPosition.z, localBounds.min.z + resolvedPadding, localBounds.max.z - resolvedPadding);
+
+        return GameplayLocalToWorld(localPosition);
     }
 
     public bool TryGetTravelZone(MapTransitionDirection direction, out WorldMapTravelZone zone)
@@ -111,7 +169,7 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
     {
         return TryGetTravelZone(direction, out WorldMapTravelZone zone) &&
                zone != null &&
-               zone.Contains(transform, worldPosition);
+               zone.ContainsLocal(WorldToGameplayLocal(worldPosition));
     }
 
     public bool TryGetPromptDirection(Vector3 worldPosition, out MapTransitionDirection direction)
@@ -119,6 +177,7 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
         direction = default;
         bool found = false;
         float bestDistanceSqr = float.MaxValue;
+        Vector3 localPosition = WorldToGameplayLocal(worldPosition);
         MapTransitionDirection[] directions =
         {
             MapTransitionDirection.North,
@@ -132,12 +191,14 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
             MapTransitionDirection candidateDirection = directions[index];
             if (!TryGetTravelZone(candidateDirection, out WorldMapTravelZone zone) ||
                 zone == null ||
-                !zone.Contains(transform, worldPosition))
+                !zone.ContainsLocal(localPosition))
             {
                 continue;
             }
 
-            float candidateDistanceSqr = (zone.GetWorldCenter(transform) - worldPosition).sqrMagnitude;
+            Vector3 localDelta = zone.Center - localPosition;
+            localDelta.y = 0f;
+            float candidateDistanceSqr = localDelta.sqrMagnitude;
             if (!found || candidateDistanceSqr < bestDistanceSqr)
             {
                 found = true;
@@ -153,13 +214,13 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
     {
         if (respawnAnchor != null)
         {
-            position = respawnAnchor.position;
-            rotation = respawnAnchor.rotation;
+            position = GetAuthoredTransformGameplayPosition(respawnAnchor);
+            rotation = GetAuthoredTransformGameplayRotation(respawnAnchor);
             return true;
         }
 
-        position = transform.TransformPoint(playableBoundsCenter);
-        rotation = transform.rotation;
+        position = GameplayLocalToWorld(playableBoundsCenter);
+        rotation = GameplayLocalToWorldRotation(Quaternion.identity);
         return true;
     }
 
@@ -167,60 +228,81 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
     {
         if (TryGetArrivalAnchor(incomingDirection, out Transform arrivalAnchor))
         {
-            position = arrivalAnchor.position;
-            rotation = arrivalAnchor.rotation;
+            position = GetAuthoredTransformGameplayPosition(arrivalAnchor);
+            rotation = GetAuthoredTransformGameplayRotation(arrivalAnchor);
             return true;
         }
 
-        Bounds playableBounds = GetPlayableBoundsWorld();
+        Bounds playableBounds = GetPlayableBoundsGameplayLocal();
         Vector2 clampRange = OrthogonalClampNormalized;
         float clampedOrthogonal = Mathf.Clamp(normalizedOrthogonal, clampRange.x, clampRange.y);
         float resolvedInset = Mathf.Min(ArrivalInset, Mathf.Max(1f, Mathf.Min(playableBounds.extents.x, playableBounds.extents.z) - 1f));
-        float y = respawnAnchor != null ? respawnAnchor.position.y : playableBounds.center.y;
+        float y = respawnAnchor != null ? GetAuthoredTransformLocalPosition(respawnAnchor).y : playableBounds.center.y;
+        Vector3 localPosition;
+        Quaternion localRotation;
 
         switch (incomingDirection)
         {
             case MapTransitionDirection.North:
-                position = new Vector3(
+                localPosition = new Vector3(
                     Mathf.Lerp(playableBounds.min.x, playableBounds.max.x, clampedOrthogonal),
                     y,
                     playableBounds.max.z - resolvedInset);
-                rotation = Quaternion.LookRotation(Vector3.back, Vector3.up);
+                localRotation = Quaternion.LookRotation(Vector3.back, Vector3.up);
+                position = GameplayLocalToWorld(localPosition);
+                rotation = GameplayLocalToWorldRotation(localRotation);
                 return true;
             case MapTransitionDirection.East:
-                position = new Vector3(
+                localPosition = new Vector3(
                     playableBounds.max.x - resolvedInset,
                     y,
                     Mathf.Lerp(playableBounds.min.z, playableBounds.max.z, clampedOrthogonal));
-                rotation = Quaternion.LookRotation(Vector3.left, Vector3.up);
+                localRotation = Quaternion.LookRotation(Vector3.left, Vector3.up);
+                position = GameplayLocalToWorld(localPosition);
+                rotation = GameplayLocalToWorldRotation(localRotation);
                 return true;
             case MapTransitionDirection.South:
-                position = new Vector3(
+                localPosition = new Vector3(
                     Mathf.Lerp(playableBounds.min.x, playableBounds.max.x, clampedOrthogonal),
                     y,
                     playableBounds.min.z + resolvedInset);
-                rotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
+                localRotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
+                position = GameplayLocalToWorld(localPosition);
+                rotation = GameplayLocalToWorldRotation(localRotation);
                 return true;
             case MapTransitionDirection.West:
-                position = new Vector3(
+                localPosition = new Vector3(
                     playableBounds.min.x + resolvedInset,
                     y,
                     Mathf.Lerp(playableBounds.min.z, playableBounds.max.z, clampedOrthogonal));
-                rotation = Quaternion.LookRotation(Vector3.right, Vector3.up);
+                localRotation = Quaternion.LookRotation(Vector3.right, Vector3.up);
+                position = GameplayLocalToWorld(localPosition);
+                rotation = GameplayLocalToWorldRotation(localRotation);
                 return true;
             default:
-                position = respawnAnchor != null ? respawnAnchor.position : transform.position;
-                rotation = respawnAnchor != null ? respawnAnchor.rotation : transform.rotation;
+                position = respawnAnchor != null ? GetAuthoredTransformGameplayPosition(respawnAnchor) : GameplayLocalToWorld(playableBoundsCenter);
+                rotation = respawnAnchor != null ? GetAuthoredTransformGameplayRotation(respawnAnchor) : GameplayLocalToWorldRotation(Quaternion.identity);
                 return false;
         }
     }
 
     public float GetNormalizedOrthogonalPosition(MapTransitionDirection direction, Vector3 worldPosition)
     {
-        Bounds bounds = GetPlayableBoundsWorld();
+        Bounds bounds = GetPlayableBoundsGameplayLocal();
+        Vector3 localPosition = WorldToGameplayLocal(worldPosition);
         return direction == MapTransitionDirection.North || direction == MapTransitionDirection.South
-            ? Mathf.InverseLerp(bounds.min.x, bounds.max.x, worldPosition.x)
-            : Mathf.InverseLerp(bounds.min.z, bounds.max.z, worldPosition.z);
+            ? Mathf.InverseLerp(bounds.min.x, bounds.max.x, localPosition.x)
+            : Mathf.InverseLerp(bounds.min.z, bounds.max.z, localPosition.z);
+    }
+
+    public void SetLocalSceneContentVisible(bool visible)
+    {
+        if (!localSceneContentVisibilityInitialized || localSceneContentVisible != visible)
+        {
+            localSceneContentVisibilityInitialized = true;
+            localSceneContentVisible = visible;
+            ApplyLocalSceneContentVisibility(visible);
+        }
     }
 
     public List<string> ValidateAuthoring(WorldMapCatalog catalog = null)
@@ -308,6 +390,84 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
             default:
                 anchor = null;
                 return false;
+        }
+    }
+
+    private Bounds GetPlayableBoundsGameplayLocal()
+    {
+        return new Bounds(playableBoundsCenter, playableBoundsSize);
+    }
+
+    private Vector3 GetAuthoredTransformGameplayPosition(Transform authoredTransform)
+    {
+        return authoredTransform != null
+            ? GameplayLocalToWorld(GetAuthoredTransformLocalPosition(authoredTransform))
+            : GameplayLocalToWorld(playableBoundsCenter);
+    }
+
+    private Quaternion GetAuthoredTransformGameplayRotation(Transform authoredTransform)
+    {
+        return authoredTransform != null
+            ? GameplayLocalToWorldRotation(GetAuthoredTransformLocalRotation(authoredTransform))
+            : GameplayLocalToWorldRotation(Quaternion.identity);
+    }
+
+    private Vector3 GetAuthoredTransformLocalPosition(Transform authoredTransform)
+    {
+        return authoredTransform != null
+            ? transform.InverseTransformPoint(authoredTransform.position)
+            : playableBoundsCenter;
+    }
+
+    private Quaternion GetAuthoredTransformLocalRotation(Transform authoredTransform)
+    {
+        return authoredTransform != null
+            ? Quaternion.Inverse(transform.rotation) * authoredTransform.rotation
+            : Quaternion.identity;
+    }
+
+    private void ApplyLocalSceneContentVisibility(bool visible)
+    {
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+        for (int index = 0; index < renderers.Length; index++)
+        {
+            Renderer renderer = renderers[index];
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            if (!localRendererEnabledStates.TryGetValue(renderer, out bool authoredEnabled))
+            {
+                authoredEnabled = renderer.enabled;
+                localRendererEnabledStates[renderer] = authoredEnabled;
+            }
+
+            renderer.enabled = visible && authoredEnabled;
+        }
+
+        SetLocalBehaviourVisibility(GetComponentsInChildren<Terrain>(true), visible);
+        SetLocalBehaviourVisibility(GetComponentsInChildren<Light>(true), visible);
+        SetLocalBehaviourVisibility(GetComponentsInChildren<AudioSource>(true), visible);
+    }
+
+    private void SetLocalBehaviourVisibility<T>(T[] behaviours, bool visible) where T : Behaviour
+    {
+        for (int index = 0; index < behaviours.Length; index++)
+        {
+            T behaviour = behaviours[index];
+            if (behaviour == null)
+            {
+                continue;
+            }
+
+            if (!localBehaviourEnabledStates.TryGetValue(behaviour, out bool authoredEnabled))
+            {
+                authoredEnabled = behaviour.enabled;
+                localBehaviourEnabledStates[behaviour] = authoredEnabled;
+            }
+
+            behaviour.enabled = visible && authoredEnabled;
         }
     }
 
@@ -438,20 +598,38 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
 
     private void AutoPopulateSpawnerReferences()
     {
-        if (npcSpawners == null || npcSpawners.Length == 0)
+        if (NeedsSpawnerReferenceRefresh(npcSpawners))
         {
             npcSpawners = GetComponentsInChildren<NPCSpawner>(true);
         }
 
-        if (monsterSpawners == null || monsterSpawners.Length == 0)
+        if (NeedsSpawnerReferenceRefresh(monsterSpawners))
         {
             monsterSpawners = GetComponentsInChildren<MonsterSpawner>(true);
         }
 
-        if (rewardBoxSpawners == null || rewardBoxSpawners.Length == 0)
+        if (NeedsSpawnerReferenceRefresh(rewardBoxSpawners))
         {
             rewardBoxSpawners = GetComponentsInChildren<SeaRewardBoxSpawner>(true);
         }
+    }
+
+    private static bool NeedsSpawnerReferenceRefresh<T>(T[] references) where T : Component
+    {
+        if (references == null || references.Length == 0)
+        {
+            return true;
+        }
+
+        for (int index = 0; index < references.Length; index++)
+        {
+            if (references[index] == null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void DrawAnchorGizmo(Transform anchor, Color color)
@@ -471,6 +649,12 @@ public sealed class WorldMapSceneAuthoring : MonoBehaviour
     private static Vector3 Abs(Vector3 value)
     {
         return new Vector3(Mathf.Abs(value.x), Mathf.Abs(value.y), Mathf.Abs(value.z));
+    }
+
+    private static float ResolvePlayableBoundsPadding(Bounds bounds, float padding)
+    {
+        float maxPadding = Mathf.Max(0f, Mathf.Min(bounds.extents.x, bounds.extents.z) - 0.01f);
+        return Mathf.Clamp(padding, 0f, maxPadding);
     }
 
 #if UNITY_EDITOR

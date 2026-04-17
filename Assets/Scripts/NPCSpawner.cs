@@ -56,6 +56,7 @@ public class NPCSpawner : NetworkBehaviour
     [SerializeField] private bool includeChildSpawnPoints = true;
     [SerializeField] private List<NpcSpawnPoint> authoredSpawnPoints = new();
     [SerializeField, Min(0f)] private float additionalWaterlineOffset = 0.1f;
+    [SerializeField] private bool requireWorldMapScope = true;
 
     [Header("Respawn Settings")]
     [SerializeField, Min(0.5f)] private float defaultRespawnDelaySeconds = 20f;
@@ -75,6 +76,7 @@ public class NPCSpawner : NetworkBehaviour
     private bool waterSurfaceDataCached;
     private float cachedWaterSurfaceY = float.NaN;
     private bool definitionsRegistered;
+    private bool missingWorldMapScopeWarningLogged;
 
     private void Awake()
     {
@@ -137,6 +139,12 @@ public class NPCSpawner : NetworkBehaviour
         if (!TryResolveNpcNetworkPrefab(out resolvedNpcNetworkPrefab))
         {
             Debug.LogError("NPCSpawner: Could not resolve a valid npcNetworkPrefab. Assign a prefab with NPC + NetworkObject components, or register one in NetworkManager NetworkPrefabs.");
+            return;
+        }
+
+        if (requireWorldMapScope && !TryResolveWorldMapId(out _))
+        {
+            LogMissingWorldMapScopeWarning();
             return;
         }
 
@@ -372,6 +380,17 @@ public class NPCSpawner : NetworkBehaviour
             return false;
         }
 
+        if (!TryResolveWorldMapId(out string mapId))
+        {
+            if (requireWorldMapScope)
+            {
+                LogMissingWorldMapScopeWarning();
+                return false;
+            }
+
+            mapId = string.Empty;
+        }
+
         if (!TryResolveRespawnPosition(slot, out Vector3 spawnPosition, ignorePlayerClearance))
         {
             Debug.LogWarning($"NPCSpawner: Failed to resolve a valid respawn position for slot {slot.SlotId}.");
@@ -388,8 +407,7 @@ public class NPCSpawner : NetworkBehaviour
         }
 
         npcComponent.BindSpawnSlot(this, slot.SlotId, slot.HomePosition, slot.HomeRotation);
-        if (WorldMapManager.Instance != null &&
-            WorldMapManager.Instance.TryGetMapId(this, out string mapId))
+        if (!string.IsNullOrWhiteSpace(mapId))
         {
             npcComponent.SetWorldMapIdFromServer(mapId);
         }
@@ -1101,5 +1119,22 @@ public class NPCSpawner : NetworkBehaviour
 
         NpcDefinitionRegistry.Unregister(npcDefinitions);
         definitionsRegistered = false;
+    }
+
+    private bool TryResolveWorldMapId(out string mapId)
+    {
+        return WorldMapMembershipUtility.TryGetMapId(this, out mapId) &&
+               !string.IsNullOrWhiteSpace(mapId);
+    }
+
+    private void LogMissingWorldMapScopeWarning()
+    {
+        if (missingWorldMapScopeWarningLogged)
+        {
+            return;
+        }
+
+        missingWorldMapScopeWarningLogged = true;
+        Debug.LogWarning("NPCSpawner: Spawner is not inside a WorldMapSceneAuthoring scene. Move it under a map scene root or disable requireWorldMapScope.", this);
     }
 }

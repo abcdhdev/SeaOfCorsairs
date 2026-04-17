@@ -3,6 +3,7 @@
     <ui:VisualElement name="HudRoot" picking-mode="Ignore" class="hud-root">
         <ui:VisualElement name="TopBarMount" picking-mode="Ignore"/>
         <ui:VisualElement name="WorldMapTravelPromptMount" picking-mode="Ignore"/>
+        <ui:VisualElement name="WorldMapTravelDebugMount" picking-mode="Ignore"/>
         <ui:VisualElement name="ActiveActionItemsMount" picking-mode="Ignore"/>
         <ui:VisualElement name="MinimapMount" picking-mode="Ignore"/>
         <ui:VisualElement name="CoordinateRulerMount" picking-mode="Ignore"/>

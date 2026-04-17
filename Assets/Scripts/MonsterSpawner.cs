@@ -22,6 +22,7 @@ public sealed class MonsterSpawner : MonoBehaviour
     [SerializeField, Min(0.1f)] private float navMeshSampleDistance = 3f;
     [SerializeField] private Transform spawnCenter;
     [SerializeField, Min(0f)] private float additionalWaterlineOffset = 0.1f;
+    [SerializeField] private bool requireWorldMapScope = true;
 
     [Header("Respawn Settings")]
     [SerializeField, Min(0.5f)] private float respawnDelaySeconds = 30f;
@@ -31,6 +32,7 @@ public sealed class MonsterSpawner : MonoBehaviour
 
     private readonly Dictionary<int, SpawnSlotRuntime> spawnSlots = new();
     private bool serverInitialized;
+    private bool missingWorldMapScopeWarningLogged;
     private int walkableAreaMask;
 
     private void OnEnable()
@@ -105,6 +107,12 @@ public sealed class MonsterSpawner : MonoBehaviour
             return;
         }
 
+        if (requireWorldMapScope && !TryResolveWorldMapId(out _))
+        {
+            LogMissingWorldMapScopeWarning();
+            return;
+        }
+
         walkableAreaMask = SeaSpawnSurfaceUtility.ResolveWalkableAreaMask();
         InitializeSpawnSlots();
         serverInitialized = true;
@@ -135,6 +143,17 @@ public sealed class MonsterSpawner : MonoBehaviour
         if (slot == null || monsterNetworkPrefab == null)
         {
             return false;
+        }
+
+        if (!TryResolveWorldMapId(out string mapId))
+        {
+            if (requireWorldMapScope)
+            {
+                LogMissingWorldMapScopeWarning();
+                return false;
+            }
+
+            mapId = string.Empty;
         }
 
         if (pauseSpawningWhenMapEmpty && !WorldMapSceneActivityUtility.HasActivePlayersOnMap(this))
@@ -171,8 +190,7 @@ public sealed class MonsterSpawner : MonoBehaviour
         }
 
         monster.BindSpawnSlot(this, slot.SlotId);
-        if (WorldMapManager.Instance != null &&
-            WorldMapManager.Instance.TryGetMapId(this, out string mapId))
+        if (!string.IsNullOrWhiteSpace(mapId))
         {
             monster.SetWorldMapIdFromServer(mapId);
         }
@@ -318,5 +336,22 @@ public sealed class MonsterSpawner : MonoBehaviour
         {
             Prefab = prefab
         });
+    }
+
+    private bool TryResolveWorldMapId(out string mapId)
+    {
+        return WorldMapMembershipUtility.TryGetMapId(this, out mapId) &&
+               !string.IsNullOrWhiteSpace(mapId);
+    }
+
+    private void LogMissingWorldMapScopeWarning()
+    {
+        if (missingWorldMapScopeWarningLogged)
+        {
+            return;
+        }
+
+        missingWorldMapScopeWarningLogged = true;
+        Debug.LogWarning("MonsterSpawner: Spawner is not inside a WorldMapSceneAuthoring scene. Move it under a map scene root or disable requireWorldMapScope.", this);
     }
 }

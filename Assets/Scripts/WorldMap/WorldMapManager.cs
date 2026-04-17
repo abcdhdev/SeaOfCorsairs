@@ -183,6 +183,13 @@ public sealed class WorldMapManager : MonoBehaviour
             return !string.IsNullOrWhiteSpace(mapId);
         }
 
+        WorldMapContentScope contentScope = target.GetComponentInParent<WorldMapContentScope>();
+        if (contentScope != null)
+        {
+            mapId = contentScope.MapId;
+            return !string.IsNullOrWhiteSpace(mapId);
+        }
+
         Scene targetScene = target.gameObject.scene;
         if (targetScene.IsValid() && targetScene.isLoaded)
         {
@@ -224,8 +231,7 @@ public sealed class WorldMapManager : MonoBehaviour
 
         if (!TryGetCurrentScene(player, out WorldMapSceneAuthoring currentScene) ||
             !currentScene.TryGetPromptDirection(player.transform.position, out direction) ||
-            !TryGetAdjacentDefinition(player.CurrentWorldMapId, direction, out WorldMapDefinition destination) ||
-            !TryGetLoadedScene(destination.MapId, out _))
+            !TryGetAdjacentDefinition(player.CurrentWorldMapId, direction, out WorldMapDefinition destination))
         {
             return false;
         }
@@ -254,6 +260,38 @@ public sealed class WorldMapManager : MonoBehaviour
         }
 
         float normalizedOrthogonal = currentScene.GetNormalizedOrthogonalPosition(direction, player.transform.position);
+        if (!destinationScene.TryResolveTravelDestination(direction.GetOpposite(), normalizedOrthogonal, out destinationPosition, out destinationRotation))
+        {
+            return false;
+        }
+
+        destinationMapId = destinationDefinition.MapId;
+        return !string.IsNullOrWhiteSpace(destinationMapId);
+    }
+
+    public bool TryResolveDebugTravel(Player player, MapTransitionDirection direction, float fallbackNormalizedOrthogonal, out string destinationMapId, out Vector3 destinationPosition, out Quaternion destinationRotation)
+    {
+        destinationMapId = string.Empty;
+        destinationPosition = default;
+        destinationRotation = Quaternion.identity;
+
+        if (player == null || player.IsDead)
+        {
+            return false;
+        }
+
+        if (!TryGetAdjacentDefinition(player.CurrentWorldMapId, direction, out WorldMapDefinition destinationDefinition) ||
+            !TryGetLoadedScene(destinationDefinition.MapId, out WorldMapSceneAuthoring destinationScene))
+        {
+            return false;
+        }
+
+        float normalizedOrthogonal = Mathf.Clamp01(fallbackNormalizedOrthogonal);
+        if (TryGetCurrentScene(player, out WorldMapSceneAuthoring currentScene) && currentScene != null)
+        {
+            normalizedOrthogonal = Mathf.Clamp01(currentScene.GetNormalizedOrthogonalPosition(direction, player.transform.position));
+        }
+
         if (!destinationScene.TryResolveTravelDestination(direction.GetOpposite(), normalizedOrthogonal, out destinationPosition, out destinationRotation))
         {
             return false;

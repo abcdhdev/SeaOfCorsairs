@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="WorldMapTravelDebugRoot" class="world-map-travel-debug-root">
+        <ui:Label text="World Map Travel Debug" class="world-map-travel-debug-title"/>
+        <ui:Label name="WorldMapTravelDebugLocationLabel" text="Location: --" class="world-map-travel-debug-line"/>
+        <ui:Label name="WorldMapTravelDebugLocalLocationLabel" text="Map local: --" class="world-map-travel-debug-line"/>
+        <ui:Label name="WorldMapTravelDebugPromptLabel" text="Button should appear: --" class="world-map-travel-debug-line"/>
+        <ui:Label name="WorldMapTravelDebugReasonLabel" text="Reason: --" class="world-map-travel-debug-line world-map-travel-debug-reason"/>
+        <ui:Label name="WorldMapTravelDebugLastTransitionLabel" text="Last travel: --" class="world-map-travel-debug-line"/>
+        <ui:Label name="WorldMapTravelDebugResolutionLabel" text="Resolution: --" class="world-map-travel-debug-line"/>
+        <ui:Label name="WorldMapTravelDebugMovementProbeLabel" text="Move probe: --" class="world-map-travel-debug-line"/>
+    </ui:VisualElement>
+</ui:UXML>

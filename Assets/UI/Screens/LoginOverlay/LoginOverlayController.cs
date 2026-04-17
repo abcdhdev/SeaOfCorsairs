@@ -1,9 +1,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -1017,7 +1020,7 @@ public sealed class LoginOverlayController : MonoBehaviour
         EnsureConnectionApprovalEnabled();
 
 #if UNITY_EDITOR
-        bool started = NetworkManager.Singleton.StartHost();
+        bool started = TryStartEditorHost();
         if (!started)
         {
             Debug.LogWarning("LoginOverlayController: Failed to start Netcode host in Editor.");
@@ -1034,6 +1037,81 @@ public sealed class LoginOverlayController : MonoBehaviour
 
         return true;
     }
+
+#if UNITY_EDITOR
+    private static bool TryStartEditorHost()
+    {
+        if (NetworkManager.Singleton == null)
+        {
+            return false;
+        }
+
+        if (NetworkManager.Singleton.StartHost())
+        {
+            return true;
+        }
+
+        if (NetworkManager.Singleton.NetworkConfig?.NetworkTransport is not UnityTransport transport)
+        {
+            return false;
+        }
+
+        ushort originalPort = transport.ConnectionData.Port;
+        ushort fallbackPort = FindAvailableUdpPort(originalPort);
+        if (fallbackPort == 0 || fallbackPort == originalPort)
+        {
+            return false;
+        }
+
+        NetworkManager.Singleton.Shutdown();
+        transport.ConnectionData.Port = fallbackPort;
+        Debug.LogWarning($"LoginOverlayController: Port {originalPort} is unavailable in Editor. Retrying host on {fallbackPort}.");
+        return NetworkManager.Singleton.StartHost();
+    }
+
+    private static ushort FindAvailableUdpPort(ushort preferredPort)
+    {
+        const int maxAttempts = 32;
+
+        for (int offset = 1; offset <= maxAttempts; offset++)
+        {
+            int candidatePort = preferredPort + offset;
+            if (candidatePort > ushort.MaxValue)
+            {
+                break;
+            }
+
+            if (IsUdpPortAvailable((ushort)candidatePort))
+            {
+                return (ushort)candidatePort;
+            }
+        }
+
+        return 0;
+    }
+
+    private static bool IsUdpPortAvailable(ushort port)
+    {
+        Socket socket = null;
+        try
+        {
+            socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+            {
+                ExclusiveAddressUse = true
+            };
+            socket.Bind(new IPEndPoint(IPAddress.Any, port));
+            return true;
+        }
+        catch (SocketException)
+        {
+            return false;
+        }
+        finally
+        {
+            socket?.Dispose();
+        }
+    }
+#endif
 
     private static void EnsureConnectionApprovalEnabled()
     {

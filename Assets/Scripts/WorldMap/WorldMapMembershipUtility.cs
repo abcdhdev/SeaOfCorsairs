@@ -34,6 +34,12 @@ public static class WorldMapMembershipUtility
             return !string.IsNullOrWhiteSpace(mapId);
         }
 
+        if (target is SeaRewardBox rewardBox)
+        {
+            mapId = rewardBox.CurrentWorldMapId;
+            return !string.IsNullOrWhiteSpace(mapId);
+        }
+
         WorldMapManager manager = WorldMapManager.Instance;
         return manager != null && manager.TryGetMapId(target, out mapId);
     }

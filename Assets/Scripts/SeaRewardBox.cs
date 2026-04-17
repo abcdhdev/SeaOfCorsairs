@@ -1,3 +1,4 @@
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -10,17 +11,32 @@ public sealed class SeaRewardBox : NetworkBehaviour, ISeaEntity
     private SeaRewardBoxSpawner ownerSpawner;
     private int spawnSlotId = -1;
     private bool collected;
+    private readonly NetworkVariable<FixedString32Bytes> networkWorldMapId = new(
+        default,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
 
     public SeaEntityType EntityType => SeaEntityType.Box;
     public GameObject EntityGameObject => gameObject;
     public string DisplayName => string.IsNullOrWhiteSpace(boxName) ? "Box" : boxName.Trim();
     public int SpawnSlotId => spawnSlotId;
+    public string CurrentWorldMapId => WorldMapCatalog.NormalizeMapId(networkWorldMapId.Value.ToString());
 
     public void BindSpawnSlot(SeaRewardBoxSpawner spawner, int slotId)
     {
         ownerSpawner = spawner;
         spawnSlotId = slotId;
         collected = false;
+    }
+
+    public void SetWorldMapIdFromServer(string mapId)
+    {
+        if (!IsServer && (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer))
+        {
+            return;
+        }
+
+        networkWorldMapId.Value = new FixedString32Bytes(WorldMapCatalog.NormalizeMapId(mapId));
     }
 
     private void Awake()
