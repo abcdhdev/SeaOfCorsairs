@@ -10,10 +10,12 @@ using UnityEngine.AI;
 public class ClickToMove : NetworkBehaviour, IClickable
 {
     private const string WalkableAreaName = "Walkable";
+    private const float AgentRecoverySampleDistance = 128f;
 
     private NavMeshAgent navMeshAgent;
     private int walkableAreaMask = NavMesh.AllAreas;
     private NavMeshPath validatedPath;
+    private bool loggedMissingNavMesh;
 
     private void Awake()
     {
@@ -66,6 +68,11 @@ public class ClickToMove : NetworkBehaviour, IClickable
             return;
         }
 
+        if (!TryEnsureAgentOnNavMesh())
+        {
+            return;
+        }
+
         NavMeshHit hit;
         // Sample slightly larger radius to ensure clicks near edges work
         if (NavMesh.SamplePosition(position, out hit, 2.0f, walkableAreaMask) &&
@@ -79,7 +86,7 @@ public class ClickToMove : NetworkBehaviour, IClickable
     private void Update()
     {
         // Movement logic runs ONLY on Server
-        if (!IsServer || !navMeshAgent.enabled) return;
+        if (!IsServer || !navMeshAgent.enabled || !navMeshAgent.isOnNavMesh) return;
 
         // If we have a path and are moving
         if (navMeshAgent.hasPath)
@@ -115,5 +122,36 @@ public class ClickToMove : NetworkBehaviour, IClickable
                 navMeshAgent.velocity = navMeshAgent.desiredVelocity.normalized * navMeshAgent.speed;
             }
         }
+    }
+
+    private bool TryEnsureAgentOnNavMesh()
+    {
+        if (navMeshAgent == null || !navMeshAgent.enabled || !navMeshAgent.isActiveAndEnabled)
+        {
+            return false;
+        }
+
+        if (navMeshAgent.isOnNavMesh)
+        {
+            loggedMissingNavMesh = false;
+            return true;
+        }
+
+        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, AgentRecoverySampleDistance, walkableAreaMask) &&
+            navMeshAgent.Warp(hit.position))
+        {
+            loggedMissingNavMesh = false;
+            return true;
+        }
+
+        if (!loggedMissingNavMesh)
+        {
+            loggedMissingNavMesh = true;
+            Debug.LogWarning(
+                $"{nameof(ClickToMove)}: '{name}' is not on a NavMesh, so the move request was ignored.",
+                this);
+        }
+
+        return false;
     }
 }
